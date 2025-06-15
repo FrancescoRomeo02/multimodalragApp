@@ -2,7 +2,7 @@ import os
 import qdrant_client
 from unstructured.partition.pdf import partition_pdf
 
-from llama_index.core import VectorStoreIndex, StorageContext, Settings
+from llama_index.core import VectorStoreIndex, StorageContext, Settings, Document
 from llama_index.core.schema import TextNode
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.vector_stores.qdrant import QdrantVectorStore
@@ -16,81 +16,57 @@ from app.config import (
 )
 
 def index_document(pdf_path: str):
-    """
-    Orchestra un'indicizzazione di massima qualità usando 'unstructured' direttamente
-    per il parsing granulare e LlamaIndex per l'indicizzazione, con suddivisione
-    dei nodi troppo grandi.
-    """
-    print(f"\n--- Inizio indicizzazione di MASSIMA QUALITÀ per: {os.path.basename(pdf_path)} ---")
+    print(f"\nIndicizzazione PDF: {os.path.basename(pdf_path)}")
 
-    try:
-        # --- 1. Configurazione Globale di LlamaIndex ---
-        print("[*] Configurazione dei modelli...")
-        Settings.embed_model = get_embedding_model()
-        
-        # --- 2. Parsing Granulare Diretto con 'unstructured' ---
-        print(f"[*] Parsing granulare del PDF con 'unstructured' (strategy: hi_res)...")
-        
-        elements = partition_pdf(
-            filename=pdf_path,
-            strategy="hi_res",
-            infer_table_structure=True,
-            extract_images_in_pdf=False,
-            # --- RIMOSSO 'chunking_strategy' per ottenere elementi granulari ---
-        )
-        print(f"[*] Trovati {len(elements)} elementi strutturali (paragrafi, tabelle, titoli).")
+    # 1. Setup modello embedding, chunking
+    Settings.embed_model = get_embedding_model()
+    chunk_size = CHUNK_SIZE or 512
+    chunk_overlap = CHUNK_OVERLAP or 50
 
-        # --- 3. Trasformazione e Suddivisione Intelligente dei Nodi ---
-        print("[*] Trasformazione degli elementi in Nodi e suddivisione dei nodi troppo grandi...")
-        
-        splitter = SentenceSplitter(chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP)
-        
-        final_nodes = []
-        for element in elements:
-            if len(str(element)) < CHUNK_SIZE:
-                node = TextNode(
-                    text=str(element),
-                    metadata={
-                        "page_number": getattr(element.metadata, 'page_number', None),
-                        "element_type": str(type(element).__name__),
-                        "filename": str(element.metadata.filename)
-                    }
-                )
-                final_nodes.append(node)
-            else:
-                temp_doc_text = str(element)
-                text_chunks = splitter.split_text(temp_doc_text)
-                
-                for text_chunk in text_chunks:
-                    node = TextNode(
-                        text=text_chunk,
-                        metadata={
-                            "page_number": getattr(element.metadata, 'page_number', None),
-                            "element_type": str(type(element).__name__),
-                            "filename": str(element.metadata.filename)
-                        }
-                    )
-                    final_nodes.append(node)
-        
-        print(f"[*] Creati {len(final_nodes)} nodi finali dopo la suddivisione.")
+    # 2. Parsing granulare
+    elements = partition_pdf(
+        filename=pdf_path,
+        strategy="hi_res",
+        infer_table_structure=True,
+        extract_images_in_pdf=False,
+    )
 
-        # --- 4. Connessione a Qdrant ---
-        # ... (Questa parte non cambia) ...
-        print(f"[*] Connessione a Qdrant...")
-        client = qdrant_client.QdrantClient(url=QDRANT_URL)
-        vector_store = QdrantVectorStore(client=client, collection_name=COLLECTION_NAME)
-        storage_context = StorageContext.from_defaults(vector_store=vector_store)
+    # 3. Trasforma in Document con chunking
+    docs = []
+    splitter = SentenceSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
 
-        # --- 5. Indicizzazione dei Nodi Finali ---
-        print(f"[*] Indicizzazione di {len(final_nodes)} nodi granulari in Qdrant...")
-        VectorStoreIndex(
-            nodes=final_nodes,
-            storage_context=storage_context,
-            show_progress=True
-        )
+    for e in elements:
+        text = str(e)
+        chunks = [text] if len(text) <= chunk_size else splitter.split_text(text)
+        for chunk in chunks:
+            doc = Document(text=chunk, metadata={
+                "page": getattr(e.metadata, "page_number", None),
+                "type": type(e).__name__,
+                "filename": os.path.basename(pdf_path),
+            })
+            docs.append(doc)
 
-        print(f"--- Indicizzazione di massima qualità completata con successo! ---")
+    print(f"📄 Creati {len(docs)} documenti chunked")
 
-    except Exception as e:
-        print(f"[!!!] Errore critico durante l'indicizzazione: {e}")
-        raise e
+    # 4. Configura Qdrant (hybrid search)
+    client = qdrant_client.QdrantClient(url=QDRANT_URL)
+    vector_store = QdrantVectorStore(
+        client=client,
+        collection_name=COLLECTION_NAME,
+        enable_hybrid=True,
+        batch_size=20
+    )
+    storage_context = StorageContext.from_defaults(vector_store=vector_store)
+
+    # 5. Indicizzazione da documents
+    index = VectorStoreIndex.from_documents(
+        documents=docs,
+        storage_context=storage_context,
+        show_progress=True
+    )
+    print("✅ Indicizzazione completata con hybrid search")
+    return index
+
+if __name__ == "__main__":
+    file = '/Users/fraromeo/Documents/02_Areas/University/LM/LM_24-25/SEM2/MdCS/progetto 2.pdf'
+    index_document(file)

@@ -7,3 +7,4 @@ unstructured[pdf,local-inference]
 sentence-transformers
 pypdf
 llama-index-embeddings-jinaai
+fastembed
