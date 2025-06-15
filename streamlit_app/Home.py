@@ -9,6 +9,8 @@ if PROJECT_ROOT not in sys.path:
 from components.upload import upload_and_process_file
 from components.viewer import viewer
 
+from components.chat import get_rag_response
+
 st.set_page_config(page_title="MultimodalRAG", layout="wide")
 
 st.title("MultimodalRAG")
@@ -33,19 +35,19 @@ elif page == "Gestione Risorse":
     viewer()
 
 
-elif page == "Chat con il Bot":
+elif page == "Chat":
     st.header("Chatta con il Bot")
-    # TODO: integra la chat con il bot
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
-    user_input = st.text_input("Scrivi un messaggio:")
-    if st.button("Invia") and user_input:
-        # TODO: integra risposta del bot
-        st.session_state.chat_history.append(("Utente", user_input))
-        bot_response = "Risposta del bot (da implementare)"
-        st.session_state.chat_history.append(("Bot", bot_response))
-    for sender, message in st.session_state.chat_history:
-        st.markdown(f"**{sender}:** {message}")
+    st.info("Qui potrai interagire con il bot per ottenere risposte dai PDF caricati.")
+    query = st.text_input("Inserisci la tua domanda:")
+    if query:
+        response = get_rag_response(query)
+        st.subheader("Risposta del Bot:")
+        st.write(response['answer'])
+        
+        st.subheader("Fonti utilizzate:")
+        for source in response['sources']:
+            st.write(f"**Pagina:** {source['page']} - **Tipo:** {source['type']} - **Testo:** {source['text'][:200]}... (Score: {source['score']})")
+
 
 elif page == "Visualizzatore PDF":
     st.header("Visualizzatore PDF")

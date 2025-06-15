@@ -1,9 +1,7 @@
 import os
 import qdrant_client
 from unstructured.partition.pdf import partition_pdf
-
 from llama_index.core import VectorStoreIndex, StorageContext, Settings, Document
-from llama_index.core.schema import TextNode
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 

@@ -8,3 +8,4 @@ sentence-transformers
 pypdf
 llama-index-embeddings-jinaai
 fastembed
+llama-index-llms-groq
