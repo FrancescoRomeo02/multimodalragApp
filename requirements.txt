@@ -1,0 +1,9 @@
+llama-index
+llama-index-readers-file
+llama-index-embeddings-jinaai
+llama-index-vector-stores-qdrant
+qdrant-client
+unstructured[pdf,local-inference]
+sentence-transformers
+pypdf
+llama-index-embeddings-jinaai
