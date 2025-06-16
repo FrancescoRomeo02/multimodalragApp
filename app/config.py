@@ -19,7 +19,7 @@ EMBEDDING_DIM = 768
 
 # LLM Generativo (usando Groq)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-LLM_MODEL_NAME = "llama3-8b-8192"
+LLM_MODEL_NAME = "gemma2-9b-it"
 
 # Chunking
 CHUNK_SIZE = 1024

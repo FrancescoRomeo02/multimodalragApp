@@ -1,4 +1,0 @@
-data/raw/31 marzo 3.pdf
-data/raw/Data_Analytics___Progetto.pdf
-data/raw/progetto 1.pdf
-data/raw/progetto 2.pdf

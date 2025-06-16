@@ -1,28 +1,26 @@
 import streamlit as st
 from app.pipeline.retriever import create_rag_chain
 
-@st.cache_resource
-def load_rag_chain():
-    """
-    Carica la catena RAG e la mette in cache per evitare di ricaricarla
-    a ogni interazione dell'utente. La cache viene invalidata solo se
-    il codice della funzione cambia o l'app viene riavviata.
-    """
-    try:
-        return create_rag_chain()
-    except Exception as e:
-        st.error(f"Errore durante il caricamento del sistema RAG: {e}")
-        st.warning("Assicurati che le chiavi API (JINA, GROQ) siano nel tuo file .env e che Qdrant sia in esecuzione.")
-        return None
-
-def chat_interface():
+def chat_interface(selected_sources: list[str]):
     """
     Crea e gestisce l'interfaccia di chat completa in Streamlit.
     """
-    st.header("2. Chatta con i tuoi documenti")
+    st.header("2. Chatta con le fonti selezionate")
 
-    # Carica la catena RAG usando la cache di Streamlit
-    rag_chain = load_rag_chain()
+    if "messages" not in st.session_state:
+            st.session_state.messages = [{"role": "assistant", "content": "Ciao! Seleziona le fonti e fai la tua domanda."}]
+
+    # Inizializza la catena RAG in session_state per evitare di ricaricarla
+    # se i file selezionati non sono cambiati.
+    if 'rag_chain' not in st.session_state or st.session_state.get('last_selected_sources') != selected_sources:
+        if not selected_sources:
+            st.session_state.rag_chain = None
+        else:
+            with st.spinner(f"Inizializzazione del motore di ricerca per {len(selected_sources)} documenti..."):
+                st.session_state.rag_chain = create_rag_chain(selected_sources)
+        st.session_state.last_selected_sources = selected_sources
+    
+    rag_chain = st.session_state.rag_chain
 
     if rag_chain is None:
         st.stop() # Interrompe l'esecuzione se la catena non può essere caricata
@@ -42,8 +40,8 @@ def chat_interface():
                 with st.expander("Vedi Fonti Utilizzate"):
                     for i, source in enumerate(message["sources"]):
                         st.info(
-                            f"**Fonte {i+1}** (Pagina: {source.metadata.get('page_number', 'N/A')})\n\n"
-                            f"```{source.page_content}```"
+                            f"**Fonte {i+1}** (Pagina: {source.metadata.get('page_number', 'N/A')})\n\n" # type: ignore
+                            f"```{source.page_content}```" # type: ignore
                         )
 
     # Input dell'utente
@@ -57,7 +55,7 @@ def chat_interface():
         with st.chat_message("assistant"):
             # Aggiungi un placeholder per l'effetto "sto pensando..."
             message_placeholder = st.empty()
-            message_placeholder.markdown("⏳ Sto pensando...")
+            message_placeholder.markdown("⏳ Ricerca nelle fonti selezionate...")
 
             # Esegui la query RAG
             try:
