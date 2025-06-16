@@ -2,62 +2,33 @@ import sys
 import os
 import streamlit as st
 
+# --- Bootstrap per risolvere gli import ---
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
+# --- Fine Bootstrap ---
 
-from components.upload import upload_and_process_file
-from components.viewer import viewer
+# Importa i tuoi componenti
+from streamlit_app.components.upload import upload_and_process_file
+from streamlit_app.components.chat import chat_interface
 
-from components.chat import get_rag_response
-
-st.set_page_config(page_title="MultimodalRAG", layout="wide")
-
-st.title("MultimodalRAG")
-
-# Sidebar navigation
-st.sidebar.title("Navigazione")
-page = st.sidebar.radio(
-    "Vai a:",
-    ("Carica PDF", "Gestione Risorse", "Chat", "Impostazioni")
+# Configurazione della pagina
+st.set_page_config(
+    layout="wide",
+    page_title="RAG per Paper Scientifici",
+    page_icon="🔬"
 )
 
-if page == "Carica PDF":
-    st.header("Carica un nuovo PDF")
-    uploaded_file = upload_and_process_file()
-    if uploaded_file:
-        st.success("PDF caricato con successo!")
-    else:
-        st.warning("Carica un PDF per iniziare.")
+st.title("Assistente di Ricerca per Paper Scientifici 🔬")
+st.markdown("Carica un PDF, attendi l'indicizzazione e poi poni le tue domande.")
 
-elif page == "Gestione Risorse":
-    st.header("Gestione PDF e Risorse")
-    viewer()
+# Layout a due colonne
+col1, col2 = st.columns([1, 1]) # Colonne di uguale dimensione
 
+with col1:
+    # Componente di upload
+    upload_and_process_file()
 
-elif page == "Chat":
-    st.header("Chatta con il Bot")
-    st.info("Qui potrai interagire con il bot per ottenere risposte dai PDF caricati.")
-    query = st.text_input("Inserisci la tua domanda:")
-    if query:
-        response = get_rag_response(query)
-        st.subheader("Risposta del Bot:")
-        st.write(response['answer'])
-        
-        st.subheader("Fonti utilizzate:")
-        for source in response['sources']:
-            st.write(f"**Pagina:** {source['page']} - **Tipo:** {source['type']} - **Testo:** {source['text'][:200]}... (Score: {source['score']})")
-
-
-elif page == "Visualizzatore PDF":
-    st.header("Visualizzatore PDF")
-    # TODO: mostra i PDF caricati e permetti la visualizzazione
-    st.info("Qui potrai visualizzare i PDF caricati.")
-
-elif page == "Utils":
-    st.header("Strumenti Utili")
-    # TODO: aggiungi strumenti utili (es. estrazione testo, statistiche, ecc.)
-    st.info("Qui verranno aggiunti strumenti utili per la gestione dei PDF.")
-
-st.sidebar.markdown("---")
-st.sidebar.info("MultimodalRAG - Università LM 24-25")
+with col2:
+    # Componente della chat
+    chat_interface()

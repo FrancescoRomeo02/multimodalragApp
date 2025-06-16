@@ -1,43 +1,87 @@
-# Esempio in streamlit_app/components/chat.py
+import streamlit as st
+from app.pipeline.retriever import create_rag_chain
 
-from app.pipeline.retriever import create_query_engine
-from app.llm.groq_client import get_groq_llm
-from app.utils.prompts import qa_template
-from llama_index.core import Settings
-
-def get_rag_response(query_str: str):
+@st.cache_resource
+def load_rag_chain():
     """
-    Funzione completa che prende una query, esegue il RAG e restituisce la risposta.
+    Carica la catena RAG e la mette in cache per evitare di ricaricarla
+    a ogni interazione dell'utente. La cache viene invalidata solo se
+    il codice della funzione cambia o l'app viene riavviata.
     """
-    # 1. Configura l'LLM per la generazione
-    Settings.llm = get_groq_llm()
+    try:
+        return create_rag_chain()
+    except Exception as e:
+        st.error(f"Errore durante il caricamento del sistema RAG: {e}")
+        st.warning("Assicurati che le chiavi API (JINA, GROQ) siano nel tuo file .env e che Qdrant sia in esecuzione.")
+        return None
 
-    # 2. Crea il motore di query (che si connette a Qdrant)
-    query_engine = create_query_engine()
+def chat_interface():
+    """
+    Crea e gestisce l'interfaccia di chat completa in Streamlit.
+    """
+    st.header("2. Chatta con i tuoi documenti")
 
-    # 3. Aggiorna il template del prompt nel query engine
-    query_engine.update_prompts(
-        {"response_synthesis:prompt": qa_template}
-    )
+    # Carica la catena RAG usando la cache di Streamlit
+    rag_chain = load_rag_chain()
 
-    # 4. Esegui la query
-    print(f"[*] Esecuzione della query: {query_str}")
-    response = query_engine.query(query_str)
+    if rag_chain is None:
+        st.stop() # Interrompe l'esecuzione se la catena non può essere caricata
 
-    print("[*] Risposta ottenuta.")
-    print(f"Risposta: {response}")
-    
-    # Formattiamo le fonti per una visualizzazione pulita
-    sources = []
-    for source_node in response.source_nodes:
-        sources.append({
-            "text": source_node.get_content(),
-            "page": source_node.metadata.get("page"),
-            "type": source_node.metadata.get("type"),
-            "score": source_node.get_score(),
-        })
+    # Inizializza la cronologia della chat in st.session_state se non esiste
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            {"role": "assistant", "content": "Ciao! Sono il tuo assistente di ricerca. Fai una domanda sul documento che hai caricato."}
+        ]
 
-    return {
-        "answer": response,
-        "sources": sources
-    }
+    # Mostra i messaggi precedenti
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+            # Se il messaggio è dell'assistente e ha delle fonti, mostrale
+            if "sources" in message:
+                with st.expander("Vedi Fonti Utilizzate"):
+                    for i, source in enumerate(message["sources"]):
+                        st.info(
+                            f"**Fonte {i+1}** (Pagina: {source.metadata.get('page_number', 'N/A')})\n\n"
+                            f"```{source.page_content}```"
+                        )
+
+    # Input dell'utente
+    if prompt := st.chat_input("Fai la tua domanda..."):
+        # Aggiungi il messaggio dell'utente alla cronologia e mostralo
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        # Mostra la risposta dell'assistente
+        with st.chat_message("assistant"):
+            # Aggiungi un placeholder per l'effetto "sto pensando..."
+            message_placeholder = st.empty()
+            message_placeholder.markdown("⏳ Sto pensando...")
+
+            # Esegui la query RAG
+            try:
+                response = rag_chain.invoke({"query": prompt})
+                
+                answer = response.get("result", "Non ho trovato una risposta.")
+                source_documents = response.get("source_documents", [])
+                
+                # Aggiorna il placeholder con la risposta reale
+                message_placeholder.markdown(answer)
+                
+                # Salva il messaggio completo dell'assistente nella sessione
+                assistant_message = {"role": "assistant", "content": answer, "sources": source_documents}
+                st.session_state.messages.append(assistant_message)
+
+                # Mostra le fonti in un expander sotto la risposta
+                with st.expander("Vedi Fonti Utilizzate"):
+                    for i, source in enumerate(source_documents):
+                        st.info(
+                            f"**Fonte {i+1}** (Pagina: {source.metadata.get('page_number', 'N/A')})\n\n"
+                            f"```{source.page_content}```"
+                        )
+
+            except Exception as e:
+                error_message = f"Si è verificato un errore: {e}"
+                message_placeholder.error(error_message)
+                st.session_state.messages.append({"role": "assistant", "content": error_message})

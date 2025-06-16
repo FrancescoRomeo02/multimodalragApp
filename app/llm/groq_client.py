@@ -1,14 +1,15 @@
-
 # app/llm/groq_client.py
-import os
-from llama_index.llms.groq import Groq
+from langchain_groq import ChatGroq
+from app.config import GROQ_API_KEY, LLM_MODEL_NAME
+from pydantic import SecretStr
 
-def get_groq_llm(model="llama3-8b-8192"):
-    """
-    Inizializza e restituisce un'istanza del modello LLM da Groq.
-    """
-    api_key = os.getenv("GROQ_API_KEY")
-    if not api_key:
-        raise ValueError("Devi impostare la chiave API: GROQ_API_KEY nel tuo file .env")
+def get_groq_llm():
+    """Inizializza e restituisce l'LLM di Groq per LangChain."""
+    if not GROQ_API_KEY:
+        raise ValueError("La chiave API di Groq non è stata impostata (GROQ_API_KEY).")
     
-    return Groq(model=model, api_key=api_key)
+    return ChatGroq(
+        temperature=0,
+        model=LLM_MODEL_NAME,
+        api_key=SecretStr(GROQ_API_KEY)
+    )

@@ -1,11 +1,18 @@
-llama-index
-llama-index-readers-file
-llama-index-embeddings-jinaai
-llama-index-vector-stores-qdrant
+# Core e orchestrazione
+langchain
+langchain_community
+
+# Integrazioni
+langchain_qdrant
 qdrant-client
+langchain-groq
+langchain-jina  
+
+# Parsing e utilità
 unstructured[pdf,local-inference]
-sentence-transformers
 pypdf
-llama-index-embeddings-jinaai
-fastembed
-llama-index-llms-groq
+python-dotenv
+
+# UI
+streamlit
+streamlit_pdf_viewer
