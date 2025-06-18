@@ -1,67 +1,138 @@
+# file: app_ui.py (o il tuo file principale di Streamlit)
+
 import streamlit as st
-from streamlit_pdf_viewer import pdf_viewer
-from PIL import Image
 import os
+import base64
+import uuid
+import logging
 
-# Importa le configurazioni e la pipeline di indicizzazione
-from app.config import RAW_DATA_PATH
-from app.pipeline.indexer import index_document
+# --- Importazioni dai moduli della tua applicazione ---
+from app.config import RAW_DATA_PATH, QDRANT_URL, COLLECTION_NAME
+from app.pipeline.indexer_service import DocumentIndexer
+from app.utils.embedder import get_multimodal_embedding_model
 
-def upload_and_process_file():
+# Configura il logging per una migliore diagnostica
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+# --- Correzione della Funzione di Caching ---
+# Questa funzione ora è "pulita": non contiene elementi della UI.
+# Si occupa solo di caricare le risorse.
+@st.cache_resource
+def load_services() -> DocumentIndexer:
     """
-    Gestisce l'upload di file (PDF o immagini) da parte dell'utente,
-    li salva e avvia la pipeline di indicizzazione per i PDF.
+    Carica e inizializza i servizi pesanti (Embedder e Indexer) una sola volta.
+    Se il caricamento fallisce, solleva un'eccezione che verrà gestita
+    dalla UI principale.
     """
+    logger.info("Inizializzazione dei servizi in corso (questa operazione è cachata)...")
+    embedder = get_multimodal_embedding_model()  # Questo è il passo lento, eseguito una sola volta.
+    indexer = DocumentIndexer(
+        embedder=embedder,
+        qdrant_url=QDRANT_URL,
+        collection_name=COLLECTION_NAME,
+
+    )
+    logger.info("Servizi inizializzati e pronti.")
+    return indexer
+
+def handle_image_upload(file_path: str, file_name: str, indexer: DocumentIndexer):
+    """
+    Logica specifica per l'indicizzazione di un singolo file immagine.
+    """
+    st.info("Avvio indicizzazione per l'immagine...")
+    with st.spinner(f"Vettorizzazione di '{file_name}' in corso..."):
+        try:
+            with open(file_path, "rb") as f:
+                img_base64 = base64.b64encode(f.read()).decode('utf-8')
+            
+            image_vector_result = indexer.embedder.embed_image_from_base64(
+                img_base64,
+                description=f"Immagine utente: {file_name}"
+            )
+            # Se image_vector_result è una tupla (vector, metadata), estrai solo il vettore
+            if isinstance(image_vector_result, tuple):
+                image_vector, _ = image_vector_result
+            else:
+                image_vector = image_vector_result
+
+            metadata = {
+                "source": file_name,
+                "type": "image",
+                "description": f"Immagine utente: {file_name}"
+            }
+            
+            from qdrant_client.http.models import PointStruct
+
+            point = PointStruct(
+                id=str(uuid.uuid4()),  # Genera un ID unico per il punto
+                vector=image_vector,
+                payload={
+                    "metadata": metadata,
+                    "file_name": file_name
+                }
+            )
+            indexer.qdrant_client.upsert(
+                collection_name=indexer.collection_name,
+                points=[point],
+                wait=True
+            )
+            st.success("Indicizzazione immagine completata! ✅")
+        except Exception as e:
+            st.error(f"Errore durante l'indicizzazione dell'immagine: {e}")
+
+def main():
+    """
+    Funzione principale che disegna l'interfaccia utente di Streamlit.
+    """
+    st.title("📚 Sistema RAG Multimodale per Documenti")
+    st.markdown("Carica un documento PDF o un'immagine per aggiungerlo alla base di conoscenza e interrogarlo tramite la chat.")
+
+    # --- Gestione UI del Caricamento Servizi ---
+    # Qui gestiamo la UI, separata dalla logica di caching.
+    try:
+        with st.spinner("Caricamento del modello di embedding e connessione al database... 🧠"):
+            indexer = load_services()
+        st.toast("Modello caricato e pronto! ✅")
+    except Exception as e:
+        logger.error(f"Errore critico durante l'inizializzazione dei servizi: {e}", exc_info=True)
+        st.error(f"Errore critico durante l'inizializzazione dei servizi: {e}")
+        st.error("L'applicazione non può continuare. Controlla i log, la connessione a Qdrant e assicurati che il modello di embedding sia accessibile.")
+        st.stop() # Interrompe l'esecuzione dello script se i servizi non possono essere caricati.
+
     st.header("1. Carica un Nuovo Documento")
-    st.write("Carica un paper scientifico in formato PDF per analizzarlo e porre domande.")
-
+    
     uploaded_file = st.file_uploader(
-        "Scegli un file PDF o un'immagine",
+        "Scegli un file PDF o un'immagine (PNG, JPG)",
         type=["pdf", "png", "jpg", "jpeg"],
         label_visibility="collapsed"
     )
 
-    if uploaded_file is not None:
-        # Crea la directory 'raw' se non esiste
+    if uploaded_file:
         os.makedirs(RAW_DATA_PATH, exist_ok=True)
-        
-        # Percorso dove salvare il file originale
         save_path = os.path.join(RAW_DATA_PATH, uploaded_file.name)
 
-        # Salva il file caricato
         with open(save_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
         
-        st.success(f"File '{uploaded_file.name}' salvato con successo in `data/raw/`.")
+        st.success(f"File '{uploaded_file.name}' salvato in `data/raw/`.")
 
         file_type = uploaded_file.type
 
-        # --- Gestione dei PDF ---
         if file_type == "application/pdf":
-            # Avvia la pipeline di indicizzazione
-            st.info("Avvio della pipeline di indicizzazione... Questo processo analizzerà la struttura, creerà i chunk e li vettorizzerà.")
-            
+            st.info("Avvio della pipeline di indicizzazione per il PDF...")
             with st.spinner(f"Indicizzazione di '{uploaded_file.name}' in corso..."):
                 try:
-                    # Questa è la chiamata chiave alla nostra nuova pipeline!
-                    index_document(save_path)
-                    st.success("Indicizzazione completata! ✅ Ora puoi fare domande sul documento nella chat.")
+                    indexer.index_files([save_path], force_recreate=False)
+                    st.success("Indicizzazione PDF completata! ✅")
                 except Exception as e:
-                    st.error(f"Si è verificato un errore durante l'indicizzazione: {e}")
-                    st.error("Assicurati che Qdrant sia in esecuzione e che le dipendenze (tesseract, poppler) siano installate.")
+                    logger.error(f"Errore durante l'indicizzazione del PDF: {e}", exc_info=True)
+                    st.error(f"Errore durante l'indicizzazione del PDF: {e}")
             
-            # Mostra il PDF all'utente per conferma visiva
-            st.subheader("Visualizzatore PDF")
-            pdf_viewer(save_path, annotations=[])
 
-        # --- Gestione delle Immagini ---
         elif file_type.startswith("image/"):
-            # Per ora, mostriamo solo l'immagine. L'indicizzazione multimodale
-            # sarà un passo successivo.
-            st.info("Immagine caricata. L'analisi di immagini (RAG multimodale) può essere implementata come estensione futura.")
-            
-            image = Image.open(save_path)
-            st.image(image, caption="Immagine Caricata", use_container_width=True)
+            handle_image_upload(save_path, uploaded_file.name, indexer)
 
         else:
             st.error("Tipo di file non supportato.")
