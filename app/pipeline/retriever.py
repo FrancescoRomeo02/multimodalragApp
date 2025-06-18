@@ -6,10 +6,10 @@ import qdrant_client
 from langchain.schema.retriever import BaseRetriever
 from qdrant_client.http import models
 from pydantic import BaseModel
-from app.utils.embeddings import get_embedding_model
 from app.llm.groq_client import get_groq_llm
 from app.config import QDRANT_URL, COLLECTION_NAME
 import logging
+from app.utils.embedder import get_multimodal_embedding_model
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -84,9 +84,9 @@ def create_page_filter(pages: List[int]) -> Optional[models.Filter]:
         ]
     )
 
-def build_combined_filter(selected_files: List[str] = None, 
+def build_combined_filter(selected_files: List[str], 
                          query_type: Optional[str] = None,
-                         pages: List[int] = None) -> Optional[models.Filter]:
+                         pages: List[int] = []) -> Optional[models.Filter]:
     """
     Combina filtri multipli
     """
@@ -162,7 +162,7 @@ def query_images(client: qdrant_client.QdrantClient,
                 selected_files: List[str] = None, 
                 top_k: int = 3) -> List[ImageResult]:
     try:
-        embedder = get_embedding_model()
+        embedder = get_multimodal_embedding_model()
         query_embedding = embedder.embed_query(query)
         
         qdrant_filter = build_combined_filter(selected_files, "image")
@@ -242,7 +242,7 @@ def create_rag_chain(selected_files: List[str] = None, multimodal: bool = False)
     # Inizializzazione client e modelli
     try:
         client = qdrant_client.QdrantClient(url=QDRANT_URL)
-        embedding_model = get_embedding_model()
+        embedding_model = get_multimodal_embedding_model()
         vector_store = Qdrant(
             client=client,
             collection_name=COLLECTION_NAME,
@@ -416,7 +416,7 @@ def get_collection_stats() -> Dict[str, Any]:
 def debug_query_results(query: str, selected_files: List[str] = None, top_k: int = 10):
     try:
         client = qdrant_client.QdrantClient(url=QDRANT_URL)
-        embedder = get_embedding_model()
+        embedder = get_multimodal_embedding_model()
         query_embedding = embedder.embed_query(query)
         
         qdrant_filter = build_combined_filter(selected_files)
@@ -455,7 +455,7 @@ def search_similar_documents(query: str,
     """
     try:
         client = qdrant_client.QdrantClient(url=QDRANT_URL)
-        embedder = get_embedding_model()
+        embedder = get_multimodal_embedding_model()
         query_embedding = embedder.embed_query(query)
         
         qdrant_filter = build_combined_filter(selected_files, "text")
@@ -558,7 +558,7 @@ def health_check() -> Dict[str, Any]:
     
     try:
         # Test embedding model
-        embedder = get_embedding_model()
+        embedder = get_multimodal_embedding_model()
         test_embedding = embedder.embed_query("test")
         if test_embedding and len(test_embedding) > 0:
             health_status["embeddings"] = "healthy"

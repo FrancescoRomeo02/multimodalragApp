@@ -16,7 +16,7 @@ COLLECTION_NAME = "papers_custom_pipeline" # Nome chiaro per la nuova pipeline
 JINA_API_KEY = os.getenv("JINA_API_KEY")
 EMBEDDING_MODEL_NAME = "llamaindex/vdr-2b-multi-v1"
 IMAGE_EMBEDDING_MODEL_NAME = "llamaindex/vdr-2b-multi-v1"
-EMBEDDING_DIM = 768
+EMBEDDING_DIM = 512
 
 # LLM Generativo (usando Groq)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")

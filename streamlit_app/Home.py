@@ -9,7 +9,7 @@ if PROJECT_ROOT not in sys.path:
 # --- Fine Bootstrap ---
 
 # Importa i tuoi componenti
-from streamlit_app.components.upload import upload_and_process_file
+from streamlit_app.components.upload import main
 from streamlit_app.components.chat import chat_interface
 from streamlit_app.components.source_selector import source_selector
 
@@ -29,7 +29,7 @@ col1, col2 = st.columns([0.4, 0.6]) # Colonne di uguale dimensione
 with col1:
     selected_sources = source_selector()
     # Componente di upload
-    upload_and_process_file()
+    main()
 
 with col2:
     # Componente della chat
