@@ -1,27 +1,21 @@
-# file: app/services/indexer_service.py
-
 import os
 import logging
 import uuid
 from typing import List, Tuple, Dict, Any
-
-# --- Importazioni da librerie di terze parti ---
+import time
 from pydantic import BaseModel, ValidationError
 import qdrant_client
 from langchain_qdrant import Qdrant
 import qdrant_client.models
+from qdrant_client import models as qdrant_models
 
-# --- Importazioni dai moduli della tua applicazione ---
-# Si assume che questi file esistano e siano corretti
 from app.utils.embedder import AdvancedEmbedder
 from app.utils.pdf_parser import parse_pdf_elements
 from app.utils.image_caption import get_caption
-# --- Setup del Logger ---
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-
-# --- Modelli di Dati Pydantic per la Validazione ---
 
 class ElementMetadata(BaseModel):
     """Metadati comuni a tutti gli elementi, validati da Pydantic."""
@@ -30,22 +24,19 @@ class ElementMetadata(BaseModel):
     type: str
 
 class TextElement(BaseModel):
-    """Modello per un elemento testuale. Garantisce che 'text' e 'metadata' esistano."""
+    """Modello per un elemento testuale."""
     text: str
     metadata: ElementMetadata
 
 class ImageElement(BaseModel):
-    """Modello per un elemento immagine. Garantisce la presenza dei campi necessari."""
-    page_content: str  # Descrizione testuale dell'immagine
+    """Modello per un elemento immagine."""
+    page_content: str
     image_base64: str
     metadata: ElementMetadata
 
 
 class DocumentIndexer:
-    """
-    Gestisce l'intero processo di indicizzazione di testi e immagini in Qdrant.
-    Progettato per essere efficiente, robusto e tipologicamente corretto.
-    """
+    """Gestisce l'indicizzazione di testi e immagini in Qdrant."""
 
     def __init__(self, embedder: AdvancedEmbedder, qdrant_url: str, collection_name: str):
         if not isinstance(embedder, AdvancedEmbedder):
@@ -55,34 +46,110 @@ class DocumentIndexer:
         self.qdrant_url = qdrant_url
         self.collection_name = collection_name
 
-        # Verifica che la collezione esista, altrimenti la crea
         try:
+            # Inizializzazione client Qdrant
             self.qdrant_client = qdrant_client.QdrantClient(url=self.qdrant_url, prefer_grpc=True)
-            if not self.qdrant_client.collection_exists(self.collection_name):
-                logger.info(f"La collezione '{self.collection_name}' non esiste. Creazione in corso...")
-                self.qdrant_client.create_collection(
-                    collection_name=self.collection_name,
-                    vectors_config=qdrant_client.models.VectorParams(
-                        size=self.embedder.embedding_dim,
-                        distance=qdrant_client.models.Distance.COSINE
-                    )
-                )
-                logger.info(f"Collezione '{self.collection_name}' creata con successo.")
-            else:
-                logger.info(f"La collezione '{self.collection_name}' esiste già.")
+            
+            # Verifica connessione
+            _ = self.qdrant_client.get_collections()
+            logger.info(f"Connessione a Qdrant stabilita all'URL {self.qdrant_url}")
 
-        except qdrant_client as e:
-            logger.error(f"Errore durante la connessione a Qdrant: {e}")
-            raise RuntimeError(f"Impossibile connettersi a Qdrant all'URL {self.qdrant_url}.") from e
+            # Crea collezione se non esiste
+            if not self.qdrant_client.collection_exists(self.collection_name):
+                self._create_collection()
+            
+            # Inizializza vector store LangChain
+            self.vector_store = Qdrant(
+                client=self.qdrant_client,
+                collection_name=self.collection_name,
+                embeddings=self.embedder
+            )
+
+        except Exception as e:
+            logger.error(f"Errore durante l'inizializzazione: {e}")
+            raise
+
+    def _create_collection(self):
+        try:
+            # Verifica più robusta dell'esistenza della collezione
+            existing_collections = self.qdrant_client.get_collections()
+            if any(col.name == self.collection_name for col in existing_collections.collections):
+                logger.info(f"La collezione {self.collection_name} esiste già")
+                return
+            
+            logger.info(f"Creazione collezione {self.collection_name}...")
+            
+            # Verifica che embedding_dim sia un intero valido
+            if not isinstance(self.embedder.embedding_dim, int) or self.embedder.embedding_dim <= 0:
+                raise ValueError(f"Dimensione embedding non valida: {self.embedder.embedding_dim}")
+            
+            # Crea la collezione con parametri più robusti
+            self.qdrant_client.create_collection(
+                collection_name=self.collection_name,
+                vectors_config=qdrant_models.VectorParams(
+                    size=self.embedder.embedding_dim,
+                    distance=qdrant_models.Distance.COSINE,
+                    on_disk=True
+                ),
+                timeout=60  # Aumenta il timeout a 60 secondi
+            )
+            
+            # Attendi e verifica la creazione
+            max_retries = 5
+            for _ in range(max_retries):
+                time.sleep(1)  # Attendi 1 secondo tra i tentativi
+                if self.qdrant_client.collection_exists(self.collection_name):
+                    logger.info(f"Collezione {self.collection_name} creata con successo")
+                    return
+            
+            raise TimeoutError(f"Timeout nella verifica della creazione della collezione {self.collection_name}")
+            
+        except Exception as e:
+            logger.error(f"Errore creazione collezione: {str(e)}", exc_info=True)
+            raise RuntimeError(f"Impossibile creare collezione: {str(e)}") from e
+    
+    def ensure_collection_exists(self):
+        if not self.qdrant_client.collection_exists(self.collection_name):
+            self._create_collection()
+
+    def delete_documents_by_source(self, source_name: str) -> Tuple[bool, str]:
         
-        # Inizializziamo sia il client Qdrant di basso livello che il wrapper LangChain
-        self.qdrant_client = qdrant_client.QdrantClient(url=self.qdrant_url, prefer_grpc=True)
-        self.vector_store = Qdrant(
-            client=self.qdrant_client,
-            collection_name=self.collection_name,
-            embeddings=self.embedder 
-        )
-        logger.info(f"DocumentIndexer inizializzato per la collezione '{self.collection_name}'.")
+        try:
+            if not self.qdrant_client.collection_exists(self.collection_name):
+                return False, f"Collezione '{self.collection_name}' non esiste"
+
+            # Crea filtro per il nome del file sorgente
+            from qdrant_client import models
+            
+            # Filtro per entrambi i tipi di documenti (testo e immagini)
+            source_filter = models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="metadata.source",  # Assicurati che questo path sia corretto
+                        match=models.MatchValue(value=source_name),
+                    ),
+                    # Aggiungi questa parte per includere sia testi che immagini
+                    models.FieldCondition(
+                        key="metadata.type",  # Assicurati che questo campo esista
+                        match=models.MatchAny(any=["text", "image"]),  # O i valori che usi
+                    ),
+                ]
+            )
+
+            # Esegui eliminazione
+            delete_result = self.qdrant_client.delete(
+                collection_name=self.collection_name,
+                points_selector=models.FilterSelector(filter=source_filter),
+                wait=True
+            )
+
+            logger.info(f"Eliminati documenti per '{source_name}': {delete_result}")
+            return True, f"Eliminati tutti i documenti relativi a '{source_name}'"
+        
+        except Exception as e:
+            logger.error(f"Errore eliminazione documenti per '{source_name}': {e}")
+            return False, f"Errore durante l'eliminazione: {str(e)}"
+    
 
     def _prepare_elements_from_file(self, pdf_path: str) -> Tuple[List[TextElement], List[ImageElement]]:
         """
@@ -221,4 +288,7 @@ class DocumentIndexer:
                 logger.error(f"Errore critico durante l'indicizzazione delle immagini: {e}", exc_info=True)
 
         logger.info("--- Processo di indicizzazione completato. ---")
+    
+    
+    
 
