@@ -64,6 +64,8 @@ def source_selector_widget():
     with st.expander("🗑️ Elimina documenti"):
         for file in available_files:
             if st.button(f"Elimina '{file}'", key=f"del_{file}"):
+                if file in st.session_state.selected_files:
+                    st.session_state.selected_files.remove(file)
                 with st.spinner(f"Eliminazione di '{file}' in corso..."):
                     success, message = delete_source(file)
                 if success:

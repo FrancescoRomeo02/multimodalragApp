@@ -5,7 +5,7 @@ import qdrant_client
 from langchain.schema.retriever import BaseRetriever
 from app.core.models import RetrievalResult
 from app.core.diagnostics import validate_retrieval_quality
-from app.core.prompts import create_enhanced_prompt_template
+from app.core.prompts import create_prompt_template
 from app.core.qdrant_utils import build_combined_filter, query_images
 from app.llm.groq_client import get_groq_llm
 from app.config import QDRANT_URL, COLLECTION_NAME
@@ -77,7 +77,7 @@ def create_rag_chain(selected_files: List[str] = None, multimodal: bool = False)
     )
     
     # Prompt template migliorato
-    prompt = create_enhanced_prompt_template()
+    prompt = create_prompt_template()
     
     # LLM configurato
     llm = get_groq_llm()
