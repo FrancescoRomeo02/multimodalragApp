@@ -2,7 +2,7 @@ import streamlit as st
 import os
 from app.config import RAW_DATA_PATH
 # Importa la nostra nuova funzione di utility
-from app.utils.qdrant_utils import delete_documents_by_filename
+from app.utils.qdrant_utils import delete_documents_by_source
 
 def source_selector():
     """
@@ -65,7 +65,7 @@ def handle_delete(filename_to_delete: str):
 
     # 1. Eliminazione da Qdrant
     with st.spinner("Eliminazione dei dati dal database vettoriale..."):
-        success_qdrant, message_qdrant = delete_documents_by_filename(filename_to_delete)
+        success_qdrant, message_qdrant = delete_documents_by_source(filename_to_delete)
     
     if success_qdrant:
         st.success(f"Dati di '{filename_to_delete}' eliminati da Qdrant.")

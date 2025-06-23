@@ -200,6 +200,8 @@ class DocumentIndexer:
                 )
             )
 
+        self.ensure_collection_exists()
+
         # Liste per raccogliere tutti i dati da indicizzare in batch
         all_texts: List[str] = []
         all_text_metadatas: List[Dict] = []
@@ -234,8 +236,6 @@ class DocumentIndexer:
             except Exception as e:
                 logger.error(f"Errore durante l'indicizzazione del testo: {e}", exc_info=True)
 
-        # 3. Indicizza le IMMAGINI in un unico batch (usando il client Qdrant di basso livello)
-        # --- NEL TUO METODO index_files DELLA CLASSE DocumentIndexer ---
 
         if all_image_base64: # La variabile 'all_image_base64' dovrebbe contenere le stringhe base64
             logger.info(f"Indicizzazione di {len(all_image_base64)} immagini...")
@@ -244,8 +244,8 @@ class DocumentIndexer:
                 # 1. Prepara l'input corretto per la funzione di batch
                 # La funzione vuole una lista di dizionari.
                 images_to_embed = [
-                    {'base64': b64, 'description': desc}
-                    for b64, desc in zip(all_image_base64, all_image_descriptions) # Assumiamo che esista all_image_descriptions
+                    {'base64': b64, 'description': desc, 'source': meta["source"]}
+                    for b64, desc, meta in zip(all_image_base64, all_image_descriptions, all_image_metadatas)
                 ]
 
                 # 2. Chiama la funzione di embedding BATCH una sola volta

@@ -205,7 +205,11 @@ class AdvancedEmbedder(Embeddings):
                 img_data = base64.b64decode(base64_data)
                 image = Image.open(BytesIO(img_data)).convert('RGB')
                 pil_images.append(image)
-                original_data.append({'description': description, 'image': image}) # Salviamo l'oggetto image
+                original_data.append({
+                    'description': description,
+                    'image': image,
+                    'source': data.get('source')
+                })
             except Exception as e:
                 logger.warning(f"Immagine {i} non valida e sarà saltata: {e}")
                 pil_images.append(None) # Segnaposto per immagini fallite
@@ -217,10 +221,10 @@ class AdvancedEmbedder(Embeddings):
             return [] # Nessuna immagine valida da processare
 
         # 2. ESEGUI L'EMBEDDING IN UN'UNICA CHIAMATA BATCH
-        inputs = self.clip_processor(images=valid_images, return_tensors="pt", padding=True).to(self.device)
+        inputs = self.clip_processor(images=valid_images, return_tensors="pt", padding=True).to(self.device) # type: ignore
         
         with torch.no_grad():
-            image_features = self.clip_model.get_image_features(**inputs)
+            image_features = self.clip_model.get_image_features(**inputs) # type: ignore
             image_features = image_features / image_features.norm(dim=-1, keepdim=True)
         
         all_embeddings = image_features.cpu().numpy().tolist()
@@ -238,7 +242,8 @@ class AdvancedEmbedder(Embeddings):
                     "image_format": image.format or "unknown",
                     "image_size": f"{image.size[0]}x{image.size[1]}",
                     "description": data['description'],
-                    "embedding_model": DEFAULT_CLIP_MODEL # Assicurati che questa costante sia definita
+                    "embedding_model": DEFAULT_CLIP_MODEL,
+                    "source": data['source']
                 }
                 results.append((embedding, metadata))
             else:
