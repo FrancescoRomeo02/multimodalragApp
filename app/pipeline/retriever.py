@@ -10,7 +10,6 @@ from app.llm.groq_client import get_groq_llm
 from app.config import QDRANT_URL, COLLECTION_NAME
 import logging
 from app.utils.embedder import get_multimodal_embedding_model
-from sentence_transformers import CrossEncoder
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -50,22 +49,6 @@ def create_content_filter(query_type: Optional[str] = None) -> Optional[models.F
             ]
         )
     return None
-
-def rerank_documents(query: str, documents: List[Any], top_k: int = 5) -> List[Any]:
-    """
-    Reranking con modello cross-encoder basato su rilevanza testo-query.
-    """
-    if not documents:
-        return []
-
-    logger.info("Avvio del reranking dei documenti testuali...")
-    cross_encoder = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
-
-    pairs = [(query, doc.page_content) for doc in documents]
-    scores = cross_encoder.predict(pairs)
-
-    reranked_docs = [doc for _, doc in sorted(zip(scores, documents), key=lambda x: x[0], reverse=True)]
-    return reranked_docs[:top_k]
 
 def create_file_filter(selected_files: List[str]) -> Optional[models.Filter]:
     """
