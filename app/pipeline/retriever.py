@@ -145,8 +145,7 @@ def create_retriever(vector_store: Qdrant,
     
     search_kwargs = {
         "k": k,
-        "fetch_k": k * 4,  # Fetch più documenti per MMR
-        "score_threshold": 0.3,  # Soglia di rilevanza
+        "fetch_k": k * 4
     }
     
     if qdrant_filter:
@@ -539,8 +538,8 @@ def get_document_by_source(source_file: str, page: Optional[int] = None) -> List
         documents = []
         for result in results:
             doc_info = {
-                "content": result.payload.get("page_content", ""),
-                "metadata": result.payload.get("metadata", {}),
+                "content": result.payload.get("page_content", "") if result.payload else "",
+                "metadata": result.payload.get("metadata", {}) ,
                 "id": result.id,
                 "source": result.payload.get("metadata", {}).get("source", "Unknown"),
                 "page": result.payload.get("metadata", {}).get("page", "N/A"),
