@@ -201,35 +201,43 @@ def query_images(client: qdrant_client.QdrantClient,
         return []
 
 def create_enhanced_prompt_template() -> PromptTemplate:
-    """
-    Crea un prompt template migliorato con controlli di qualità
-    """
-    template = """Sei un assistente di ricerca che risponde ESCLUSIVAMENTE basandosi sui documenti forniti.
+    """Template migliorato per risposte più esaustive e strutturate"""
+    template = """Sei un esperto analista che fornisce risposte dettagliate basate sui documenti forniti. 
+Segui scrupolosamente queste linee guida:
 
-CONTESTO DAI DOCUMENTI:
+CONTESTO FORNITO:
 {context}
 
-DOMANDA: {question}
+DOMANDA UTENTE:
+{question}
 
-ISTRUZIONI CRITICHE:
-1. ANALIZZA PRIMA il contesto: Se è vuoto, irrilevante o insufficiente per rispondere alla domanda, rispondi ESATTAMENTE: "Non ho informazioni sufficienti nei documenti forniti per rispondere a questa domanda."
+DIRETTIVE PER LA RISPOSTA:
+1. ANALISI DEL CONTESTO:
+   - Valuta attentamente se il contesto contiene informazioni sufficienti e rilevanti
+   - Se il contesto è insufficiente, rispondi: "Non ho informazioni sufficienti per rispondere in modo completo."
 
-2. RISPONDI SOLO se il contesto contiene informazioni direttamente rilevanti alla domanda. 
+2. STRUTTURA DELLA RISPOSTA:
+   - Introduzione: inquadra brevemente l'argomento
+   - Corpo principale: elenca tutti i punti rilevanti in ordine logico
+   - Conclusioni: sintesi e eventuali limitazioni
+   - Riferimenti: [Fonte: nome_file, Pagina X] per ogni informazione
 
-3. NON inventare, dedurre o speculare informazioni non presenti nel contesto
+3. STILE:
+   - Usa paragrafi ben strutturati
+   - Elenca i punti con numerazione o bullet points quando appropriato
+   - Mantieni un tono professionale ma chiaro
 
-4. CITA SEMPRE le fonti usando il formato: [Fonte: nome_file, Pagina X]
+4. CONTENUTO:
+   - Sii il più esaustivo possibile senza ripetizioni
+   - Integra informazioni correlate quando utile
+   - Se ci sono immagini/tabelle rilevanti, descrivile brevemente
 
-5. Se trovi immagini rilevanti nel contesto, menzionale brevemente
+5. ONESTÀ INTELLETTUALE:
+   - Non inventare informazioni
+   - Se qualcosa non è chiaro nel contesto, ammettilo
+   - Differenzia tra fatti certi e inferenze logiche
 
-6. Rispondi in maniera approfondita e precisa, evitando risposte vaghe o generiche.
-
-PROCESSO:
-- Valuta se il contesto è sufficiente
-- Se SÌ: fornisci risposta con citazioni  
-- Se NO: usa la frase di fallback sopra
-
-Risposta:"""
+RISPOSTA DETTAGLIATA:"""
     
     return PromptTemplate.from_template(template)
 
@@ -283,7 +291,9 @@ def create_rag_chain(selected_files: List[str] = None, multimodal: bool = False)
 def enhanced_rag_query(query: str, 
                       selected_files: List[str] = None, 
                       multimodal: bool = False,
-                      include_images: bool = False) -> RetrievalResult:
+                      include_images: bool = False,
+                      use_reranking: bool = True,
+                      rerank_top_k: int = 5) -> RetrievalResult:
     """
     Query RAG migliorata con validazione qualità e supporto multimodale
     """
