@@ -86,8 +86,6 @@ def main():
     """
     Funzione principale che disegna l'interfaccia utente di Streamlit.
     """
-    st.title("📚 Sistema RAG Multimodale per Documenti")
-    st.markdown("Carica un documento PDF o un'immagine per aggiungerlo alla base di conoscenza e interrogarlo tramite la chat.")
 
     # --- Gestione UI del Caricamento Servizi ---
     # Qui gestiamo la UI, separata dalla logica di caching.
@@ -101,7 +99,7 @@ def main():
         st.error("L'applicazione non può continuare. Controlla i log, la connessione a Qdrant e assicurati che il modello di embedding sia accessibile.")
         st.stop() # Interrompe l'esecuzione dello script se i servizi non possono essere caricati.
 
-    st.header("1. Carica un Nuovo Documento")
+    st.header("Carica un Nuovo Documento")
     
     uploaded_file = st.file_uploader(
         "Scegli un file PDF o un'immagine (PNG, JPG)",
