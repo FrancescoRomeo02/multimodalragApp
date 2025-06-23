@@ -215,12 +215,15 @@ DIRETTIVE PER LA RISPOSTA:
 1. ANALISI DEL CONTESTO:
    - Valuta attentamente se il contesto contiene informazioni sufficienti e rilevanti
    - Se il contesto è insufficiente, rispondi: "Non ho informazioni sufficienti per rispondere in modo completo."
+   - SE IL CAMPO "CONTESTO FORNITO" È COMPLETAMENTE VUOTO, rispondi ESATTAMENTE e SOLO con la seguente frase nella lingua opportuna: "**Spiacente, non ho trovato alcuna informazione rilevante nei documenti selezionati per rispondere alla tua domanda. Prova a riformulare la domanda o a selezionare altre fonti.**"
+   - NON tentare di rispondere alla domanda se il contesto è vuoto.
+   - NON aggiungere caratteri come '*' alla fine della tua rispsota
 
 2. STRUTTURA DELLA RISPOSTA:
    - Introduzione: inquadra brevemente l'argomento
    - Corpo principale: elenca tutti i punti rilevanti in ordine logico
    - Conclusioni: sintesi e eventuali limitazioni
-   - Riferimenti: [Fonte: nome_file, Pagina X] per ogni informazione
+   - Riferimenti: [Fonte: nome_file, Pagina X] per ogni informazione, se per la stessa fonte devi citare più pagine di fila usa la notazione: [Fonte: nome_file, Pagine X-Y] con X la prima e Y l'ultima
 
 3. STILE:
    - Usa paragrafi ben strutturati
@@ -482,14 +485,17 @@ def search_similar_documents(query: str,
         
         similar_docs = []
         for result in results:
+            payload = result.payload or {}
+            metadata = payload.get("metadata", {})
             doc_info = {
-                "content": result.payload.get("page_content", ""),
-                "metadata": result.payload.get("metadata", {}),
+                "content": payload.get("page_content", ""),
+                "metadata": metadata,
                 "score": result.score,
-                "source": result.payload.get("metadata", {}).get("source", "Unknown"),
-                "page": result.payload.get("metadata", {}).get("page", "N/A")
+                "source": metadata.get("source", "Unknown"),
+                "page": metadata.get("page", "N/A")
             }
             similar_docs.append(doc_info)
+
         
         return similar_docs
         
