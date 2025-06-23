@@ -3,7 +3,7 @@
 import streamlit as st
 import os
 from app.config import RAW_DATA_PATH
-from app.pipeline.retriever import create_rag_chain
+from app.pipeline.retriever import create_rag_chain, edit_answer
 from streamlit_app.backend_logic import process_uploaded_file, delete_source
 
 def upload_widget(indexer):
@@ -110,9 +110,10 @@ def chat_interface_widget(selected_sources: list[str]):
             with st.spinner("Sto pensando..."):
                 response = rag_chain.invoke({"query": prompt})
                 answer = response.get("result", "Nessuna risposta trovata.")
-                sources = response.get("source_documents", [])
-                st.markdown(answer)
+
+                edited_answer = edit_answer(answer)
+                st.markdown(edited_answer)
                 
-                assistant_message = {"role": "assistant", "content": answer, "sources": sources}
+                assistant_message = {"role": "assistant", "content": answer}
                 st.session_state.messages.append(assistant_message)
                 st.rerun()

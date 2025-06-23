@@ -164,7 +164,6 @@ def batch_query(queries: List[str],
     logger.info(f"Esecuzione batch di {len(queries)} query")
     
     results = []
-    rag_chain = create_rag_chain(selected_files, multimodal)
     
     for i, query in enumerate(queries):
         try:
@@ -180,3 +179,11 @@ def batch_query(queries: List[str],
             ))
     
     return results
+
+from langchain.schema.messages import HumanMessage
+
+def edit_answer(answer: str):
+    llm = get_groq_llm()
+    prompt = f"Modifica e migliora la seguente risposta rendendola più chiara e precisa:\n\n{answer}\n\n, comportti come un esperot writer di una rivista di paper scientifici, Risposta migliorata:"
+    response = llm([HumanMessage(content=prompt)])
+    return response
