@@ -89,8 +89,6 @@ class AdvancedEmbedder(Embeddings):
             self.clip_model = None
             self.clip_processor = None
 
-    # --- Metodi obbligatori dell'interfaccia `Embeddings` ---
-
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         """
         Metodo obbligatorio di LangChain. Genera embedding per una lista di testi.
@@ -122,62 +120,6 @@ class AdvancedEmbedder(Embeddings):
         except Exception as e:
             logger.error(f"Errore embedding query: {e}. Uso zeri.")
             return [0.0] * self.embedding_dim
-
-    # --- Nuovo metodo per immagini ---
-
-    def embed_image_from_base64(self, image_base64: str, description: str = "") -> tuple[List[float], Dict[str, Any]]:
-        """
-        Genera embedding per immagine da base64 e restituisce anche i metadati.
-        
-        Returns:
-            tuple: (embedding, metadata_dict)
-        """
-        if not self.supports_images:
-            logger.error("Supporto immagini non disponibile")
-            return [0.0] * self.embedding_dim, {"error": "Immagini non supportate"}
-
-        try:
-            # Decodifica base64
-            if ',' in image_base64:
-                image_base64 = image_base64.split(',')[1]
-            
-            img_data = base64.b64decode(image_base64)
-            image = Image.open(BytesIO(img_data))
-            
-            # Converti in RGB se necessario
-            if image.mode != 'RGB':
-                image = image.convert('RGB')
-            
-            # Genera embedding con CLIP
-            inputs = self.clip_processor(images=image, return_tensors="pt").to(self.device)
-            
-            with torch.no_grad():
-                image_features = self.clip_model.get_image_features(**inputs)
-                # Normalizza per confronti migliori
-                image_features = image_features / image_features.norm(dim=-1, keepdim=True)
-            
-            embedding = image_features.cpu().numpy().flatten().tolist()
-            
-            # Crea metadati
-            metadata = {
-                "content_type": "image",
-                "image_format": image.format or "unknown",
-                "image_size": f"{image.size[0]}x{image.size[1]}",
-                "image_mode": image.mode,
-                "description": description or "Immagine senza descrizione",
-                "embedding_model": DEFAULT_CLIP_MODEL
-            }
-            
-            return embedding, metadata
-            
-        except Exception as e:
-            logger.error(f"Errore embedding immagine: {e}")
-            error_metadata = {
-                "content_type": "image", 
-                "description": FALLBACK_TEXT_FOR_IMAGE_FAILURE,
-                "error": str(e)
-            }
-            return [0.0] * self.embedding_dim, error_metadata
 
     def embed_images_batch(self, images_data: List[Dict[str, str]]) -> List[tuple[List[float], Dict[str, Any]]]:
         """

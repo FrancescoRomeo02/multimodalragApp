@@ -37,51 +37,6 @@ def load_services() -> DocumentIndexer:
     logger.info("Servizi inizializzati e pronti.")
     return indexer
 
-def handle_image_upload(file_path: str, file_name: str, indexer: DocumentIndexer):
-    """
-    Logica specifica per l'indicizzazione di un singolo file immagine.
-    """
-    st.info("Avvio indicizzazione per l'immagine...")
-    with st.spinner(f"Vettorizzazione di '{file_name}' in corso..."):
-        try:
-            with open(file_path, "rb") as f:
-                img_base64 = base64.b64encode(f.read()).decode('utf-8')
-            
-            image_vector_result = indexer.embedder.embed_image_from_base64(
-                img_base64,
-                description=f"Immagine utente: {file_name}"
-            )
-            # Se image_vector_result è una tupla (vector, metadata), estrai solo il vettore
-            if isinstance(image_vector_result, tuple):
-                image_vector, _ = image_vector_result
-            else:
-                image_vector = image_vector_result
-
-            metadata = {
-                "source": file_name,
-                "type": "image",
-                "description": f"Immagine utente: {file_name}"
-            }
-            
-            from qdrant_client.http.models import PointStruct
-
-            point = PointStruct(
-                id=str(uuid.uuid4()),  # Genera un ID unico per il punto
-                vector=image_vector,
-                payload={
-                    "metadata": metadata,
-                    "file_name": file_name
-                }
-            )
-            indexer.qdrant_client.upsert(
-                collection_name=indexer.collection_name,
-                points=[point],
-                wait=True
-            )
-            st.success("Indicizzazione immagine completata! ✅")
-        except Exception as e:
-            st.error(f"Errore durante l'indicizzazione dell'immagine: {e}")
-
 def main():
     """
     Funzione principale che disegna l'interfaccia utente di Streamlit.
@@ -127,10 +82,6 @@ def main():
                 except Exception as e:
                     logger.error(f"Errore durante l'indicizzazione del PDF: {e}", exc_info=True)
                     st.error(f"Errore durante l'indicizzazione del PDF: {e}")
-            
-
-        elif file_type.startswith("image/"):
-            handle_image_upload(save_path, uploaded_file.name, indexer)
 
         else:
             st.error("Tipo di file non supportato.")
