@@ -191,7 +191,6 @@ class DocumentIndexer:
         all_text_metadatas: List[Dict] = []
         all_image_base64: List[str] = []
         all_image_descriptions: List[str] = []
-        all_image_text: List[str] = []
         all_image_metadatas: List[Dict] = []
         
         # 1. Raccogli e valida gli elementi da tutti i file
@@ -209,8 +208,10 @@ class DocumentIndexer:
                     meta["source"] = elem.metadata.source
                     meta["page"] = elem.metadata.page
                     meta["context"] = elem.page_content
-                    all_image_descriptions.append(get_caption(elem.image_base64))
-                    all_image_text.append(get_image_text(elem.image_base64))
+                    caption = get_caption(elem.image_base64)
+                    text = get_image_text(elem.image_base64)
+                    full_text = f"{caption}\n{text}"
+                    all_image_descriptions.append(full_text)
                     all_image_metadatas.append(meta)
 
         # 2. Indicizza il TESTO in un unico batch

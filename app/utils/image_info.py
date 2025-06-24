@@ -34,4 +34,16 @@ def get_image_text(base64_str: str):
     image_data = base64.b64decode(base64_str)
     image = cv2.imdecode(np.frombuffer(image_data, np.uint8), cv2.IMREAD_COLOR)
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    
     return pytesseract.image_to_string(image_rgb)
+
+if __name__ == "__main__":
+    # Esempio di utilizzo
+    path = "/Users/fraromeo/Desktop/Screenshot 2025-06-24 at 21.56.56.png"
+    with open(path, "rb") as image_file:
+        base64_str = base64.b64encode(image_file.read()).decode('utf-8')
+    caption = get_caption(base64_str)
+    print("Caption:", caption)
+
+    text = get_image_text(base64_str)
+    print("Text from image:", text)

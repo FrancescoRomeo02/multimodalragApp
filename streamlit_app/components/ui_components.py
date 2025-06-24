@@ -110,14 +110,9 @@ def chat_interface_widget(selected_sources: list[str]):
             with st.spinner("Sto pensando..."):
                 response = rag_chain.invoke({"query": prompt})
                 answer = response.get("result", "Nessuna risposta trovata.")
-                print("="*100)
-                print(f"->RISPOSTA ORIGINALE: {answer}")
 
                 edited_answer = edit_answer(answer).content
                 st.markdown(edited_answer)
-
-                print(f"->RISPOSTA MODIFICATA: {edited_answer}")
-                print("="*100)
 
                 assistant_message = {"role": "assistant", "content": edited_answer}
                 st.session_state.messages.append(assistant_message)
