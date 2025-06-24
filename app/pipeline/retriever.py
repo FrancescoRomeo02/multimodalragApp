@@ -184,6 +184,17 @@ from langchain.schema.messages import HumanMessage
 
 def edit_answer(answer: str):
     llm = get_groq_llm()
-    prompt = f"Modifica e migliora la seguente risposta rendendola più chiara e precisa:\n\n{answer}\n\n, comportti come un esperot writer di una rivista di paper scientifici, Risposta migliorata:"
+    prompt = f"""Sei un esperto editor accademico. Il tuo compito è revisionare e migliorare la seguente risposta, rendendola:
+    - più chiara, precisa e ben strutturata
+    - adatta a una rivista scientifica
+    - priva di ripetizioni, ambiguità o frasi colloquiali
+    - coerente nel tono e nel registro formale
+    - in formato markdown
+    - non aggiungere alcuna nota aggiuntiva, limitati a revisionare il testo
+    Agisci come un editor di articoli peer-reviewed. Mantieni intatti i contenuti tecnici e le eventuali referenze, ma migliora forma, logica e stile espositivo.
+TESTO ORIGINALE:
+{answer}
+RISPOSTA REVISIONATA:
+"""
     response = llm([HumanMessage(content=prompt)])
     return response
