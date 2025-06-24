@@ -111,9 +111,9 @@ def chat_interface_widget(selected_sources: list[str]):
                 response = rag_chain.invoke({"query": prompt})
                 answer = response.get("result", "Nessuna risposta trovata.")
 
-                edited_answer = edit_answer(answer)
+                edited_answer = edit_answer(answer).content
                 st.markdown(edited_answer)
                 
-                assistant_message = {"role": "assistant", "content": answer}
+                assistant_message = {"role": "assistant", "content": edited_answer}
                 st.session_state.messages.append(assistant_message)
                 st.rerun()
