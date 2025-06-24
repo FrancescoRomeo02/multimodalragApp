@@ -11,7 +11,7 @@ from qdrant_client import models as qdrant_models
 
 from app.utils.embedder import AdvancedEmbedder
 from app.utils.pdf_parser import parse_pdf_elements
-from app.utils.image_caption import get_caption
+from app.utils.image_info import get_caption, get_image_text
 
 from app.core.models import TextElement, ImageElement
 
@@ -191,6 +191,7 @@ class DocumentIndexer:
         all_text_metadatas: List[Dict] = []
         all_image_base64: List[str] = []
         all_image_descriptions: List[str] = []
+        all_image_text: List[str] = []
         all_image_metadatas: List[Dict] = []
         
         # 1. Raccogli e valida gli elementi da tutti i file
@@ -209,6 +210,7 @@ class DocumentIndexer:
                     meta["page"] = elem.metadata.page
                     meta["context"] = elem.page_content
                     all_image_descriptions.append(get_caption(elem.image_base64))
+                    all_image_text.append(get_image_text(elem.image_base64))
                     all_image_metadatas.append(meta)
 
         # 2. Indicizza il TESTO in un unico batch
