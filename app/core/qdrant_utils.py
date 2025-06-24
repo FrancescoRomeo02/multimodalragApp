@@ -19,7 +19,7 @@ def create_content_filter(query_type: Optional[str] = None) -> Optional[models.F
         return models.Filter(
             must=[
                 models.FieldCondition(
-                    key="metadata.type",
+                    key="content_type",
                     match=models.MatchValue(value="image"),
                 )
             ]
@@ -105,6 +105,7 @@ def query_images(client: qdrant_client.QdrantClient,
                 query: str, 
                 selected_files: List[str] = None,  # type: ignore
                 top_k: int = 3) -> List[ImageResult]:
+    print(f"--> Esecuzione query immagini: '{query}' con top_k={top_k} e file selezionati: {selected_files}")
     try:
         embedder = get_multimodal_embedding_model()
         query_embedding = embedder.embed_query(query)
@@ -118,11 +119,13 @@ def query_images(client: qdrant_client.QdrantClient,
             limit=top_k,
             with_payload=True,
             with_vectors=False,
-            score_threshold=0.3
+            score_threshold=None
         )
         
         image_results = []
+        print(f"Trovati {len(results)} risultati per la query '{query}'")
         for result in results:
+            print(f"Risultato: {result.id}, Punteggio: {result.score}")
             try:
                 metadata = result.payload.get("metadata", {}) # type: ignore
                 image_base64 = metadata.get("image_base64", "")
