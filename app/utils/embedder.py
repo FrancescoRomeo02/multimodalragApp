@@ -11,12 +11,8 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from langchain_core.embeddings import Embeddings
 from transformers import CLIPProcessor, CLIPModel
 
-# Costanti
-DEFAULT_EMBEDDING_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
-DEFAULT_CLIP_MODEL = "openai/clip-vit-base-patch32"
-DEFAULT_BATCH_SIZE = 32
-FALLBACK_TEXT_FOR_EMPTY_DOC = ""
-FALLBACK_TEXT_FOR_IMAGE_FAILURE = "Immagine non processabile"
+from app.config import DEFAULT_EMBEDDING_MODEL, DEFAULT_BATCH_SIZE, FALLBACK_TEXT_FOR_EMPTY_DOC
+
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)

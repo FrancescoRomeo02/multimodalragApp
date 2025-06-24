@@ -13,26 +13,10 @@ from app.utils.embedder import AdvancedEmbedder
 from app.utils.pdf_parser import parse_pdf_elements
 from app.utils.image_caption import get_caption
 
+from app.core.models import TextElement, ImageElement
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-
-
-class ElementMetadata(BaseModel):
-    """Metadati comuni a tutti gli elementi, validati da Pydantic."""
-    source: str
-    page: int
-    type: str
-
-class TextElement(BaseModel):
-    """Modello per un elemento testuale."""
-    text: str
-    metadata: ElementMetadata
-
-class ImageElement(BaseModel):
-    """Modello per un elemento immagine."""
-    page_content: str
-    image_base64: str
-    metadata: ElementMetadata
 
 
 class DocumentIndexer:
@@ -91,7 +75,7 @@ class DocumentIndexer:
                     distance=qdrant_models.Distance.COSINE,
                     on_disk=True
                 ),
-                timeout=60  # Aumenta il timeout a 60 secondi
+                timeout=60 
             )
             
             # Attendi e verifica la creazione

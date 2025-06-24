@@ -13,10 +13,10 @@ def get_caption(base64_str):
     model_path = "Salesforce/blip-image-captioning-base"
     cache_dir = os.path.join(os.path.expanduser("~"), ".cache/huggingface")
 
-    logging.info("🚨 Loading BLIP model.")
+    logging.info("Loading BLIP model.")
     processor = BlipProcessor.from_pretrained(model_path, cache_dir=cache_dir)
     model = BlipForConditionalGeneration.from_pretrained(model_path, cache_dir=cache_dir)
-    logging.info("🤗 Model loaded successfully.")
+    logging.info("Model loaded successfully.")
 
     # Decodifica base64 e converte in immagine PIL
     image_data = base64.b64decode(base64_str)

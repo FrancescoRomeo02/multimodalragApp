@@ -12,16 +12,10 @@ RAW_DATA_PATH = os.path.join(PROJECT_ROOT, "data", "raw")
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 COLLECTION_NAME = "papers_custom_pipeline" # Nome chiaro per la nuova pipeline
 
-# Embedding (usando Jina)
-JINA_API_KEY = os.getenv("JINA_API_KEY")
-EMBEDDING_MODEL_NAME = "llamaindex/vdr-2b-multi-v1"
-IMAGE_EMBEDDING_MODEL_NAME = "llamaindex/vdr-2b-multi-v1"
-EMBEDDING_DIM = 512
 
 # LLM Generativo (usando Groq)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 LLM_MODEL_NAME = "gemma2-9b-it"
-
 
 # Configurazione processing immagini
 UNSTRUCTURED_IMAGE_EXTRACTION_PARAMS = {
@@ -31,6 +25,12 @@ UNSTRUCTURED_IMAGE_EXTRACTION_PARAMS = {
 }
 
 # Aggiungi queste configurazioni
-CHUNK_SIZE = 1000  # Caratteri per chunk
-CHUNK_OVERLAP = 150  # Caratteri di overlap
-MIN_CHUNK_SIZE = 300  # Soglia minima per considerare un chunk valido
+CHUNK_SIZE = 512  # Caratteri per chunk
+CHUNK_OVERLAP = 75  # Caratteri di overlap
+MIN_CHUNK_SIZE = 200  # Soglia minima per considerare un chunk valido
+
+DEFAULT_EMBEDDING_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
+DEFAULT_CLIP_MODEL = "openai/clip-vit-base-patch32"
+DEFAULT_BATCH_SIZE = 32
+FALLBACK_TEXT_FOR_EMPTY_DOC = ""
+FALLBACK_TEXT_FOR_IMAGE_FAILURE = "Immagine non processabile"
