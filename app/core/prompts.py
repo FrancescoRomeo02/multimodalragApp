@@ -17,8 +17,9 @@ DOMANDA UTENTE:
 
 DIRETTIVE PER LA RISPOSTA:
 1. ANALISI DEL CONTESTO:
-   - Valuta attentamente se il contesto contiene informazioni sufficienti e rilevanti
-   - Se il contesto è insufficiente, rispondi: "Non ho informazioni sufficienti per rispondere in modo completo."
+   - Valuta attentamente se il {context} contiene informazioni sufficienti e rilevanti per rispondere precisamente ed in modo esaustivo alla {question}, senza utilizzare tue informazioni pregresse che NON devono comparire nella risposta
+   - Se il {context} è insufficiente, rispondi: "Non ho informazioni sufficienti per rispondere in modo completo."
+   - Se il {context} non riguarda la {question} NON DEVI RISPONDERE, ma di semplicemnte che non è pertinete a quanto fornito.
 
 2. STRUTTURA DELLA RISPOSTA:
    - Introduzione: inquadra brevemente l'argomento

@@ -191,6 +191,8 @@ def edit_answer(answer: str):
     - coerente nel tono e nel registro formale
     - in formato markdown
     - non aggiungere alcuna nota aggiuntiva, limitati a revisionare il testo
+
+    Potresti ricevere un messaggio vuoto, in tal caso scrivi solo che non hai informazioni utili
     Agisci come un editor di articoli peer-reviewed. Mantieni intatti i contenuti tecnici e le eventuali referenze, ma migliora forma, logica e stile espositivo.
 TESTO ORIGINALE:
 {answer}
