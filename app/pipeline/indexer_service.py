@@ -5,7 +5,7 @@ from typing import List, Tuple, Dict, Any
 import time
 from pydantic import BaseModel, ValidationError
 import qdrant_client
-from langchain_qdrant import Qdrant
+from langchain_qdrant import QdrantVectorStore
 import qdrant_client.models
 from qdrant_client import models as qdrant_models
 
@@ -43,10 +43,10 @@ class DocumentIndexer:
                 self._create_collection()
             
             # Inizializza vector store LangChain
-            self.vector_store = Qdrant(
+            self.vector_store = QdrantVectorStore(
                 client=self.qdrant_client,
                 collection_name=self.collection_name,
-                embeddings=self.embedder
+                embedding=self.embedder
             )
 
         except Exception as e:
