@@ -15,7 +15,7 @@ COLLECTION_NAME = "papers_custom_pipeline" # Nome chiaro per la nuova pipeline
 
 # LLM Generativo (usando Groq)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-LLM_MODEL_NAME = "gemma2-9b-it"
+LLM_MODEL_NAME = "meta-llama/llama-4-scout-17b-16e-instruct"
 
 # Configurazione processing immagini
 UNSTRUCTURED_IMAGE_EXTRACTION_PARAMS = {
@@ -32,5 +32,5 @@ MIN_CHUNK_SIZE = 200  # Soglia minima per considerare un chunk valido
 DEFAULT_EMBEDDING_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 DEFAULT_CLIP_MODEL = "openai/clip-vit-base-patch32"
 DEFAULT_BATCH_SIZE = 32
-FALLBACK_TEXT_FOR_EMPTY_DOC = ""
+FALLBACK_TEXT_FOR_EMPTY_DOC = " "
 FALLBACK_TEXT_FOR_IMAGE_FAILURE = "Immagine non processabile"
