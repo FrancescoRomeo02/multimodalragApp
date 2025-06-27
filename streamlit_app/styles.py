@@ -5,9 +5,9 @@ def get_custom_css():
     return """
     <style>
         /* Nasconde header e footer di Streamlit */
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        header {visibility: hidden;}
+        #MainMenu {visibility: ;}
+        footer {visibility: ;}
+        header {visibility: ;}
 
         /* Stile generale del contenitore */
         .main .block-container {
