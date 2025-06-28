@@ -11,8 +11,8 @@ from app.llm.groq_client import get_groq_llm
 from app.config import QDRANT_URL, COLLECTION_NAME
 import logging
 from app.utils.embedder import get_multimodal_embedding_model
+from langchain.schema.messages import HumanMessage
 
-# app/core/rag_service.py
 from typing import List
 from langchain_qdrant import Qdrant
 from langchain.chains import RetrievalQA
@@ -55,7 +55,7 @@ def create_retriever(vector_store: Qdrant,
         search_kwargs=search_kwargs
     )
 
-def create_rag_chain(selected_files: List[str] = None, multimodal: bool = False): # type: ignore
+def create_rag_chain(selected_files: List[str] = None, multimodal: bool = True): # type: ignore
     """
     Crea catena RAG migliorata con controlli di qualità
     """
@@ -104,10 +104,8 @@ def create_rag_chain(selected_files: List[str] = None, multimodal: bool = False)
 
 def enhanced_rag_query(query: str, 
                       selected_files: List[str] = None,  # type: ignore
-                      multimodal: bool = False,
-                      include_images: bool = False,
-                      use_reranking: bool = True,
-                      rerank_top_k: int = 5) -> RetrievalResult:
+                      multimodal: bool = True,
+                      include_images: bool = True) -> RetrievalResult:
     """
     Query RAG migliorata con validazione qualità e supporto multimodale
     """
@@ -166,7 +164,7 @@ def enhanced_rag_query(query: str,
 
 def batch_query(queries: List[str], 
                selected_files: List[str] = None, # type: ignore
-               multimodal: bool = False) -> List[RetrievalResult]:
+               multimodal: bool = True) -> List[RetrievalResult]:
     logger.info(f"Esecuzione batch di {len(queries)} query")
     
     results = []
@@ -185,8 +183,6 @@ def batch_query(queries: List[str],
             ))
     
     return results
-
-from langchain.schema.messages import HumanMessage
 
 def edit_answer(answer: str):
     llm = get_groq_llm()

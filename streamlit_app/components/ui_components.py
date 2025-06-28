@@ -3,7 +3,7 @@
 import streamlit as st
 import os
 from app.config import RAW_DATA_PATH
-from app.pipeline.retriever import create_rag_chain, edit_answer
+from app.pipeline.retriever import create_rag_chain, edit_answer, enhanced_rag_query
 from streamlit_app.backend_logic import process_uploaded_file, delete_source
 
 def upload_widget(indexer):
@@ -85,12 +85,9 @@ def chat_interface_widget(selected_sources: list[str]):
         return
 
     # Logica per creare/caricare la catena RAG
-    if 'rag_chain' not in st.session_state or st.session_state.get('last_selected_sources') != selected_sources:
-        with st.spinner(f"Preparazione del motore di ricerca per {len(selected_sources)} fonti..."):
-            st.session_state.rag_chain = create_rag_chain(selected_sources)
+    if st.session_state.get('last_selected_sources') != selected_sources:
         st.session_state.last_selected_sources = selected_sources
 
-    rag_chain = st.session_state.rag_chain
 
     # Inizializzazione e visualizzazione messaggi
     if "messages" not in st.session_state:
@@ -108,8 +105,13 @@ def chat_interface_widget(selected_sources: list[str]):
 
         with st.chat_message("assistant"):
             with st.spinner("Sto pensando..."):
-                response = rag_chain.invoke({"query": prompt})
-                answer = response.get("result", "Nessuna risposta trovata.")
+                response = enhanced_rag_query(
+                    query=prompt,
+                    selected_files=selected_sources,
+                    multimodal=True,
+                    include_images=True
+                )
+                answer = response.answer if response else "Nessuna risposta trovata."
 
                 edited_answer = edit_answer(answer).content
                 st.markdown(edited_answer)
