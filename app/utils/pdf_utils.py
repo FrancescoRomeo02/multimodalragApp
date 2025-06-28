@@ -1,5 +1,5 @@
 from app.utils.pdf_parser import parse_pdf_elements
-from app.utils.image_info import get_image_description
+from app.utils.image_info import get_comprehensive_image_info
 from app.core.models import TextElement, ImageElement
 
 import os
@@ -73,12 +73,11 @@ def prepare_image_data(image_element: ImageElement) -> Dict[str, Any]:
         metadata = image_element.metadata.model_dump()
 
         # Genera descrizione obbligatoria
-        description = get_image_description(image_element.image_base64)
-        if not description.strip():
-            description = f"Immagine da {metadata.get('source', '')} pagina {metadata.get('page', 0)}"
+        description = get_comprehensive_image_info(image_element.image_base64)
+        description_text = f"Immagine da {metadata.get('source', '')} pagina {metadata.get('page', 0)} - {', '.join(f'{description[key]} ,' for key in description.keys() if description[key])}"
 
         return {
-            "text": description,
+            "text": description_text,
             "metadata": metadata,
             "image_base64": image_element.image_base64,  # Mantieni l'immagine per la ricerca
         }

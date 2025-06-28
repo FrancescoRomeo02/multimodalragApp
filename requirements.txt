@@ -8,7 +8,7 @@ qdrant-client
 langchain-groq
 langchain-jina  
 import pytesseract
-
+ultralytics
 
 # Parsing e utilità
 unstructured[pdf,local-inference]

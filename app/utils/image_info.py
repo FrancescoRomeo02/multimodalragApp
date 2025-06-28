@@ -9,9 +9,42 @@ import cv2
 import pytesseract
 import os
 import numpy as np
+from ultralytics import YOLO
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+
+def get_detected_objects(base64_str: str) -> list:
+    """
+    Rileva oggetti in un'immagine usando YOLO.
+    
+    Args:
+        base64_str: Stringa base64 dell'immagine
+        
+    Returns:
+        Una lista di oggetti rilevati con il loro nome e confidenza.
+    """
+    try:
+        model = YOLO("yolov8n.pt") # Carica un modello pre-addestrato
+        
+        image_data = base64.b64decode(base64_str)
+        image = Image.open(BytesIO(image_data)).convert("RGB")
+        
+        results = model(image)
+        
+        detected_objects = []
+        for result in results:
+            for box in result.boxes:
+                label = model.names[int(box.cls)]
+                confidence = float(box.conf)
+                detected_objects.append(f"{label} (confidenza: {confidence:.2f})")
+                
+        return detected_objects
+    except Exception as e:
+        logger.error(f"Errore nel rilevamento oggetti: {e}")
+        return []
+
 
 def get_caption(base64_str: str) -> str:
     """
@@ -36,9 +69,9 @@ def get_caption(base64_str: str) -> str:
         image = Image.open(BytesIO(image_data)).convert("RGB")
 
         # Generazione caption
-        inputs = processor(image, return_tensors="pt")
-        out = model.generate(**inputs, max_new_tokens=100)
-        caption = processor.decode(out[0], skip_special_tokens=True)
+        inputs = processor(image, return_tensors="pt") # type: ignore
+        out = model.generate(**inputs, max_new_tokens=100) # type: ignore
+        caption = processor.decode(out[0], skip_special_tokens=True) # type: ignore
 
         return caption
 
@@ -71,34 +104,19 @@ def get_image_text(base64_str: str) -> str:
         logger.error(f"Errore OCR: {e}")
         return ""
 
-def get_image_description(base64_str: str) -> str:
+def get_comprehensive_image_info(base64_str: str) -> dict:
     """
-    Funzione combinata che restituisce sia caption che testo estratto.
-    Mantenuta per compatibilità con il codice esistente.
+    Estrae un set completo di informazioni da un'immagine.
     
     Args:
         base64_str: Stringa base64 dell'immagine
         
     Returns:
-        Stringa combinata con caption e testo estratto
+        Un dizionario contenente tutte le informazioni estratte.
     """
-    caption = get_caption(base64_str)
-    text = get_image_text(base64_str)
-    
-    # Combina i risultati eliminando spazi vuoti
-    parts = [part for part in [caption, text] if part.strip()]
-    return "\n".join(parts)
-
-# Esempio di utilizzo
-if __name__ == "__main__":
-    # Test con un'immagine locale
-    test_image_path = "test_image.png"
-    if os.path.exists(test_image_path):
-        with open(test_image_path, "rb") as image_file:
-            test_base64 = base64.b64encode(image_file.read()).decode('utf-8')
-        
-        print("Caption:", get_caption(test_base64))
-        print("Testo estratto:", get_image_text(test_base64))
-        print("Descrizione completa:", get_image_description(test_base64))
-    else:
-        print(f"File {test_image_path} non trovato per il test")
+    info = {
+        "caption": get_caption(base64_str),
+        "ocr_text": get_image_text(base64_str),
+        "detected_objects": get_detected_objects(base64_str),
+    }
+    return info
