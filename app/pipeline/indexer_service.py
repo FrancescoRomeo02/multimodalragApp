@@ -119,7 +119,7 @@ class DocumentIndexer:
                 logger.error(f"Errore indicizzazione testo: {e}")
                 success_text = False
 
-        # Indicizzazione elementi immagine
+        # Indicizzazione elementi immagine e descrizioni
         success_images = True
         if all_image_descriptions:
             try:

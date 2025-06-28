@@ -70,51 +70,6 @@ class AdvancedEmbedder(Embeddings):
             logger.error(f"Errore embedding query: {e}")
             return [0.0] * self.embedding_dim
 
-    def embed_image_descriptions(self, descriptions: List[Dict[str, Any]]) -> List[Tuple[List[float], Dict[str, Any]]]:
-        """
-        Embedding per descrizioni di immagini con validazione robusta
-        
-        Args:
-            descriptions: Lista di dict con:
-                - 'text': Descrizione testuale (obbligatoria)
-                - 'metadata': Dict con metadati originali (obbligatorio)
-                
-        Returns:
-            Lista di tuple (embedding, payload) con:
-                - embedding: vettore numerico
-                - payload: {'description': str, 'metadata': dict}
-        """
-        if not descriptions:
-            return []
-
-        results = []
-        for desc_data in descriptions:
-            try:
-                if not isinstance(desc_data, dict):
-                    raise ValueError("Input deve essere un dizionario")
-                
-                text = desc_data.get('text', '').strip()
-                metadata = desc_data.get('metadata', {})
-                
-                if not text:
-                    raise ValueError("Descrizione testuale mancante")
-                if not isinstance(metadata, dict):
-                    raise ValueError("Metadati devono essere un dizionario")
-                
-                embedding = self.embed_query(text)
-                payload = {
-                    'description': text,
-                    'metadata': metadata
-                }
-                results.append((embedding, payload))
-                
-            except Exception as e:
-                logger.error(f"Errore processamento immagine: {e}")
-                continue
-
-        return results
-
-
 def get_embedding_model() -> AdvancedEmbedder:
     """Factory function per creare un'istanza preconfigurata"""
     return AdvancedEmbedder()
