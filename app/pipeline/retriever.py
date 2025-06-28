@@ -6,7 +6,7 @@ from langchain.schema.retriever import BaseRetriever
 from app.core.models import RetrievalResult
 from app.core.diagnostics import validate_retrieval_quality
 from app.core.prompts import create_prompt_template
-from app.core.qdrant_utils import build_combined_filter, query_images
+from app.utils.qdrant_utils import qdrant_manager
 from app.llm.groq_client import get_groq_llm
 from app.config import QDRANT_URL, COLLECTION_NAME
 import logging
@@ -34,7 +34,13 @@ def create_retriever(vector_store: Qdrant,
     """
     Crea retriever con filtri appropriati
     """
-    qdrant_filter = build_combined_filter(selected_files, query_type)
+
+
+
+    qdrant_filter = qdrant_manager.build_combined_filter(
+        selected_files=selected_files,
+        query_type=query_type
+    )
     
     search_kwargs = {
         "k": k,
@@ -105,6 +111,7 @@ def enhanced_rag_query(query: str,
     """
     Query RAG migliorata con validazione qualità e supporto multimodale
     """
+
     logger.info(f"Esecuzione query RAG: '{query[:50]}...' su file: {selected_files or 'tutti'}")
     
     try:
@@ -136,8 +143,7 @@ def enhanced_rag_query(query: str,
         images = []
         if include_images or multimodal:
             try:
-                client = qdrant_client.QdrantClient(url=QDRANT_URL)
-                images = query_images(client, query, selected_files, top_k=3)
+                images = qdrant_manager.query_images(query, selected_files, top_k=3)
                 logger.info(f"Trovate {len(images)} immagini rilevanti")
             except Exception as e:
                 logger.warning(f"Errore query immagini: {str(e)}")

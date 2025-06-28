@@ -32,7 +32,7 @@ def load_main_services():
     logger.info("Inizializzazione dei servizi (embedder e indexer)...")
     try:
         embedder = get_multimodal_embedding_model()
-        indexer = DocumentIndexer(embedder=embedder, qdrant_url=QDRANT_URL, collection_name=COLLECTION_NAME)
+        indexer = DocumentIndexer(embedder=embedder)
         logger.info("Servizi inizializzati con successo.")
         return indexer
     except Exception as e:

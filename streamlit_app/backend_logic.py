@@ -3,7 +3,7 @@
 import os
 import logging
 from app.pipeline.indexer_service import DocumentIndexer
-from app.utils.qdrant_utils import delete_documents_by_source
+from app.utils.qdrant_utils import qdrant_manager
 from app.config import RAW_DATA_PATH
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ def delete_source(filename: str) -> tuple[bool, str]:
     """
     try:
         # 1. Elimina da Qdrant
-        success_qdrant, msg_qdrant = delete_documents_by_source(filename)
+        success_qdrant, msg_qdrant = qdrant_manager.delete_by_source(filename)
         if not success_qdrant:
             raise Exception(f"Errore Qdrant: {msg_qdrant}")
 
