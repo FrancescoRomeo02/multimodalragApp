@@ -1,4 +1,5 @@
 # app/core/models.py
+from enum import Enum
 from typing import List, Optional, Dict
 from pydantic import BaseModel
 
@@ -30,3 +31,16 @@ class ImageElement(BaseModel):
     page_content: str
     image_base64: str
     metadata: ElementMetadata
+
+class ColorSpace(Enum):
+    GRAY = 1
+    RGB = 2
+    CMYK = 3
+    UNKNOWN = 4
+
+    @classmethod
+    def from_fitz(cls, cs_num: int):
+        try:
+            return cls(cs_num).name.lower()
+        except ValueError:
+            return cls.UNKNOWN.name.lower()

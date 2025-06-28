@@ -5,23 +5,11 @@ from typing import Tuple, List, Dict, Any
 from io import BytesIO
 from PIL import Image as PILImage
 import os
-from enum import Enum
+from app.core.models import ColorSpace
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class ColorSpace(Enum):
-    GRAY = 1
-    RGB = 2
-    CMYK = 3
-    UNKNOWN = 4
-
-    @classmethod
-    def from_fitz(cls, cs_num: int):
-        try:
-            return cls(cs_num).name.lower()
-        except ValueError:
-            return cls.UNKNOWN.name.lower()
 
 def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
@@ -53,17 +41,8 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                         
                         # Campi aggiuntivi per compatibilità
                         "content_type": "text",
-                        "source_details": {
-                            "filename": filename,
-                            "page_number": page_num + 1
-                        },
-                        "stats": {
-                            "char_count": len(text),
-                            "line_count": len(text.splitlines()),
-                            "word_count": len(text.split())
                         }
-                    }
-                })
+                    })
             
             # Estrazione immagini con metadati standardizzati
             for img_index, img_info in enumerate(page.get_images(full=True)):
@@ -87,16 +66,6 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                             img.save(output_buffer, format=img_format, optimize=True, quality=85)
                             optimized_image = output_buffer.getvalue()
                         
-                        # Estrai posizione immagine nella pagina
-                        img_bbox = None
-                        try:
-                            for img_instance in page.get_image_info():
-                                if img_instance.get('xref') == xref:
-                                    img_bbox = img_instance.get('bbox')
-                                    break
-                        except Exception as bbox_e:
-                            logger.debug(f"Impossibile ottenere bbox per immagine {img_index}: {bbox_e}")
-                        
                         # Costruisci metadati STANDARDIZZATI
                         image_metadata = {
                             # CAMPI STANDARDIZZATI per il retriever
@@ -107,34 +76,6 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                             # Campi aggiuntivi
                             "content_type": "image",
                             "image_base64": base64.b64encode(optimized_image).decode("utf-8"),
-                            "media": {
-                                "format": img_format.lower(),
-                                "dimensions": {
-                                    "width": base_image["width"],
-                                    "height": base_image["height"],
-                                    "aspect_ratio": round(base_image["width"] / base_image["height"], 2),
-                                    "dpi": base_image.get("xres", 72),
-                                    "colorspace": ColorSpace.from_fitz(base_image.get("colorspace", 4))
-                                },
-                                "size": {
-                                    "original_bytes": len(base_image["image"]),
-                                    "optimized_bytes": len(optimized_image),
-                                    "compression_ratio": round(len(optimized_image) / len(base_image["image"]), 2)
-                                }
-                            },
-                            "source_details": {
-                                "filename": filename,
-                                "page_number": page_num + 1,
-                                "position": {
-                                    "index": img_index,
-                                    "bbox": list(img_bbox) if img_bbox else None,
-                                    "page_bbox": list(page_bbox)
-                                }
-                            },
-                            "processing": {
-                                "method": "pymupdf",
-                                "optimized": True
-                            }
                         }
                         
                         # Descrizione per l'embedding testuale

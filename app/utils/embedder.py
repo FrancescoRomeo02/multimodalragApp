@@ -82,7 +82,7 @@ class AdvancedEmbedder(Embeddings):
         Returns:
             Lista di tuple (embedding, payload) con:
                 - embedding: vettore numerico
-                - payload: {'description': str, 'original_metadata': dict}
+                - payload: {'description': str, 'metadata': dict}
         """
         if not descriptions:
             return []
@@ -104,7 +104,7 @@ class AdvancedEmbedder(Embeddings):
                 embedding = self.embed_query(text)
                 payload = {
                     'description': text,
-                    'original_metadata': metadata
+                    'metadata': metadata
                 }
                 results.append((embedding, payload))
                 
