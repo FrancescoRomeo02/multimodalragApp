@@ -345,6 +345,60 @@ class QdrantManager:
         except Exception as e:
             logger.error(f"Errore query immagini: {e}")
             return []
+    def query_tables(self, 
+                 query: str, 
+                 selected_files: List[str] = None,
+                 top_k: int = 3) -> List[Dict[str, Any]]:
+        """
+        Ricerca specifica per tabelle, restituendo contenuto e metadati.
+
+        Args:
+            query: Testo della query
+            selected_files: Filtri opzionali sui file
+            top_k: Numero massimo di risultati
+
+        Returns:
+            Lista di dizionari contenenti tabella (base64), metadati, score e pagina
+        """
+        logger.info(f"Query tabelle: '{query}' con top_k={top_k}, file: {selected_files}")
+
+        try:
+            # 1. Embedding della query testuale
+            query_embedding = self.embedder.embed_query(query)
+
+            # 2. Ricerca vettoriale con filtro per tabelle
+            results = self.search_vectors(
+                query_embedding=query_embedding,
+                top_k=top_k,
+                selected_files=selected_files,
+                query_type="table"
+            )
+
+            # 3. Parsing risultati
+            table_results = []
+            for result in results:
+                try:
+                    metadata = result.payload.get("metadata", {})
+                    table_base64 = metadata.get("table_base64", "")
+
+                    if table_base64:
+                        table_results.append({
+                            "table_base64": table_base64,
+                            "metadata": metadata,
+                            "score": result.score,
+                            "page_content": result.payload.get("page_content", "")
+                        })
+                except Exception as e:
+                    logger.warning(f"Errore processamento risultato tabella: {e}")
+                    continue
+
+            logger.info(f"Trovate {len(table_results)} tabelle per query '{query}'")
+            return table_results
+
+        except Exception as e:
+            logger.error(f"Errore query tabelle: {e}")
+            return []
+
     
     def search_similar_documents(self, 
                                 query: str,
