@@ -2,10 +2,6 @@
 from langchain.prompts import PromptTemplate
 
 def create_prompt_template() -> PromptTemplate:
-    """
-    Un template di prompt finale, progettato per eliminare artefatti,
-    risposte contraddittorie e per forzare un output accademico rigoroso.
-    """
     template = """Sei un esperto analista che fornisce risposte dettagliate basate sui documenti forniti. 
 Segui scrupolosamente queste linee guida:
 
@@ -13,13 +9,14 @@ CONTESTO FORNITO:
 {context}
 
 DOMANDA UTENTE:
-{question}
+{input}
 
 DIRETTIVE PER LA RISPOSTA:
 1. ANALISI DEL CONTESTO:
-   - Valuta attentamente se il {context} contiene informazioni sufficienti e rilevanti per rispondere precisamente ed in modo esaustivo alla {question}, senza utilizzare tue informazioni pregresse che NON devono comparire nella risposta
+   - Valuta attentamente se il {context} contiene informazioni sufficienti e rilevanti per rispondere precisamente ed in modo esaustivo alla {input}, senza utilizzare tue informazioni pregresse che NON devono comparire nella risposta
+   - Se la {input} è generale (es. "di cosa parla il PDF", "qual è l'obiettivo dello studio", ecc.), **offri una sintesi tematica ragionata** del contenuto del {context}, se possibile.
    - Se il {context} è insufficiente, rispondi: "Non ho informazioni sufficienti per rispondere in modo completo."
-   - Se il {context} non riguarda la {question} NON DEVI RISPONDERE, ma di semplicemnte che non è pertinete a quanto fornito.
+   - Se il {context} non riguarda la {input}, NON DEVI RISPONDERE, ma dì semplicemente che non è pertinente a quanto fornito.
 
 2. STRUTTURA DELLA RISPOSTA:
    - Introduzione: inquadra brevemente l'argomento

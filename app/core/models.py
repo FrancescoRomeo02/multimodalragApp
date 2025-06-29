@@ -13,13 +13,6 @@ class TableResult(BaseModel):
     metadata: dict
     score: float
 
-class RetrievalResult(BaseModel):
-    answer: str
-    source_documents: List[Dict]
-    images: Optional[List[ImageResult]] = None
-    tables: Optional[List[TableResult]] = None  
-    confidence_score: Optional[float] = None
-
 class ElementMetadata(BaseModel):
     """Metadati comuni a tutti gli elementi, validati da Pydantic."""
     source: str
@@ -37,7 +30,7 @@ class TableMetadata(BaseModel):
 
 class TableData(BaseModel):
     """Modello per i dati strutturati della tabella"""
-    cells: List[List[str]]
+    cells: List[List[Optional[str]]]
     headers: List[str]
     shape: Tuple[int, int]
 
@@ -48,16 +41,30 @@ class TableElement(BaseModel):
     metadata: TableMetadata = Field(..., description="Metadati standardizzati della tabella")
 
 
+class TextMetadata(ElementMetadata):
+    content_type: str = Field(default="text", description="Tipo di contenuto (sempre 'text')")
+
 class TextElement(BaseModel):
     """Modello per un elemento testuale."""
     text: str
-    metadata: ElementMetadata
+    metadata: TextMetadata
+
+class ImageMetadata(ElementMetadata):
+    content_type: str = Field(default="image", description="Tipo di contenuto (sempre 'image')")
+    image_caption: Optional[str] = None
 
 class ImageElement(BaseModel):
-    """Modello per un elemento immagine."""
-    page_content: str
-    image_base64: str
-    metadata: ElementMetadata
+    page_content: str  # Può contenere didascalia o testo associato all'immagine
+    image_base64: str  # Contenuto immagine codificato base64
+    metadata: ImageMetadata
+
+class RetrievalResult(BaseModel):
+    answer: str
+    source_documents: List[Dict]
+    text: Optional[List[TextElement]] = None
+    images: Optional[List[ImageResult]] = None
+    tables: Optional[List[TableResult]] = None  
+    confidence_score: Optional[float] = None
 
 class ColorSpace(Enum):
     GRAY = 1
