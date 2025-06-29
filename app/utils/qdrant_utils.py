@@ -1,4 +1,3 @@
-# app/utils/qdrant_manager.py
 from typing import List, Optional, Dict, Any, Tuple
 import logging
 import qdrant_client
