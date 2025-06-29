@@ -3,7 +3,7 @@
 import streamlit as st
 import os
 from app.config import RAW_DATA_PATH
-from app.pipeline.retriever import create_rag_chain, edit_answer, enhanced_rag_query
+from app.pipeline.retriever import edit_answer, enhanced_rag_query
 from streamlit_app.backend_logic import process_uploaded_file, delete_source
 
 def upload_widget(indexer):
