@@ -43,7 +43,6 @@ def create_retriever(vector_store: Qdrant,
     # Configurazione della ricerca
     search_kwargs = {
         "k": k,
-        "fetch_k": k * 4,
         "score_threshold": 0.5  # Soglia minima di similarità
     }
     
@@ -52,7 +51,7 @@ def create_retriever(vector_store: Qdrant,
     
     # Crea retriever con configurazione specifica per tabelle
     return vector_store.as_retriever(
-        search_type="mmr",  # Maximum Marginal Relevance per diversità
+        search_type="similarity",
         search_kwargs=search_kwargs
     )
 
