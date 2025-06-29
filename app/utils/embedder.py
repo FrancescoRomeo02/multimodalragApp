@@ -1,7 +1,7 @@
 # file: app/utils/embedder.py
 
 import logging
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Optional
 import torch
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from langchain_core.embeddings import Embeddings
