@@ -3,7 +3,14 @@ import logging
 import uuid
 from typing import List, Dict, Any
 
-from app.utils.pdf_utils import prepare_elements_from_file, prepare_image_data, create_text_points, create_image_points
+from app.utils.pdf_utils import (
+    prepare_elements_from_file, 
+    prepare_image_data, 
+    prepare_table_data,
+    create_text_points, 
+    create_image_points,
+    create_table_points
+)
 from app.utils.qdrant_utils import qdrant_manager
 from app.utils.embedder import AdvancedEmbedder
 
@@ -16,6 +23,7 @@ class DocumentIndexer:
     """
     Gestisce l'indicizzazione di documenti PDF in Qdrant.
     Ora utilizza QdrantManager per tutte le operazioni sul database vettoriale.
+    Supporta testo, immagini e tabelle.
     """
     
     def __init__(self, embedder: AdvancedEmbedder):
@@ -66,11 +74,12 @@ class DocumentIndexer:
         all_texts = []
         all_text_metadatas = []
         all_image_descriptions = []
+        all_table_descriptions = []
         processed_files = 0
 
         for path in pdf_paths:
             try:
-                texts, images = prepare_elements_from_file(path)
+                texts, images, tables = prepare_elements_from_file(path)
                 
                 # Processa elementi testuali
                 if texts:
@@ -86,8 +95,17 @@ class DocumentIndexer:
                         logger.error(f"Errore processamento immagine da {path}: {e}")
                         continue
                 
+                # Processa elementi tabella
+                for elem in tables:
+                    try:
+                        table_data = prepare_table_data(elem)
+                        all_table_descriptions.append(table_data)
+                    except Exception as e:
+                        logger.error(f"Errore processamento tabella da {path}: {e}")
+                        continue
+                
                 processed_files += 1
-                logger.info(f"Processato file {processed_files}/{len(pdf_paths)}: {os.path.basename(path)}")
+                logger.info(f"Processato file {processed_files}/{len(pdf_paths)}: {os.path.basename(path)} (testi: {len(texts)}, immagini: {len(images)}, tabelle: {len(tables)})")
                         
             except Exception as e:
                 logger.error(f"Errore processamento file {path}: {e}")
@@ -97,7 +115,7 @@ class DocumentIndexer:
             logger.error("Nessun file processato con successo")
             return False
 
-        logger.info(f"Raccolti {len(all_texts)} testi e {len(all_image_descriptions)} immagini")
+        logger.info(f"Raccolti {len(all_texts)} testi, {len(all_image_descriptions)} immagini e {len(all_table_descriptions)} tabelle")
 
         # Indicizzazione elementi testuali
         success_text = True
@@ -111,7 +129,7 @@ class DocumentIndexer:
                     else:
                         logger.error("Fallito inserimento punti testo")
                         success_text = False
-                else:
+                else:   
                     logger.error("Fallita creazione punti testo")
                     success_text = False
                     
@@ -155,8 +173,28 @@ class DocumentIndexer:
                 logger.error(f"Errore indicizzazione immagini: {e}")
                 success_images = False
 
+        # Indicizzazione elementi tabella
+        success_tables = True
+        if all_table_descriptions:
+            try:
+                table_points, success_tables = create_table_points(all_table_descriptions, embedder=self.embedder)
+                
+                if success_tables and table_points:
+                    if self.qdrant_manager.upsert_points(table_points):
+                        logger.info(f"Indicizzate {len(table_points)} tabelle")
+                    else:
+                        logger.error("Fallito inserimento punti tabella")
+                        success_tables = False
+                else:
+                    logger.error("Fallita creazione punti tabella")
+                    success_tables = False
+                    
+            except Exception as e:
+                logger.error(f"Errore indicizzazione tabelle: {e}")
+                success_tables = False
+
         # Risultato finale
-        overall_success = success_text and success_images
+        overall_success = success_text and success_images and success_tables
         if overall_success:
             logger.info("Processo di indicizzazione completato con successo")
         else:
