@@ -107,9 +107,7 @@ def chat_interface_widget(selected_sources: list[str]):
             with st.spinner("Sto pensando..."):
                 response = enhanced_rag_query(
                     query=prompt,
-                    selected_files=selected_sources,
-                    multimodal=True,
-                    include_images=True
+                    selected_files=selected_sources
                 )
                 answer = response.answer if response else "Nessuna risposta trovata."
 

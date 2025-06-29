@@ -13,22 +13,29 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 
-def prepare_elements_from_file(pdf_path: str) -> Tuple[List[TextElement], List[ImageElement]]:
-    """
-    Estrae elementi da file PDF con validazione
+from app.utils.pdf_parser import parse_pdf_elements
+from app.utils.image_info import get_comprehensive_image_info
+from app.core.models import TableData, TextElement, ImageElement, TableElement
+from app.utils.embedder import AdvancedEmbedder
+import os
+import logging
+import uuid
+from typing import List, Dict, Any, Tuple, Optional
+from pydantic import ValidationError
+from qdrant_client.http import models as qdrant_models
+from datetime import datetime
 
-    Args:
-        pdf_path: Percorso del file PDF
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-    Returns:
-        Tuple[Lista elementi testo validati, Lista elementi immagine validati]
-    """
+def prepare_elements_from_file(pdf_path: str) -> Tuple[List[TextElement], List[ImageElement], List[TableElement]]:
+    """Estrae e valida elementi da PDF con gestione rinforzata delle tabelle"""
     filename = os.path.basename(pdf_path)
     if not os.path.exists(pdf_path):
         raise FileNotFoundError(f"File non trovato: {pdf_path}")
 
     try:
-        text_elements_raw, image_elements_raw = parse_pdf_elements(pdf_path)
+        text_elements_raw, image_elements_raw, table_elements_raw = parse_pdf_elements(pdf_path)
 
         # Validazione elementi testuali
         validated_texts = []
@@ -42,21 +49,111 @@ def prepare_elements_from_file(pdf_path: str) -> Tuple[List[TextElement], List[I
         validated_images = []
         for raw in image_elements_raw:
             try:
-                # Assicura che i metadati abbiano la struttura minima
                 if "media" not in raw["metadata"]:
                     raw["metadata"]["media"] = {"format": "unknown"}
                 validated_images.append(ImageElement(**raw))
             except (ValidationError, KeyError) as e:
                 logger.warning(f"Elemento immagine non valido in {filename}: {e}")
 
-        logger.info(
-            f"Estratti da {filename}: {len(validated_texts)} testi, {len(validated_images)} immagini"
-        )
-        return validated_texts, validated_images
+        # Validazione rinforzata elementi tabella
+        validated_tables = []
+        for raw in table_elements_raw:
+            try:
+                # Standardizzazione metadati
+                if "metadata" not in raw:
+                    raw["metadata"] = {}
+                
+                raw["metadata"].update({
+                    "type": "table",
+                    "source": filename,
+                    "page": raw["metadata"].get("page", 0),
+                    "content_type": "table",
+                    "bbox": raw["metadata"].get("bbox"),
+                    "table_shape": raw["table_data"].get("shape", (0, 0))
+                })
+
+                # Conversione esplicita a TableData
+                if isinstance(raw["table_data"], dict):
+                    raw["table_data"] = TableData(**raw["table_data"])
+                
+                validated_tables.append(TableElement(**raw))
+            except ValidationError as e:
+                logger.warning(f"Elemento tabella non valido in {filename}: {e}")
+            except Exception as e:
+                logger.error(f"Errore imprevisto validazione tabella in {filename}: {e}")
+
+        logger.info(f"Estratti da {filename}: {len(validated_texts)} testi, {len(validated_images)} immagini, {len(validated_tables)} tabelle")
+        return validated_texts, validated_images, validated_tables
 
     except Exception as e:
         logger.error(f"Errore parsing PDF {filename}: {e}")
         raise
+
+def prepare_table_data(table_element: TableElement) -> Dict[str, Any]:
+    """Prepara i dati della tabella per l'embedding con gestione robusta"""
+    try:
+        metadata = table_element.metadata.model_dump()
+        table_data = table_element.table_data
+        
+        # Descrizione dettagliata della tabella
+        description = (
+            f"Tabella da {metadata.get('source', '')} pagina {metadata.get('page', 0)}. "
+            f"Dimensione: {table_data.shape[0]} righe × {table_data.shape[1]} colonne. "
+            f"Intestazioni: {', '.join(table_data.headers)}. "
+            f"Contenuto: {table_element.table_markdown[:300]}..."
+        )
+        
+        return {
+            "text": description,
+            "metadata": metadata,
+            "table_markdown": table_element.table_markdown,
+            "table_data": table_data.model_dump(),
+            "content_type": "table"
+        }
+    except Exception as e:
+        logger.error(f"Errore preparazione dati tabella: {e}")
+        raise
+
+def create_table_points(table_descriptions: List[Dict[str, Any]], embedder: AdvancedEmbedder) -> Tuple[List[qdrant_models.PointStruct], bool]:
+    """Crea punti Qdrant per tabelle con validazione rinforzata"""
+    points = []
+    try:
+        if not table_descriptions or not embedder:
+            return [], True
+
+        # Genera embeddings per le descrizioni
+        texts = [desc["text"] for desc in table_descriptions]
+        embeddings = embedder.embed_documents(texts)
+
+        for desc, embedding in zip(table_descriptions, embeddings):
+            try:
+                metadata = desc["metadata"].copy()
+                metadata.update({
+                    "processing_time": datetime.now().isoformat(),
+                    "element_type": "table"
+                })
+
+                point = qdrant_models.PointStruct(
+                    id=str(uuid.uuid4()),
+                    vector=embedding,
+                    payload={
+                        "page_content": desc["text"],
+                        "metadata": metadata,
+                        "table_markdown": desc["table_markdown"],
+                        "table_data": desc["table_data"],
+                        "content_type": "table"
+                    }
+                )
+                points.append(point)
+            except Exception as e:
+                logger.warning(f"Errore creazione punto tabella: {e}")
+                continue
+
+        return points, len(points) == len(table_descriptions)
+
+    except Exception as e:
+        logger.error(f"Errore creazione punti tabella: {e}")
+        return [], False
 
 
 def prepare_image_data(image_element: ImageElement) -> Dict[str, Any]:
