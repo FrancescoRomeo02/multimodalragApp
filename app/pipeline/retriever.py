@@ -28,28 +28,29 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def create_retriever(vector_store: Qdrant, 
-                    selected_files: List[str] = None,  # type: ignore
+                    selected_files: List[str] = None,
                     query_type: Optional[str] = None,
                     k: int = 5) -> BaseRetriever:
     """
-    Crea retriever con filtri appropriati
+    Crea retriever con filtri appropriati e gestione di tabelle
     """
-
-
-
+    # Costruisci filtro combinato
     qdrant_filter = qdrant_manager.build_combined_filter(
         selected_files=selected_files,
         query_type=query_type
     )
     
+    # Configurazione della ricerca
     search_kwargs = {
         "k": k,
-        "fetch_k": k * 4
+        "fetch_k": k * 4,
+        "score_threshold": 0.5  # Soglia minima di similarità
     }
     
     if qdrant_filter:
-        search_kwargs["filter"] = qdrant_filter # type: ignore
+        search_kwargs["filter"] = qdrant_filter
     
+    # Crea retriever con configurazione specifica per tabelle
     return vector_store.as_retriever(
         search_type="mmr",  # Maximum Marginal Relevance per diversità
         search_kwargs=search_kwargs
@@ -103,13 +104,13 @@ def create_rag_chain(selected_files: List[str] = None, multimodal: bool = True):
     return rag_chain
 
 def enhanced_rag_query(query: str, 
-                      selected_files: List[str] = None,  # type: ignore
+                      selected_files: List[str] = None,
                       multimodal: bool = True,
-                      include_images: bool = True) -> RetrievalResult:
+                      include_images: bool = True,
+                      include_tables: bool = True) -> RetrievalResult:
     """
-    Query RAG migliorata con validazione qualità e supporto multimodale
+    Query RAG migliorata con supporto per tabelle e immagini
     """
-
     logger.info(f"Esecuzione query RAG: '{query[:50]}...' su file: {selected_files or 'tutti'}")
     
     try:
@@ -126,15 +127,31 @@ def enhanced_rag_query(query: str,
         if not is_quality:
             logger.warning(f"Qualità retrieval insufficiente per query: {query[:50]}...")
         
-        # Formattazione documenti fonte
+        # Formattazione documenti fonte con supporto per tabelle
         source_docs = []
         for doc in retrieved_docs:
-            doc_info = {
-                "content": doc.page_content[:500] + "..." if len(doc.page_content) > 500 else doc.page_content,
-                "metadata": doc.metadata,
-                "source": doc.metadata.get("source", "Sconosciuto"),
-                "page": doc.metadata.get("page", "N/A")
-            }
+            doc_metadata = doc.metadata
+            content_type = doc_metadata.get("content_type", "text")
+            
+            # Gestione speciale per le tabelle
+            if content_type == "table":
+                table_data = doc.metadata.get("table_data", {})
+                doc_info = {
+                    "content": doc.metadata.get("table_markdown", "Contenuto tabella non disponibile"),
+                    "metadata": doc_metadata,
+                    "source": doc_metadata.get("source", "Sconosciuto"),
+                    "page": doc_metadata.get("page", "N/A"),
+                    "type": "table",
+                    "table_data": table_data
+                }
+            else:
+                doc_info = {
+                    "content": doc.page_content[:500] + "..." if len(doc.page_content) > 500 else doc.page_content,
+                    "metadata": doc_metadata,
+                    "source": doc_metadata.get("source", "Sconosciuto"),
+                    "page": doc_metadata.get("page", "N/A"),
+                    "type": content_type
+                }
             source_docs.append(doc_info)
         
         # Query immagini se richiesto
@@ -145,6 +162,25 @@ def enhanced_rag_query(query: str,
                 logger.info(f"Trovate {len(images)} immagini rilevanti")
             except Exception as e:
                 logger.warning(f"Errore query immagini: {str(e)}")
+        
+        # Query tabelle se richiesto
+        tables = []
+        if include_tables or multimodal:
+            try:
+                tables = qdrant_manager.query_tables(query, selected_files, top_k=3)
+                logger.info(f"Trovate {len(tables)} tabelle rilevanti")
+                # Aggiungi le tabelle trovate ai documenti sorgente
+                for table in tables:
+                    source_docs.append({
+                        "content": table.get("table_markdown", "Contenuto tabella non disponibile"),
+                        "metadata": table.get("metadata", {}),
+                        "source": table.get("metadata", {}).get("source", "Sconosciuto"),
+                        "page": table.get("metadata", {}).get("page", "N/A"),
+                        "type": "table",
+                        "table_data": table.get("table_data", {})
+                    })
+            except Exception as e:
+                logger.warning(f"Errore query tabelle: {str(e)}")
         
         return RetrievalResult(
             answer=result["result"],
