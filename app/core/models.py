@@ -12,11 +12,12 @@ class TableResult(BaseModel):
     table_markdown: str
     metadata: dict
     score: float
-    
+
 class RetrievalResult(BaseModel):
     answer: str
     source_documents: List[Dict]
     images: Optional[List[ImageResult]] = None
+    tables: Optional[List[TableResult]] = None  
     confidence_score: Optional[float] = None
 
 class ElementMetadata(BaseModel):
