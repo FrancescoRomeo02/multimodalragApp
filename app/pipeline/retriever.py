@@ -148,7 +148,6 @@ def enhanced_rag_query(query: str,
         return RetrievalResult(
             answer=result.get("answer", ""),
             source_documents=source_docs,
-            images=images if images else None,
             confidence_score=confidence_score
         )
 

@@ -45,7 +45,8 @@ class QdrantManager:
             id=str(uuid.uuid4()),
             vector=vector,
             payload={
-                "page_content": element.text,
+                "page_content": "testo",
+                #"page_content": element.text,
                 "metadata": element.metadata.dict(),
                 "content_type": "text"
             }

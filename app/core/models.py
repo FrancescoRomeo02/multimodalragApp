@@ -61,10 +61,6 @@ class ImageElement(BaseModel):
 class RetrievalResult(BaseModel):
     answer: str
     source_documents: List[Dict]
-    text: Optional[List[TextElement]] = None
-    images: Optional[List[ImageResult]] = None
-    tables: Optional[List[TableResult]] = None  
-    confidence_score: Optional[float] = None
 
 class ColorSpace(Enum):
     GRAY = 1

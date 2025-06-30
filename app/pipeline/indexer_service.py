@@ -110,14 +110,6 @@ class DocumentIndexer:
                     logger.error("Fallito inserimento punti immagini")
                     success = False
 
-                # Indicizzazione descrizioni immagine (testo)
-                image_text_vectors = [self.embedder.embed_query(el.page_content) for el in all_image_elements]
-                image_text_points = self.qdrant_manager.convert_elements_to_points(all_image_elements, image_text_vectors)
-                if self.qdrant_manager.upsert_points(image_text_points):
-                    logger.info(f"Indicizzate {len(image_text_points)} descrizioni immagini")
-                else:
-                    logger.error("Fallito inserimento punti descrizioni immagini")
-                    success = False
             except Exception as e:
                 logger.error(f"Errore indicizzazione immagini e descrizioni: {e}")
                 success = False
