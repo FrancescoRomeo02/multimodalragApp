@@ -7,8 +7,8 @@ from PIL import Image as PILImage
 import os
 import pandas as pd
 import numpy as np
-from app.utils.context_extractor import ContextExtractor
-from app.utils.image_info import get_comprehensive_image_info
+from src.utils.context_extractor import ContextExtractor
+from src.utils.image_info import get_comprehensive_image_info
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

@@ -11,7 +11,7 @@ import fitz
 # Aggiungi il percorso del modulo principale
 sys.path.append(str(Path(__file__).parent.parent))
 
-from app.utils.context_extractor import ContextExtractor
+from src.utils.context_extractor import ContextExtractor
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)

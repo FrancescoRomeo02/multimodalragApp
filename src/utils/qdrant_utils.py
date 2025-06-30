@@ -2,9 +2,9 @@ from typing import List, Optional, Dict, Any, Tuple, Union
 import logging
 import qdrant_client
 from qdrant_client.http import models
-from app.config import QDRANT_URL, COLLECTION_NAME
-from app.core.models import ImageResult, TextElement, ImageElement, TableElement
-from app.utils.embedder import get_multimodal_embedding_model
+from src.config import QDRANT_URL, COLLECTION_NAME
+from src.core.models import ImageResult, TextElement, ImageElement, TableElement
+from src.utils.embedder import get_multimodal_embedding_model
 import uuid
 
 logging.basicConfig(level=logging.INFO)

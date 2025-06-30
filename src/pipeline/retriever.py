@@ -8,13 +8,13 @@ from langchain.schema.retriever import BaseRetriever
 from langchain.schema.messages import HumanMessage
 import qdrant_client
 
-from app.core.models import RetrievalResult
-from app.core.diagnostics import validate_retrieval_quality
-from app.core.prompts import create_prompt_template
-from app.utils.qdrant_utils import qdrant_manager
-from app.utils.embedder import get_multimodal_embedding_model
-from app.llm.groq_client import get_groq_llm
-from app.config import QDRANT_URL, COLLECTION_NAME
+from src.core.models import RetrievalResult
+from src.core.diagnostics import validate_retrieval_quality
+from src.core.prompts import create_prompt_template
+from src.utils.qdrant_utils import qdrant_manager
+from src.utils.embedder import get_multimodal_embedding_model
+from src.llm.groq_client import get_groq_llm
+from src.config import QDRANT_URL, COLLECTION_NAME
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

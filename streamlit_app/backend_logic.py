@@ -2,9 +2,9 @@
 
 import os
 import logging
-from app.pipeline.indexer_service import DocumentIndexer
-from app.utils.qdrant_utils import qdrant_manager
-from app.config import RAW_DATA_PATH
+from src.pipeline.indexer_service import DocumentIndexer
+from src.utils.qdrant_utils import qdrant_manager
+from src.config import RAW_DATA_PATH
 
 logger = logging.getLogger(__name__)
 

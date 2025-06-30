@@ -14,9 +14,9 @@ from streamlit_app.styles import get_custom_css
 # --- Importazioni dalla nuova architettura ---
 
 from streamlit_app.components.ui_components import upload_widget, source_selector_widget, enhanced_chat_interface_widget
-from app.pipeline.indexer_service import DocumentIndexer
-from app.utils.embedder import get_multimodal_embedding_model
-from app.config import QDRANT_URL, COLLECTION_NAME
+from src.pipeline.indexer_service import DocumentIndexer
+from src.utils.embedder import get_multimodal_embedding_model
+from src.config import QDRANT_URL, COLLECTION_NAME
 
 # --- Configurazione ---
 logging.basicConfig(level=logging.INFO)

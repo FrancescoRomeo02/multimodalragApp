@@ -2,10 +2,10 @@ import os
 import logging
 from typing import List, Dict, Any, Union
 
-from app.utils.pdf_parser import parse_pdf_elements
-from app.utils.qdrant_utils import qdrant_manager
-from app.utils.embedder import AdvancedEmbedder
-from app.core.models import TextElement, ImageElement, TableElement
+from src.utils.pdf_parser import parse_pdf_elements
+from src.utils.qdrant_utils import qdrant_manager
+from src.utils.embedder import AdvancedEmbedder
+from src.core.models import TextElement, ImageElement, TableElement
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
