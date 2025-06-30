@@ -1,4 +1,4 @@
-# app/core/prompts.py
+# src/core/prompts.py
 from langchain.prompts import PromptTemplate
 
 def create_prompt_template() -> PromptTemplate:

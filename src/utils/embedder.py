@@ -1,4 +1,4 @@
-# file: app/utils/embedder.py
+# file: src/utils/embedder.py
 
 import logging
 from typing import List, Optional

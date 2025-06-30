@@ -83,7 +83,7 @@ streamlit run streamlit_app/Home.py
 
 ```
 multimodalrag/
-├── app/                    # Core dell'applicazione
+├── src/                    # Core dell'applicazione
 │   ├── config.py          # Configurazioni centrali
 │   ├── core/              # Logica di business
 │   ├── llm/               # Client per LLM
