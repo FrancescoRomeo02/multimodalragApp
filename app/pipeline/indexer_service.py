@@ -2,7 +2,7 @@ import os
 import logging
 from typing import List, Dict, Any, Union
 
-from app.utils.pdf_utils import parse_pdf_elements
+from app.utils.pdf_parser import parse_pdf_elements
 from app.utils.qdrant_utils import qdrant_manager
 from app.utils.embedder import AdvancedEmbedder
 from app.core.models import TextElement, ImageElement, TableElement

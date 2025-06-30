@@ -97,14 +97,24 @@ def enhanced_rag_query(query: str,
             }
 
             if content_type == "table":
+                table_content = meta.get("table_markdown", "Contenuto tabella non disponibile")
+                # Estrai il markdown originale se disponibile, altrimenti usa quello arricchito
+                raw_markdown = doc.page_content if hasattr(doc, 'page_content') else table_content
+                
                 base_info.update({
-                    "content": meta.get("table_markdown", "Contenuto tabella non disponibile"),
-                    "table_data": meta.get("table_data", {})
+                    "content": table_content,
+                    "table_data": meta.get("table_data", {}),
+                    "caption": meta.get("caption"),
+                    "context_text": meta.get("context_text"),
+                    "table_markdown_raw": raw_markdown
                 })
             elif content_type == "image":
                 base_info.update({
                     "content": doc.page_content or "",
-                    "image_base64": meta.get("image_base64", None)
+                    "image_base64": meta.get("image_base64", None),
+                    "manual_caption": meta.get("manual_caption"),
+                    "context_text": meta.get("context_text"),
+                    "image_caption": meta.get("image_caption")  # Per caption generate automaticamente
                 })
             else:
                 content = doc.page_content or ""
@@ -125,7 +135,10 @@ def enhanced_rag_query(query: str,
                         "source": img.metadata.get("source", "Sconosciuto") if img.metadata else "Sconosciuto",
                         "page": img.metadata.get("page", "N/A") if img.metadata else "N/A",
                         "type": "image",
-                        "image_base64": img.image_base64
+                        "image_base64": img.image_base64,
+                        "manual_caption": img.metadata.get("manual_caption") if img.metadata else None,
+                        "context_text": img.metadata.get("context_text") if img.metadata else None,
+                        "image_caption": img.metadata.get("image_caption") if img.metadata else None
                     })
             except Exception as e:
                 logger.warning(f"Errore nel recupero immagini: {e}")
@@ -140,7 +153,9 @@ def enhanced_rag_query(query: str,
                         "source": table.get("metadata", {}).get("source", "Sconosciuto"),
                         "page": table.get("metadata", {}).get("page", "N/A"),
                         "type": "table",
-                        "table_data": table.get("table_data", {})
+                        "table_data": table.get("table_data", {}),
+                        "caption": table.get("metadata", {}).get("caption"),
+                        "context_text": table.get("metadata", {}).get("context_text")
                     })
             except Exception as e:
                 logger.warning(f"Errore nel recupero tabelle: {e}")

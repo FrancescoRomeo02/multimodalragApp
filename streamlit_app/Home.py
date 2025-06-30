@@ -13,7 +13,7 @@ from streamlit_app.styles import get_custom_css
 
 # --- Importazioni dalla nuova architettura ---
 
-from streamlit_app.components.ui_components import upload_widget, source_selector_widget, chat_interface_widget
+from streamlit_app.components.ui_components import upload_widget, source_selector_widget, enhanced_chat_interface_widget
 from app.pipeline.indexer_service import DocumentIndexer
 from app.utils.embedder import get_multimodal_embedding_model
 from app.config import QDRANT_URL, COLLECTION_NAME
@@ -55,4 +55,4 @@ with st.sidebar:
     selected_sources = source_selector_widget()
 
 
-chat_interface_widget(selected_sources=selected_sources)
+enhanced_chat_interface_widget(selected_sources=selected_sources)
