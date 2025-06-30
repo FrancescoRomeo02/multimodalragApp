@@ -4,7 +4,7 @@ Sistema di metriche e monitoring delle performance per MultimodalRAG
 import time
 import psutil
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 from functools import wraps
 from dataclasses import dataclass, asdict
 from datetime import datetime

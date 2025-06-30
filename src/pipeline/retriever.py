@@ -22,21 +22,12 @@ from src.utils.performance_monitor import performance_monitor, track_performance
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def infer_query_type(query: str) -> Optional[str]:
-    query_lower = query.lower()
-    if any(word in query_lower for word in ["tabella", "table"]):
-        return "table"
-    if any(word in query_lower for word in ["immagine", "image", "foto"]):
-        return "image"
-    return "text"
 
 def create_retriever(vector_store: Qdrant, 
                      selected_files: Optional[List[str]] = None,
-                     query_type: Optional[str] = None,
                      k: int = 5) -> BaseRetriever:
     qdrant_filter = qdrant_manager.build_combined_filter(
-        selected_files=selected_files or [],
-        query_type=query_type
+        selected_files=selected_files,
     )
 
     search_kwargs = {
@@ -51,9 +42,7 @@ def create_retriever(vector_store: Qdrant,
         search_kwargs=search_kwargs
     )
 
-def create_rag_chain(query: str,
-                    selected_files: Optional[List[str]] = None,
-                    multimodal: bool = True):
+def create_rag_chain(selected_files: Optional[List[str]] = None,):
     logger.info(f"Creazione catena RAG per i file: {selected_files or 'tutti'}")
 
     client = qdrant_client.QdrantClient(url=QDRANT_URL)
@@ -62,8 +51,7 @@ def create_rag_chain(query: str,
                          collection_name=COLLECTION_NAME,
                          embeddings=embedding_model)
 
-    query_type = None if multimodal else infer_query_type(query)
-    retriever = create_retriever(vector_store, selected_files, query_type)
+    retriever = create_retriever(vector_store, selected_files)
 
     llm = get_groq_llm()
     prompt = create_prompt_template()
@@ -86,10 +74,10 @@ def enhanced_rag_query(query: str,
     start_time = time.time()
     
     try:
-        rag_chain = create_rag_chain(query, selected_files, multimodal)
+        rag_chain = create_rag_chain(selected_files)
         result = rag_chain.invoke({"input": query})
         retrieved_docs = result.get("context", [])
-        is_quality, confidence_score = validate_retrieval_quality(retrieved_docs)
+        confidence_score = validate_retrieval_quality(retrieved_docs)
 
         def build_doc_info(doc):
             meta = doc.metadata or {}
@@ -167,7 +155,6 @@ def enhanced_rag_query(query: str,
                 logger.warning(f"Errore nel recupero tabelle: {e}")
 
         query_time_ms = int((time.time() - start_time) * 1000)
-        query_type = "multimodal" if multimodal else "text"
         
         return RetrievalResult(
             answer=result.get("answer", ""),
@@ -175,7 +162,6 @@ def enhanced_rag_query(query: str,
             confidence_score=confidence_score,
             query_time_ms=query_time_ms,
             retrieved_count=len(source_docs),
-            query_type=query_type,
             filters_applied={"selected_files": selected_files, "include_images": include_images, "include_tables": include_tables}
         )
 
@@ -188,7 +174,6 @@ def enhanced_rag_query(query: str,
             confidence_score=0.0,
             query_time_ms=query_time_ms,
             retrieved_count=0,
-            query_type="error",
             filters_applied={"error": str(e)}
         )
 
@@ -212,7 +197,6 @@ def batch_query(queries: List[str],
                 confidence_score=0.0,
                 query_time_ms=0,
                 retrieved_count=0,
-                query_type="batch_error",
                 filters_applied={"error": str(e)}
             ))
 

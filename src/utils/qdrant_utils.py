@@ -45,10 +45,9 @@ class QdrantManager:
             id=str(uuid.uuid4()),
             vector=vector,
             payload={
-                "page_content": "testo",
-                #"page_content": element.text,
                 "metadata": element.metadata.dict(),
-                "content_type": "text"
+                "content_type": "text",
+                "page": element.metadata.page,
             }
         )
     
@@ -116,7 +115,7 @@ class QdrantManager:
             logger.error(f"Errore verifica collezione: {e}")
             return False
     
-    def create_collection(self, embedding_dim: int, force_recreate: bool = False) -> bool:
+    def create_collection(self, embedding_dim: int, force_recreate: bool = False) -> bool: #magari metterlo a true
         try:
             if force_recreate and self.collection_exists():
                 self.delete_collection()
@@ -501,7 +500,7 @@ class QdrantManager:
     def search_similar_documents(self, 
                                 query: str,
                                 selected_files: List[str] = None,
-                                similarity_threshold: float = 0.7,
+                                similarity_threshold: float = 0.3,
                                 max_results: int = 10) -> List[Dict[str, Any]]:
         """
         Alias per query_text con parametri diversi per retrocompatibilità.
