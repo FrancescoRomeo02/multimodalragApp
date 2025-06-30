@@ -8,6 +8,7 @@ import os
 import pandas as pd
 import numpy as np
 from app.utils.context_extractor import ContextExtractor
+from app.utils.image_info import get_comprehensive_image_info
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -71,8 +72,28 @@ def extract_tables_from_page(page: fitz.Page) -> List[Dict[str, Any]]:
 
 def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
-    Parsing PDF con metadati standardizzati per compatibilità con Qdrant.
-    Include estrazione di caption e contesto per tabelle e immagini.
+    Parser PDF unificato con funzionalità avanzate complete.
+    
+    FUNZIONALITÀ INTEGRATE:
+    - Estrazione testo, immagini e tabelle standardizzata per Qdrant
+    - Analisi AI delle immagini: caption BLIP, OCR Tesseract, object detection YOLO
+    - Estrazione contesto manuale per tabelle e immagini
+    - Combinazione contesto AI + manuale per ricerca semantica potenziata
+    - Metadati completi e strutturati per ogni elemento
+    
+    Args:
+        pdf_path: Percorso al file PDF da processare
+        
+    Returns:
+        Tuple di tre liste:
+        - text_elements: Lista di elementi testuali con metadati
+        - image_elements: Lista di immagini con analisi AI e contesto
+        - table_elements: Lista di tabelle con contesto e markup
+        
+    Note:
+        Questo parser sostituisce e unifica le funzionalità precedentemente
+        distribuite tra pdf_parser.py e pdf_utils.py, fornendo il meglio
+        di entrambe le implementazioni in un'unica soluzione.
     """
     logger.info(f"Avvio parsing avanzato del PDF: {os.path.basename(pdf_path)}")
 
@@ -135,7 +156,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                 except Exception as e:
                     logger.warning(f"Errore nell'elaborazione della tabella: {str(e)}")
             
-            # Estrazione immagini con metadati standardizzati e contesto
+            # Estrazione immagini con metadati standardizzati, contesto manuale e analisi AI
             for img_index, img_info in enumerate(page.get_images(full=True)):
                 try:
                     xref = img_info[0]
@@ -149,7 +170,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     img_rects = [rect for rect in page.get_image_rects(xref)]
                     image_rect = img_rects[0] if img_rects else page.rect
                     
-                    # Estrai contesto per l'immagine
+                    # Estrai contesto manuale per l'immagine
                     image_context = context_extractor.extract_image_context(image_rect, page)
                     
                     with BytesIO(base_image["image"]) as img_buffer:
@@ -159,31 +180,46 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                         with BytesIO() as output_buffer:
                             img.save(output_buffer, format=img_format, optimize=True, quality=85)
                             optimized_image = output_buffer.getvalue()
-                        
-                        # Descrizione base dell'immagine
-                        base_description = f"Immagine {img_index+1} a pagina {page_num+1} - {img_format.upper()} ({base_image['width']}x{base_image['height']})"
-                        
-                        # Combina descrizione con contesto per la ricerca
-                        enhanced_description = context_extractor.enhance_text_with_context(
-                            base_description,
-                            image_context
-                        )
-                        
-                        image_metadata = {
-                            "type": "image",
-                            "source": filename,
-                            "page": page_num + 1,
-                            "content_type": "image",
-                            "image_base64": base64.b64encode(optimized_image).decode("utf-8"),
-                            "manual_caption": image_context.get("caption"),
-                            "context_text": image_context.get("context_text")
-                        }
-                        
-                        image_elements.append({
-                            "image_base64": base64.b64encode(optimized_image).decode("utf-8"),
-                            "metadata": image_metadata,
-                            "page_content": enhanced_description  # Descrizione arricchita per la ricerca
-                        })
+                    
+                    # Ottieni informazioni complete dall'immagine usando AI
+                    image_base64 = base64.b64encode(optimized_image).decode("utf-8")
+                    image_info_ai = get_comprehensive_image_info(image_base64)
+                    
+                    # Combina caption AI, OCR, e contesto manuale
+                    caption_parts = [
+                        f"Image's Description: {image_info_ai['caption']}",
+                        f"Image's Text: {image_info_ai['ocr_text']}" if image_info_ai["ocr_text"].strip() else None,
+                        f"Detected Image's Objects: {', '.join(image_info_ai['detected_objects'])}" if image_info_ai["detected_objects"] else None,
+                        f"Image's Caption: {image_context.get('caption')}" if image_context.get('caption') else None
+                    ]
+                    comprehensive_caption = "\n".join([p for p in caption_parts if p])
+                    
+                    # Combina caption AI con contesto manuale per la ricerca
+                    enhanced_description = context_extractor.enhance_text_with_context(
+                        comprehensive_caption,
+                        image_context
+                    )
+                    
+                    logger.debug(f"Immagine {img_index+1} pagina {page_num+1} - Caption completa: {comprehensive_caption}")
+                    
+                    image_metadata = {
+                        "type": "image",
+                        "source": filename,
+                        "page": page_num + 1,
+                        "content_type": "image",
+                        "image_caption": comprehensive_caption,  # Caption completa per compatibilità
+                        "ai_caption": image_info_ai['caption'],
+                        "ocr_text": image_info_ai['ocr_text'],
+                        "detected_objects": image_info_ai['detected_objects'],
+                        "manual_caption": image_context.get("caption"),
+                        "context_text": image_context.get("context_text")
+                    }
+                    
+                    image_elements.append({
+                        "image_base64": image_base64,
+                        "metadata": image_metadata,
+                        "page_content": enhanced_description  # Descrizione arricchita per la ricerca
+                    })
                         
                 except Exception as img_e:
                     logger.error(f"Errore processamento immagine {img_index} pagina {page_num+1}: {str(img_e)}")
