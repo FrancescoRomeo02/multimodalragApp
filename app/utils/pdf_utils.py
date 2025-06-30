@@ -147,9 +147,9 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     # Ottieni info dettagliate sull'immagine
                     image_info = get_comprehensive_image_info(image_base64)
                     caption_parts = [
-                            f"Descrizione: {image_info['caption']}",
-                            f"Testo OCR: {image_info['ocr_text']}" if image_info["ocr_text"].strip() else None,
-                            f"Oggetti rilevati: {', '.join(image_info['detected_objects'])}" if image_info["detected_objects"] else None
+                            f"Image Description: {image_info['caption']}",
+                            f"Image Text: {image_info['ocr_text']}" if image_info["ocr_text"].strip() else None,
+                            f"Detected Image's Objects: {', '.join(image_info['detected_objects'])}" if image_info["detected_objects"] else None
                     ]
                     image_caption = "\n".join([p for p in caption_parts if p])
                     image_metadata = {
