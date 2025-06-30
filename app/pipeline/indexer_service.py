@@ -1,46 +1,28 @@
 import os
 import logging
-import uuid
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
 
-from app.utils.pdf_utils import (
-    prepare_elements_from_file, 
-    prepare_image_data, 
-    prepare_table_data,
-    create_text_points, 
-    create_image_points,
-    create_table_points
-)
+from app.utils.pdf_utils import parse_pdf_elements
 from app.utils.qdrant_utils import qdrant_manager
 from app.utils.embedder import AdvancedEmbedder
+from app.core.models import TextElement, ImageElement, TableElement
 
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
 class DocumentIndexer:
     """
     Gestisce l'indicizzazione di documenti PDF in Qdrant.
-    Ora utilizza QdrantManager per tutte le operazioni sul database vettoriale.
+    Utilizza QdrantManager per tutte le operazioni sul database vettoriale.
     Supporta testo, immagini e tabelle.
     """
-    
+
     def __init__(self, embedder: AdvancedEmbedder):
         self.embedder = embedder
         self.qdrant_manager = qdrant_manager
 
     def index_files(self, pdf_paths: List[str], force_recreate: bool = False) -> bool:
-        """
-        Indicizza file PDF con opzione di ricreare la collezione
-        
-        Args:
-            pdf_paths: Lista percorsi file PDF da indicizzare
-            force_recreate: Se True, ricrea la collezione eliminando quella esistente
-            
-        Returns:
-            bool: True se l'indicizzazione è completata con successo
-        """
         if not pdf_paths:
             logger.warning("Nessun file da indicizzare")
             return True
@@ -52,7 +34,7 @@ class DocumentIndexer:
             logger.error("Impossibile connettersi a Qdrant")
             return False
 
-        # Gestisci creazione/ricreazione collezione
+        # Gestione creazione/ricreazione collezione
         try:
             if force_recreate:
                 logger.info("Forzata ricreazione della collezione")
@@ -70,145 +52,99 @@ class DocumentIndexer:
             logger.error(f"Errore gestione collezione: {e}")
             return False
 
-        # Processamento e raccolta dati da tutti i file
-        all_texts = []
-        all_text_metadatas = []
-        all_image_descriptions = []
-        all_table_descriptions = []
+        # Liste di elementi per tipo
+        all_text_elements: List[TextElement] = []
+        all_image_elements: List[ImageElement] = []
+        all_table_elements: List[TableElement] = []
+
         processed_files = 0
 
-        for path in pdf_paths:
+        for pdf_path in pdf_paths:
             try:
-                texts, images, tables = prepare_elements_from_file(path)
-                
-                # Processa elementi testuali
-                if texts:
-                    all_texts.extend(elem.text for elem in texts)
-                    all_text_metadatas.extend(elem.metadata.model_dump() for elem in texts)
-                
-                # Processa elementi immagine
-                for elem in images:
-                    try:
-                        image_data = prepare_image_data(elem)
-                        all_image_descriptions.append(image_data)
-                    except Exception as e:
-                        logger.error(f"Errore processamento immagine da {path}: {e}")
-                        continue
-                
-                # Processa elementi tabella
-                for elem in tables:
-                    try:
-                        table_data = prepare_table_data(elem)
-                        all_table_descriptions.append(table_data)
-                    except Exception as e:
-                        logger.error(f"Errore processamento tabella da {path}: {e}")
-                        continue
-                
+                texts_dicts, images_dicts, tables_dicts = parse_pdf_elements(pdf_path)
+
+                # Crea istanze modelli Pydantic per ciascun tipo
+                text_elements = [TextElement(**d) for d in texts_dicts]
+                image_elements = [ImageElement(**d) for d in images_dicts]
+                table_elements = [TableElement(**d) for d in tables_dicts]
+
+                all_text_elements.extend(text_elements)
+                all_image_elements.extend(image_elements)
+                all_table_elements.extend(table_elements)
+
                 processed_files += 1
-                logger.info(f"Processato file {processed_files}/{len(pdf_paths)}: {os.path.basename(path)} (testi: {len(texts)}, immagini: {len(images)}, tabelle: {len(tables)})")
-                        
+                logger.info(f"Processato {processed_files}/{len(pdf_paths)}: {os.path.basename(pdf_path)} "
+                            f"(testi: {len(text_elements)}, immagini: {len(image_elements)}, tabelle: {len(table_elements)})")
+
             except Exception as e:
-                logger.error(f"Errore processamento file {path}: {e}")
-                continue
+                logger.error(f"Errore processamento file {pdf_path}: {e}")
 
         if processed_files == 0:
             logger.error("Nessun file processato con successo")
             return False
 
-        logger.info(f"Raccolti {len(all_texts)} testi, {len(all_image_descriptions)} immagini e {len(all_table_descriptions)} tabelle")
+        success = True
 
-        # Indicizzazione elementi testuali
-        success_text = True
-        if all_texts:
+        # Indicizzazione testi
+        if all_text_elements:
             try:
-                text_points, success_text = create_text_points(all_texts, all_text_metadatas, embedder=self.embedder)
-                
-                if success_text and text_points:
-                    if self.qdrant_manager.upsert_points(text_points):
-                        logger.info(f"Indicizzati {len(text_points)} elementi di testo")
-                    else:
-                        logger.error("Fallito inserimento punti testo")
-                        success_text = False
-                else:   
-                    logger.error("Fallita creazione punti testo")
-                    success_text = False
-                    
+                text_vectors = [self.embedder.embed_query(el.text) for el in all_text_elements]
+                text_points = self.qdrant_manager.convert_elements_to_points(all_text_elements, text_vectors)
+                if self.qdrant_manager.upsert_points(text_points):
+                    logger.info(f"Indicizzati {len(text_points)} elementi testuali")
+                else:
+                    logger.error("Fallito inserimento punti testuali")
+                    success = False
             except Exception as e:
-                logger.error(f"Errore indicizzazione testo: {e}")
-                success_text = False
+                logger.error(f"Errore indicizzazione testi: {e}")
+                success = False
 
-        # Indicizzazione elementi immagine e descrizioni
-        success_images = True
-        if all_image_descriptions:
+        # Indicizzazione immagini
+        if all_image_elements:
             try:
-                image_points, success_images = create_image_points(all_image_descriptions, embedder=self.embedder)
-
-                image_text_points, success_text_images = create_text_points(
-                    [desc["text"] for desc in all_image_descriptions],
-                    [desc["metadata"] for desc in all_image_descriptions],
-                    embedder=self.embedder
-                )
-                
-                if success_images and image_points:
-                    if self.qdrant_manager.upsert_points(image_points):
-                        logger.info(f"Indicizzate {len(image_points)} immagini")
-                    else:
-                        logger.error("Fallito inserimento punti immagine")
-                        success_images = False
+                image_vectors = [self.embedder.embed_query(el.image_base64) for el in all_image_elements]
+                image_points = self.qdrant_manager.convert_elements_to_points(all_image_elements, image_vectors)
+                if self.qdrant_manager.upsert_points(image_points):
+                    logger.info(f"Indicizzate {len(image_points)} immagini")
                 else:
-                    logger.error("Fallita creazione punti immagine")
-                    success_images = False
+                    logger.error("Fallito inserimento punti immagini")
+                    success = False
 
-                if success_text_images and image_text_points:
-                    if self.qdrant_manager.upsert_points(image_text_points):
-                        logger.info(f"Indicizzate {len(image_text_points)} descrizioni immagini")
-                    else:
-                        logger.error("Fallito inserimento punti descrizioni immagini")
-                        success_images = False
+                # Indicizzazione descrizioni immagine (testo)
+                image_text_vectors = [self.embedder.embed_query(el.page_content) for el in all_image_elements]
+                image_text_points = self.qdrant_manager.convert_elements_to_points(all_image_elements, image_text_vectors)
+                if self.qdrant_manager.upsert_points(image_text_points):
+                    logger.info(f"Indicizzate {len(image_text_points)} descrizioni immagini")
                 else:
-                    logger.error("Fallita creazione punti descrizioni immagini")
-                    success_images = False
-                    
+                    logger.error("Fallito inserimento punti descrizioni immagini")
+                    success = False
             except Exception as e:
-                logger.error(f"Errore indicizzazione immagini: {e}")
-                success_images = False
+                logger.error(f"Errore indicizzazione immagini e descrizioni: {e}")
+                success = False
 
-        # Indicizzazione elementi tabella
-        success_tables = True
-        if all_table_descriptions:
+        # Indicizzazione tabelle
+        if all_table_elements:
             try:
-                table_points, success_tables = create_table_points(all_table_descriptions, embedder=self.embedder)
-                
-                if success_tables and table_points:
-                    if self.qdrant_manager.upsert_points(table_points):
-                        logger.info(f"Indicizzate {len(table_points)} tabelle")
-                    else:
-                        logger.error("Fallito inserimento punti tabella")
-                        success_tables = False
+                table_texts = [el.table_markdown for el in all_table_elements]
+                table_vectors = [self.embedder.embed_query(txt) for txt in table_texts]
+                table_points = self.qdrant_manager.convert_elements_to_points(all_table_elements, table_vectors)
+                if self.qdrant_manager.upsert_points(table_points):
+                    logger.info(f"Indicizzate {len(table_points)} tabelle")
                 else:
-                    logger.error("Fallita creazione punti tabella")
-                    success_tables = False
-                    
+                    logger.error("Fallito inserimento punti tabelle")
+                    success = False
             except Exception as e:
                 logger.error(f"Errore indicizzazione tabelle: {e}")
-                success_tables = False
+                success = False
 
-        # Risultato finale
-        overall_success = success_text and success_images and success_tables
-        if overall_success:
-            logger.info("Processo di indicizzazione completato con successo")
+        if success:
+            logger.info("Indicizzazione completata con successo")
         else:
-            logger.warning("Processo di indicizzazione completato con alcuni errori")
+            logger.warning("Indicizzazione completata con errori")
 
-        return overall_success
+        return success
 
     def get_index_status(self) -> Dict[str, Any]:
-        """
-        Restituisce informazioni sullo stato dell'indice
-        
-        Returns:
-            Dict con informazioni sulla collezione e connessione
-        """
         try:
             return self.qdrant_manager.health_check()
         except Exception as e:

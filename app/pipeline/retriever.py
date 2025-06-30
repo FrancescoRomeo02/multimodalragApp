@@ -1,8 +1,9 @@
 from typing import List, Optional
 import logging
+from langchain.chains import create_retrieval_chain 
+from langchain.chains.combine_documents.stuff import create_stuff_documents_chain
 
 from langchain_qdrant import Qdrant
-from langchain.chains import RetrievalQA
 from langchain.schema.retriever import BaseRetriever
 from langchain.schema.messages import HumanMessage
 import qdrant_client
@@ -48,27 +49,29 @@ def create_retriever(vector_store: Qdrant,
     )
 
 def create_rag_chain(query: str,
-                     selected_files: Optional[List[str]] = None,
-                     multimodal: bool = True):
+                    selected_files: Optional[List[str]] = None,
+                    multimodal: bool = True):
     logger.info(f"Creazione catena RAG per i file: {selected_files or 'tutti'}")
+
     client = qdrant_client.QdrantClient(url=QDRANT_URL)
     embedding_model = get_multimodal_embedding_model()
     vector_store = Qdrant(client=client,
-                          collection_name=COLLECTION_NAME,
-                          embeddings=embedding_model)
-    query_type = None if multimodal else infer_query_type(query)
+                         collection_name=COLLECTION_NAME,
+                         embeddings=embedding_model)
 
+    query_type = None if multimodal else infer_query_type(query)
     retriever = create_retriever(vector_store, selected_files, query_type)
+
     llm = get_groq_llm()
     prompt = create_prompt_template()
 
-    return RetrievalQA.from_chain_type(
-        llm=llm,
-        chain_type="stuff",
-        retriever=retriever,
-        return_source_documents=True,
-        chain_type_kwargs={"prompt": prompt, "document_variable_name": "context"}
-    )
+    # Usa la nuova API: create_stuff_documents_chain invece del vecchio approccio
+    document_chain = create_stuff_documents_chain(llm, prompt)
+    
+    # Creazione della catena di retrieval
+    chain = create_retrieval_chain(retriever, document_chain)
+    
+    return chain
 
 def enhanced_rag_query(query: str,
                        selected_files: Optional[List[str]] = None,
@@ -78,44 +81,55 @@ def enhanced_rag_query(query: str,
     logger.info(f"Esecuzione query RAG: '{query}'")
     try:
         rag_chain = create_rag_chain(query, selected_files, multimodal)
-        result = rag_chain({"query": query})
-        retrieved_docs = result.get("source_documents", [])
+        result = rag_chain.invoke({"input": query})
+        retrieved_docs = result.get("context", [])
         is_quality, confidence_score = validate_retrieval_quality(retrieved_docs)
 
-        source_docs = []
-        for doc in retrieved_docs:
-            meta = doc.metadata
+        def build_doc_info(doc):
+            meta = doc.metadata or {}
             content_type = meta.get("content_type", "text")
 
-            if content_type == "table":
-                doc_info = {
-                    "content": meta.get("table_markdown", "Contenuto tabella non disponibile"),
-                    "metadata": meta,
-                    "source": meta.get("source", "Sconosciuto"),
-                    "page": meta.get("page", "N/A"),
-                    "type": "table",
-                    "table_data": meta.get("table_data", {})
-                }
-            else:
-                doc_info = {
-                    "content": doc.page_content[:500] + "..." if len(doc.page_content) > 500 else doc.page_content,
-                    "metadata": meta,
-                    "source": meta.get("source", "Sconosciuto"),
-                    "page": meta.get("page", "N/A"),
-                    "type": content_type
-                }
-            source_docs.append(doc_info)
+            base_info = {
+                "metadata": meta,
+                "source": meta.get("source", "Sconosciuto"),
+                "page": meta.get("page", "N/A"),
+                "type": content_type
+            }
 
-        # Aggiunta immagini se richieste
+            if content_type == "table":
+                base_info.update({
+                    "content": meta.get("table_markdown", "Contenuto tabella non disponibile"),
+                    "table_data": meta.get("table_data", {})
+                })
+            elif content_type == "image":
+                base_info.update({
+                    "content": doc.page_content or "",
+                    "image_base64": meta.get("image_base64", None)
+                })
+            else:
+                content = doc.page_content or ""
+                base_info["content"] = content[:500] + "..." if len(content) > 500 else content
+
+            return base_info
+
+        source_docs = [build_doc_info(doc) for doc in retrieved_docs]
+
         images = []
         if include_images or multimodal:
             try:
                 images = qdrant_manager.query_images(query, selected_files, top_k=3)
+                for img in images:
+                    source_docs.append({
+                        "content": img.page_content,
+                        "metadata": img.metadata or {},
+                        "source": img.metadata.get("source", "Sconosciuto") if img.metadata else "Sconosciuto",
+                        "page": img.metadata.get("page", "N/A") if img.metadata else "N/A",
+                        "type": "image",
+                        "image_base64": img.image_base64
+                    })
             except Exception as e:
                 logger.warning(f"Errore nel recupero immagini: {e}")
 
-        # Aggiunta tabelle se richieste
-        tables = []
         if include_tables or multimodal:
             try:
                 tables = qdrant_manager.query_tables(query, selected_files, top_k=3)
@@ -132,7 +146,7 @@ def enhanced_rag_query(query: str,
                 logger.warning(f"Errore nel recupero tabelle: {e}")
 
         return RetrievalResult(
-            answer=result["result"],
+            answer=result.get("answer", ""),
             source_documents=source_docs,
             images=images if images else None,
             confidence_score=confidence_score
@@ -146,14 +160,13 @@ def enhanced_rag_query(query: str,
             confidence_score=0.0
         )
 
-
 def batch_query(queries: List[str], 
                selected_files: List[str] = None, # type: ignore
                multimodal: bool = True) -> List[RetrievalResult]:
     logger.info(f"Esecuzione batch di {len(queries)} query")
-    
+
     results = []
-    
+
     for i, query in enumerate(queries):
         try:
             logger.info(f"Processando query {i+1}/{len(queries)}: {query[:30]}...")
@@ -166,7 +179,7 @@ def batch_query(queries: List[str],
                 source_documents=[],
                 confidence_score=0.0
             ))
-    
+
     return results
 
 def edit_answer(answer: str):
@@ -185,5 +198,5 @@ TESTO ORIGINALE:
 {answer}
 RISPOSTA REVISIONATA:
 """
-    response = llm([HumanMessage(content=prompt)])
+    response = llm.invoke([HumanMessage(content=prompt)])
     return response
