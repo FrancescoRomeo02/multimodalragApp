@@ -15,7 +15,7 @@ COLLECTION_NAME = "papers_custom_pipeline" # Nome chiaro per la nuova pipeline
 
 # LLM Generativo (usando Groq)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-LLM_MODEL_NAME = "llama3-8b-8192"  # Modello valido disponibile su Groq
+LLM_MODEL_NAME = "llama-3.3-70b-versatile"  # Modello valido disponibile su Groq
 
 # Configurazione processing immagini
 UNSTRUCTURED_IMAGE_EXTRACTION_PARAMS = {
