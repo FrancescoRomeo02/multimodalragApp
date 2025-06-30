@@ -8,7 +8,7 @@ import logging
 from pathlib import Path
 
 # Aggiungi il percorso del modulo principale
-sys.path.append(str(Path(__file__).parent))
+sys.path.append(str(Path(__file__).parent.parent))
 
 from app.pipeline.indexer_service import DocumentIndexer
 from app.utils.embedder import get_multimodal_embedding_model
