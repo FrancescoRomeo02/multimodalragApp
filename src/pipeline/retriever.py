@@ -7,6 +7,8 @@ from langchain_qdrant import Qdrant
 from langchain.schema.retriever import BaseRetriever
 from langchain.schema.messages import HumanMessage
 import qdrant_client
+import time
+import uuid
 
 from src.core.models import RetrievalResult
 from src.core.diagnostics import validate_retrieval_quality
@@ -14,7 +16,8 @@ from src.core.prompts import create_prompt_template
 from src.utils.qdrant_utils import qdrant_manager
 from src.utils.embedder import get_multimodal_embedding_model
 from src.llm.groq_client import get_groq_llm
-from src.config import QDRANT_URL, COLLECTION_NAME
+from src.config import QDRANT_URL, COLLECTION_NAME, ENABLE_PERFORMANCE_MONITORING
+from src.utils.performance_monitor import performance_monitor, track_performance
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,7 +35,7 @@ def create_retriever(vector_store: Qdrant,
                      query_type: Optional[str] = None,
                      k: int = 5) -> BaseRetriever:
     qdrant_filter = qdrant_manager.build_combined_filter(
-        selected_files=selected_files,
+        selected_files=selected_files or [],
         query_type=query_type
     )
 
@@ -73,12 +76,15 @@ def create_rag_chain(query: str,
     
     return chain
 
+@track_performance(query_type="multimodal_rag")
 def enhanced_rag_query(query: str,
                        selected_files: Optional[List[str]] = None,
                        multimodal: bool = True,
                        include_images: bool = False,
                        include_tables: bool = False) -> RetrievalResult:
     logger.info(f"Esecuzione query RAG: '{query}'")
+    start_time = time.time()
+    
     try:
         rag_chain = create_rag_chain(query, selected_files, multimodal)
         result = rag_chain.invoke({"input": query})
@@ -121,13 +127,13 @@ def enhanced_rag_query(query: str,
                 base_info["content"] = content[:500] + "..." if len(content) > 500 else content
 
             return base_info
-
+        
         source_docs = [build_doc_info(doc) for doc in retrieved_docs]
 
         images = []
         if include_images or multimodal:
             try:
-                images = qdrant_manager.query_images(query, selected_files, top_k=3)
+                images = qdrant_manager.query_images(query, selected_files or [], top_k=3)
                 for img in images:
                     source_docs.append({
                         "content": img.page_content,
@@ -145,7 +151,7 @@ def enhanced_rag_query(query: str,
 
         if include_tables or multimodal:
             try:
-                tables = qdrant_manager.query_tables(query, selected_files, top_k=3)
+                tables = qdrant_manager.query_tables(query, selected_files or [], top_k=3)
                 for table in tables:
                     source_docs.append({
                         "content": table.get("table_markdown", ""),
@@ -160,18 +166,30 @@ def enhanced_rag_query(query: str,
             except Exception as e:
                 logger.warning(f"Errore nel recupero tabelle: {e}")
 
+        query_time_ms = int((time.time() - start_time) * 1000)
+        query_type = "multimodal" if multimodal else "text"
+        
         return RetrievalResult(
             answer=result.get("answer", ""),
             source_documents=source_docs,
-            confidence_score=confidence_score
+            confidence_score=confidence_score,
+            query_time_ms=query_time_ms,
+            retrieved_count=len(source_docs),
+            query_type=query_type,
+            filters_applied={"selected_files": selected_files, "include_images": include_images, "include_tables": include_tables}
         )
 
     except Exception as e:
         logger.error(f"Errore RAG: {e}")
+        query_time_ms = int((time.time() - start_time) * 1000)
         return RetrievalResult(
             answer="Errore durante la ricerca.",
             source_documents=[],
-            confidence_score=0.0
+            confidence_score=0.0,
+            query_time_ms=query_time_ms,
+            retrieved_count=0,
+            query_type="error",
+            filters_applied={"error": str(e)}
         )
 
 def batch_query(queries: List[str], 
@@ -191,7 +209,11 @@ def batch_query(queries: List[str],
             results.append(RetrievalResult(
                 answer=f"Errore nella query {i+1}: {str(e)}",
                 source_documents=[],
-                confidence_score=0.0
+                confidence_score=0.0,
+                query_time_ms=0,
+                retrieved_count=0,
+                query_type="batch_error",
+                filters_applied={"error": str(e)}
             ))
 
     return results
