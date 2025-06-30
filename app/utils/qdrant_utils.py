@@ -59,7 +59,7 @@ class QdrantManager:
                 "page": element.metadata.page,
                 "content_type": "image",
                 "page_content": element.page_content,
-                "image_base64": element.image_base64,
+                #"image_base64": element.image_base64, # Per ora non includiamo l'immagine in base64 
                 "metadata": element.metadata.dict()
             }
         )
