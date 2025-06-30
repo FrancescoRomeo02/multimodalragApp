@@ -40,7 +40,76 @@ Un sistema RAG (Retrieval-Augmented Generation) multimodale avanzato per interro
 
 ## 🚀 Quick Start
 
-### Con Docker Compose (Consigliato)
+### ⚡ Avvio Rapido
+
+```bash
+# 1. Clona il repository
+git clone <repository-url>
+cd multimodalrag
+
+# 2. Configura la chiave API (OBBLIGATORIO)
+cp .env.example .env
+# Modifica il file .env e aggiungi la tua GROQ_API_KEY
+
+# 3. Avvia tutto con Docker (include Qdrant + App)
+docker-compose up -d
+
+# 4. Accedi all'applicazione
+open http://localhost:8501
+```
+
+### 🔧 Setup Locale (Alternativo)
+
+```bash
+# 1. Installa dipendenze Python
+pip install -r requirements.txt
+
+# 2. Avvia Qdrant in Docker
+docker run -d -p 6333:6333 qdrant/qdrant
+
+# 3. Avvia l'applicazione
+streamlit run streamlit_app/Home.py
+```
+
+### 📋 Checklist
+
+- [ ] **Docker installato** (per Qdrant e deployment)
+- [ ] **Python 3.8+** installato
+- [ ] **GROQ_API_KEY** configurata nel file `.env`
+- [ ] **Porte libere**: 8501 (Streamlit), 6333 (Qdrant)
+
+### 🎯 Test Funzionalità Principali
+
+1. **Upload PDF**: Carica un documento di esempio
+2. **Query Testuale**: "Di cosa parla questo documento?"
+3. **Query Multimodale**: "Mostrami le immagini relative a..."
+4. **Query Tabelle**: "Quali dati ci sono nelle tabelle?"
+
+### 🐛 Risoluzione Problemi Comuni
+
+**Errore Qdrant non raggiungibile:**
+```bash
+docker ps  # Verifica che Qdrant sia running
+curl http://localhost:6333/health  # Test connessione
+```
+
+**Errore GROQ API:**
+```bash
+# Verifica che GROQ_API_KEY sia nel file .env
+cat .env | grep GROQ_API_KEY
+```
+
+**Porta già in uso:**
+```bash
+# Cambia porta Streamlit
+streamlit run streamlit_app/Home.py --server.port=8502
+```
+
+---
+
+## 🔧 Setup Avanzato per Sviluppatori
+
+### Con Docker Compose
 
 ```bash
 # 1. Clona il repository
@@ -58,7 +127,7 @@ docker-compose up -d
 open http://localhost:8501
 ```
 
-### Setup Locale
+### Setup Locale con Makefile
 
 ```bash
 # 1. Installa dipendenze
@@ -73,84 +142,107 @@ make run
 
 ---
 
-## 📁 Struttura del Progetto
+## 🎓 Guida per Comandi Makefile
 
-```
-multimodalrag/
-├── src/                    # Core dell'applicazione
-│   ├── config.py          # Configurazioni centrali
-│   ├── core/              # Logica di business e modelli
-│   ├── llm/               # Client per LLM
-│   ├── pipeline/          # Pipeline indicizzazione/retrieval
-│   └── utils/             # Utilità condivise
-├── tests/                 # Suite di test
-│   ├── unit/              # Test unitari
-│   ├── integration/       # Test di integrazione
-│   └── fixtures/          # Dati di test
-├── docs/                  # Documentazione
-├── data/                  # Dati del progetto
-│   ├── models/           # Modelli ML pre-addestrati
-│   └── raw/              # PDF da processare
-├── scripts/              # Script di utilità
-├── streamlit_app/        # Interface web Streamlit
-├── logs/                 # File di log
-├── docker-compose.yml    # Configurazione servizi
-├── Dockerfile            # Build dell'applicazione
-├── Makefile             # Automazione task comuni
-└── pyproject.toml       # Configurazione Python tools
+Il progetto include un **Makefile** per automatizzare le operazioni comuni:
+
+### 📋 Comandi Principali
+
+```bash
+# Vedi tutti i comandi disponibili
+make help
+
+# Setup ambiente di sviluppo completo (include pre-commit hooks)
+make setup-dev
+
+# Avvia l'applicazione Streamlit
+make run
+
+# Avvia Qdrant in Docker
+make qdrant-start
+
+# Esegui re-indicizzazione documenti
+make run-indexer
 ```
 
----
-
-## 🔧 Utilizzo
-
-### 1. Upload e Indicizzazione
-- Carica i tuoi PDF tramite l'interfaccia web
-- I documenti vengono processati automaticamente
-- Estrazione intelligente di testo, immagini e tabelle
-
-### 2. Query Multimodali
-- Poni domande sui contenuti dei documenti
-- Ricerca in testo, immagini e tabelle
-- Filtri per file specifici o tipi di contenuto
-
-### 3. Risultati Avanzati
-- Risposte contestualizzate con fonti
-- Visualizzazione immagini e tabelle
-- Metriche di confidenza e performance
-
----
-
-## 🧪 Testing
+### 🧪 Testing e Quality Assurance
 
 ```bash
 # Esegui tutti i test
 make test
 
-# Test con coverage
+# Test con coverage HTML (apri htmlcov/index.html dopo)
 make test-cov
 
 # Solo test unitari
 make test-unit
 
-# Controlli qualità
+# Solo test di integrazione  
+make test-integration
+
+# Controlli qualità del codice (lint + type checking)
+make lint
+
+# Formattazione automatica del codice
+make format
+
+# Pipeline CI completa (test + lint + format)
 make check-all
+```
+
+### 🐳 Docker Commands
+
+```bash
+# Build immagine Docker dell'app
+make docker-build
+
+# Esegui app in Docker
+make docker-run
+
+# Avvia Qdrant
+make qdrant-start
+```
+
+### 🧹 Manutenzione
+
+```bash
+# Pulisci file temporanei e cache
+make clean
+
+# Pipeline CI completa per integrazione continua
+make ci
 ```
 
 ---
 
-## 📊 Monitoring
+## 📊 Monitoring e Performance
+
+### Attivazione Monitoring
+
+Per abilitare il tracking delle performance, nel file `.env`:
+```bash
+ENABLE_PERFORMANCE_MONITORING=true
+```
+
+### Monitoring Completo con Grafana
 
 ```bash
-# Avvia con monitoring completo
+# Avvia stack completo con Grafana + Prometheus
 docker-compose --profile monitoring up -d
 
-# Grafana Dashboard
-open http://localhost:3000
-
-# Prometheus Metrics
-open http://localhost:9090
+# Accedi ai servizi:
+# App: http://localhost:8501
+# Grafana: http://localhost:3000 (admin/admin)
+# Prometheus: http://localhost:9090
 ```
+
+### Metriche Disponibili
+
+- **Tempo di risposta** per ogni query
+- **Success rate** delle operazioni
+- **Uso memoria e CPU** in tempo reale
+- **Tipi di query** più frequenti
+- **Documenti recuperati** per query
 
 ---
 
@@ -270,3 +362,13 @@ Le contribuzioni sono benvenute! Per favore:
 ## 📄 Licenza
 
 Questo progetto è rilasciato sotto licenza MIT. Vedi il file `LICENSE` per dettagli.
+
+---
+
+## 📚 Documentazione Completa
+
+- 📋 **[Guida Rapida Avvio](docs/GUIDA_AVVIO.md)** - Setup e avvio
+- 🧪 **[Testing Guide](tests/README.md)** - Documentazione suite di test
+- 🛠️ **[Makefile Commands](#-guida-per-comandi-makefile)** - Automazione sviluppo
+
+---
