@@ -17,30 +17,21 @@ def upload_widget(indexer):
     )
 
     if uploaded_file:
-        # --- INIZIO DELLA CORREZIONE ---
-        
         # Creiamo una chiave unica per questo specifico file caricato.
-        # Usare nome + dimensione lo rende robusto anche se si ricarica lo stesso file.
         upload_key = f"processed_{uploaded_file.name}_{uploaded_file.size}"
 
         # Eseguiamo l'indicizzazione SOLO SE non abbiamo già processato questo file
-        # nella sessione corrente.
         if upload_key not in st.session_state:
             with st.spinner(f"Indicizzazione di '{uploaded_file.name}' in corso..."):
                 success, message = process_uploaded_file(uploaded_file, indexer)
             
             if success:
                 st.success(message)
-                # Marchiamo il file come processato nella sessione.
                 st.session_state[upload_key] = True
-                # Ora possiamo fare il rerun in sicurezza per aggiornare la UI.
                 st.rerun()
             else:
                 st.error(message)
-                # Marchiamo anche i fallimenti per non riprovare all'infinito.
                 st.session_state[upload_key] = True
-        
-        # --- FINE DELLA CORREZIONE ---
 
 
 def source_selector_widget():
@@ -79,136 +70,126 @@ def source_selector_widget():
     
     return selected_now
 
-def chat_interface_widget(selected_sources: list[str]):
-    """Disegna l'interfaccia di chat."""
-    st.header("Chatta con le Fonti Selezionate")
-
-    if not selected_sources:
-        st.warning("Seleziona almeno una fonte per avviare la chat.")
-        return
-
-    # Logica per creare/caricare la catena RAG
-    if st.session_state.get('last_selected_sources') != selected_sources:
-        st.session_state.last_selected_sources = selected_sources
-
-
-    # Inizializzazione e visualizzazione messaggi
-    if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": "Ciao! Fai una domanda sulle fonti selezionate."}]
-
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
-
-    # Input utente e risposta del bot
-    if prompt := st.chat_input("Fai la tua domanda..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        with st.chat_message("assistant"):
-            with st.spinner("Sto pensando..."):
-                response = enhanced_rag_query(
-                    query=prompt,
-                    selected_files=selected_sources
-                )
-                answer = response.answer if response else "Nessuna risposta trovata."
-
-                edited_answer = edit_answer(answer).content
-                st.markdown(edited_answer)
-
-                assistant_message = {"role": "assistant", "content": edited_answer}
-                st.session_state.messages.append(assistant_message)
-                st.rerun()
 
 def display_source_document(doc_info: dict, index: int):
     """
-    Visualizza un documento di origine con caption e contesto
+    Visualizza le informazioni di un documento di origine in modo più preciso e pulito.
     
     Args:
-        doc_info: Dizionario con informazioni del documento
+        doc_info: Dizionario con le informazioni del documento
         index: Indice del documento
     """
     doc_type = doc_info.get("type", "text")
     source = doc_info.get("source", "Sconosciuto")
     page = doc_info.get("page", "N/A")
     
-    with st.expander(f"📄 Fonte {index+1}: {source} (Pagina {page}) - {doc_type.title()}"):
-        # Informazioni base
-        col1, col2 = st.columns([2, 1])
+    # Emoji e colori per tipo di documento
+    type_info = {
+        "text": {"emoji": "📝", "color": "#1f77b4"},
+        "image": {"emoji": "🖼️", "color": "#2ca02c"}, 
+        "table": {"emoji": "📊", "color": "#ff7f0e"}
+    }
+    
+    info = type_info.get(doc_type, {"emoji": "📄", "color": "#7f7f7f"})
+    
+    # Header compatto e preciso
+    st.markdown(f"""
+    <div style="
+        background: linear-gradient(90deg, {info["color"]}22 0%, {info["color"]}11 100%);
+        border-left: 4px solid {info["color"]};
+        padding: 12px;
+        border-radius: 6px;
+        margin: 8px 0;
+        font-size: 0.9em;
+    ">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div>
+                <strong>{info["emoji"]} {source}</strong> - Pagina {page}
+            </div>
+            <span style="
+                background-color: {info["color"]};
+                color: white;
+                padding: 2px 8px;
+                border-radius: 12px;
+                font-size: 0.75em;
+                font-weight: bold;
+            ">{doc_type.upper()}</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Contenuto specifico per tipo in expander compatto
+    with st.expander(f"👁️ Dettagli del documento {index+1}", expanded=False):
         
-        with col1:
-            st.write(f"**Tipo:** {doc_type.title()}")
-            st.write(f"**Fonte:** {source}")
-            st.write(f"**Pagina:** {page}")
-        
-        with col2:
-            if "score" in doc_info:
-                st.metric("Similarity Score", f"{doc_info['score']:.3f}")
-        
-        # Caption e contesto
         if doc_type == "table":
-            # Visualizza caption per tabelle
+            # Informazioni tabella
             caption = doc_info.get("caption")
-            if caption:
-                st.write("**📋 Caption della tabella:**")
-                st.info(caption)
-            
-            # Visualizza contesto
             context = doc_info.get("context_text")
-            if context:
-                st.write("**🔍 Contesto:**")
-                st.text(context)
             
-            # Visualizza la tabella
-            st.write("**📊 Contenuto della tabella:**")
+            if caption and len(caption.strip()) > 0:
+                st.info(f"📋 **Caption:** {caption}")
+            
+            if context and len(context.strip()) > 0:
+                with st.expander("🔍 Contesto circostante"):
+                    st.text(context)
+            
+            # Contenuto tabella con miglior formatting
             table_content = doc_info.get("table_markdown_raw") or doc_info.get("content", "")
             if table_content:
+                st.markdown("**📊 Contenuto della tabella:**")
                 st.markdown(table_content)
             
         elif doc_type == "image":
-            # Visualizza caption per immagini
+            # Informazioni immagine
             manual_caption = doc_info.get("manual_caption")
-            image_caption = doc_info.get("image_caption") 
-            
-            if manual_caption:
-                st.write("**🖼️ Caption dell'immagine:**")
-                st.info(manual_caption)
-            
-            if image_caption:
-                st.write("**🤖 Caption generata automaticamente:**")
-                st.success(image_caption)
-            
-            # Visualizza contesto
+            image_caption = doc_info.get("image_caption")
             context = doc_info.get("context_text")
-            if context:
-                st.write("**🔍 Contesto:**")
-                st.text(context)
             
-            # Visualizza l'immagine
+            # Caption più compatte
+            if manual_caption and len(manual_caption.strip()) > 0:
+                st.success(f"👨‍💻 **Caption manuale:** {manual_caption}")
+            
+            if image_caption and len(image_caption.strip()) > 0:
+                st.info(f"🤖 **Caption AI:** {image_caption}")
+            
+            if context and len(context.strip()) > 0:
+                with st.expander("🔍 Contesto circostante"):
+                    st.text(context)
+            
+            # Immagine con dimensioni ottimizzate
             image_base64 = doc_info.get("image_base64")
             if image_base64:
                 try:
                     image_data = base64.b64decode(image_base64)
                     image = Image.open(BytesIO(image_data))
-                    st.image(image, caption=f"Immagine da {source} - Pagina {page}", use_column_width=True)
+                    
+                    # Ridimensiona l'immagine se troppo grande
+                    max_width = 400
+                    if image.width > max_width:
+                        ratio = max_width / image.width
+                        new_height = int(image.height * ratio)
+                        image = image.resize((max_width, new_height), Image.Resampling.LANCZOS)
+                    
+                    st.image(image, caption=f"Da {source} - Pagina {page}")
                 except Exception as e:
-                    st.error(f"Errore nel caricamento dell'immagine: {e}")
+                    st.error(f"❌ Errore nel caricamento dell'immagine: {e}")
             
         else:  # text
-            # Per il testo, mostra solo il contenuto
-            st.write("**📝 Contenuto:**")
+            # Contenuto testuale con anteprima intelligente
             content = doc_info.get("content", "")
-            if len(content) > 500:
-                st.text(content[:500] + "...")
-                if st.button(f"Mostra tutto", key=f"show_full_{index}"):
-                    st.text(content)
+            if len(content) > 200:
+                preview = content[:200] + "..."
+                st.text_area("📝 Anteprima contenuto", preview, height=100, disabled=True)
+                
+                if st.button(f"📖 Mostra tutto", key=f"expand_text_{index}"):
+                    st.text_area("📝 Contenuto completo", content, height=300, disabled=True)
             else:
-                st.text(content)
+                st.text_area("📝 Contenuto", content, height=100, disabled=True)
+
 
 def enhanced_chat_interface_widget(selected_sources: list[str]):
     """
-    Interfaccia di chat migliorata che mostra i risultati con caption e contesto
+    Interfaccia di chat migliorata con riferimenti precisi e puliti
     """
     st.header("🤖 Chatta con le Fonti Selezionate")
 
@@ -216,53 +197,106 @@ def enhanced_chat_interface_widget(selected_sources: list[str]):
         st.warning("⚠️ Seleziona almeno una fonte per avviare la chat.")
         return
 
-    # Logica per creare/caricare la catena RAG
-    if st.session_state.get('last_selected_sources') != selected_sources:
-        st.session_state.last_selected_sources = selected_sources
+    # Opzioni sempre attive (rimosse dalla UI per semplicità)
+    show_sources = True
+    multimodal = True
+    compact_sources = True
 
-    # Inizializzazione e visualizzazione messaggi
+    # Inizializzazione messaggi
     if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": "Ciao! Fai una domanda sulle fonti selezionate."}]
+        st.session_state.messages = [
+            {"role": "assistant", "content": "Ciao! Fai una domanda sui documenti selezionati. I riferimenti precisi saranno mostrati sotto ogni risposta."}
+        ]
 
-    # Opzioni avanzate in sidebar
-    with st.sidebar:
-        st.header("⚙️ Opzioni di Ricerca")
-        show_sources = st.checkbox("Mostra documenti di origine", value=True)
-        multimodal = st.checkbox("Ricerca multimodale", value=True, help="Include immagini e tabelle nei risultati")
-        include_context = st.checkbox("Include contesto e caption", value=True, help="Mostra caption e testo circostante")
-
+    # Visualizzazione messaggi
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
             
-            # Mostra i documenti di origine se disponibili
-            if msg["role"] == "assistant" and "source_docs" in msg and show_sources:
-                if msg["source_docs"]:
-                    st.markdown("---")
+            # Mostra documenti di origine in modo migliorato
+            if (msg["role"] == "assistant" and 
+                "source_docs" in msg and 
+                show_sources and 
+                msg["source_docs"]):
+                
+                st.markdown("---")
+                
+                if compact_sources:
+                    # Visualizzazione compatta con riferimenti precisi
                     st.markdown("**📚 Documenti di origine:**")
+                    
+                    # Raggruppa per fonte e pagina
+                    sources_summary = {}
+                    for doc in msg["source_docs"]:
+                        source = doc.get("source", "Sconosciuto")
+                        page = doc.get("page", "N/A")
+                        doc_type = doc.get("type", "text")
+                        
+                        key = f"{source}"
+                        if key not in sources_summary:
+                            sources_summary[key] = {"pages": set(), "types": set()}
+                        
+                        sources_summary[key]["pages"].add(str(page))
+                        sources_summary[key]["types"].add(doc_type)
+                    
+                    # Mostra riferimenti in formato compatto e preciso
+                    for source, info in sources_summary.items():
+                        pages_list = sorted(info["pages"], key=lambda x: int(x) if x.isdigit() else float('inf'))
+                        types_list = sorted(info["types"])
+                        
+                        # Formato più compatto: "📄 documento.pdf: p.1,2,3 (text, image)"
+                        if len(pages_list) == 1:
+                            pages_str = f"p.{pages_list[0]}"
+                        else:
+                            pages_str = f"pp.{','.join(pages_list)}"
+                        
+                        types_str = ", ".join(types_list)
+                        
+                        # Emoji per tipo di documento
+                        if "image" in types_list:
+                            emoji = "🖼️"
+                        elif "table" in types_list:
+                            emoji = "📊"
+                        else:
+                            emoji = "📄"
+                        
+                        st.markdown(f"{emoji} **{source}**: {pages_str} *({types_str})*")
+                
+                else:
+                    # Visualizzazione dettagliata
+                    st.markdown("**📚 Documenti di origine dettagliati:**")
+                    
                     for i, doc in enumerate(msg["source_docs"]):
                         display_source_document(doc, i)
 
-    # Input utente e risposta del bot
+    # Input utente e generazione risposta
     if prompt := st.chat_input("Fai la tua domanda..."):
+        # Aggiungi messaggio utente
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
+        # Genera risposta
         with st.chat_message("assistant"):
-            with st.spinner("🔍 Sto cercando informazioni..."):
+            with st.spinner("🔍 Sto analizzando i documenti..."):
                 response = enhanced_rag_query(
                     query=prompt,
                     selected_files=selected_sources,
                     multimodal=multimodal
                 )
-                answer = response.answer if response else "Nessuna risposta trovata."
-                source_docs = response.source_documents if response else []
+                
+                if not response:
+                    answer = "❌ Spiacente, non sono riuscito a trovare informazioni rilevanti nei documenti selezionati."
+                    source_docs = []
+                else:
+                    answer = response.answer or "❌ Nessuna risposta generata."
+                    source_docs = response.source_documents or []
 
+                # Modifica la risposta per migliorare la qualità
                 edited_answer = edit_answer(answer).content
                 st.markdown(edited_answer)
 
-                # Salva il messaggio con i documenti di origine
+                # Salva messaggio con documenti di origine
                 assistant_message = {
                     "role": "assistant", 
                     "content": edited_answer,
@@ -270,11 +304,60 @@ def enhanced_chat_interface_widget(selected_sources: list[str]):
                 }
                 st.session_state.messages.append(assistant_message)
                 
-                # Mostra i documenti di origine subito se richiesto
+                # Mostra riferimenti immediati
                 if show_sources and source_docs:
                     st.markdown("---")
-                    st.markdown("**📚 Documenti di origine:**")
-                    for i, doc in enumerate(source_docs):
-                        display_source_document(doc, i)
+                    
+                    if compact_sources:
+                        # Riferimenti compatti e precisi
+                        st.markdown("**📚 Documenti di origine:**")
+                        
+                        sources_summary = {}
+                        for doc in source_docs:
+                            source = doc.get("source", "Sconosciuto")
+                            page = doc.get("page", "N/A")
+                            doc_type = doc.get("type", "text")
+                            
+                            key = f"{source}"
+                            if key not in sources_summary:
+                                sources_summary[key] = {"pages": set(), "types": set()}
+                            
+                            sources_summary[key]["pages"].add(str(page))
+                            sources_summary[key]["types"].add(doc_type)
+                        
+                        # Mostra riferimenti in formato compatto e preciso
+                        for source, info in sources_summary.items():
+                            pages_list = sorted(info["pages"], key=lambda x: int(x) if x.isdigit() else float('inf'))
+                            types_list = sorted(info["types"])
+                            
+                            # Formato più compatto: "📄 documento.pdf: p.1,2,3 (text, image)"
+                            if len(pages_list) == 1:
+                                pages_str = f"p.{pages_list[0]}"
+                            else:
+                                pages_str = f"pp.{','.join(pages_list)}"
+                            
+                            types_str = ", ".join(types_list)
+                            
+                            # Emoji per tipo di documento
+                            if "image" in types_list:
+                                emoji = "🖼️"
+                            elif "table" in types_list:
+                                emoji = "📊"
+                            else:
+                                emoji = "📄"
+                            
+                            st.markdown(f"{emoji} **{source}**: {pages_str} *({types_str})*")
+                    
+                    else:
+                        # Riferimenti dettagliati
+                        st.markdown("**📚 Documenti di origine dettagliati:**")
+                        for i, doc in enumerate(source_docs):
+                            display_source_document(doc, i)
                 
                 st.rerun()
+
+
+# Funzioni legacy per compatibilità
+def chat_interface_widget(selected_sources: list[str]):
+    """Wrapper per compatibilità con codice esistente."""
+    return enhanced_chat_interface_widget(selected_sources)

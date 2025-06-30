@@ -22,7 +22,6 @@ DIRETTIVE PER LA RISPOSTA:
    - Introduzione: inquadra brevemente l'argomento
    - Corpo principale: elenca tutti i punti rilevanti in ordine logico
    - Conclusioni: sintesi e eventuali limitazioni
-   - Riferimenti: [Fonte: nome_file, Pagina X] per ogni informazione
 
 3. STILE:
    - Usa paragrafi ben strutturati
@@ -38,6 +37,8 @@ DIRETTIVE PER LA RISPOSTA:
    - Non inventare informazioni
    - Se qualcosa non è chiaro nel contesto, ammettilo
    - Differenzia tra fatti certi e inferenze logiche
+
+NOTA: I riferimenti alle fonti e alle pagine saranno mostrati automaticamente nell'interfaccia utente sotto la tua risposta, quindi non è necessario includerli nel testo.
 
 RISPOSTA DETTAGLIATA:"""
     return PromptTemplate.from_template(template)
