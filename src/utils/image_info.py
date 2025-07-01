@@ -78,7 +78,7 @@ def get_caption(base64_str: str) -> str:
                     ],
                 }
             ],
-            model="meta-llama/llama-4-scout-17b-16e-instruct",
+            model="llama-3.3-70b-versatile",
             max_tokens=300,
             temperature=0.1,
         )

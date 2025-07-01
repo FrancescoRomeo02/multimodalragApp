@@ -5,7 +5,6 @@ from typing import Tuple, List, Dict, Any
 from io import BytesIO
 from PIL import Image as PILImage
 import os
-import pandas as pd
 import numpy as np
 from src.utils.context_extractor import ContextExtractor
 from src.utils.image_info import get_comprehensive_image_info
@@ -27,7 +26,7 @@ def extract_tables_from_page(page: fitz.Page) -> List[Dict[str, Any]]:
     try:
         # Metodo principale: Rilevamento tabelle di PyMuPDF
         tabs = page.find_tables()
-        
+
         if len(tabs.tables) == 0:
             return tables
             
@@ -101,6 +100,10 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
     image_elements = []
     table_elements = []
     
+    # Contatori globali per numerazione immagini e tabelle
+    global_image_counter = 0
+    global_table_counter = 0
+    
     # Inizializza l'estrattore di contesto con parametri più ampi
     context_extractor = ContextExtractor(context_window=500, max_distance=300)
     
@@ -125,10 +128,12 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     }
                 })
             
-            # Estrazione tabelle con contesto
+            # Estrazione tabelle con contesto e numerazione
             tables = extract_tables_from_page(page)
             for table in tables:
                 try:
+                    global_table_counter += 1
+                    
                     # Estrai contesto per la tabella
                     table_context = context_extractor.extract_table_context(table["bbox"], page)
                     
@@ -138,9 +143,12 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                         table_context
                     )
                     
+                    # Aggiungi numerazione al contenuto della tabella per l'embedding
+                    numbered_table_content = f"Tabella: {global_table_counter}\n{enhanced_table_content}"
+                    
                     table_elements.append({
                         "table_data": table["table_data"],
-                        "table_markdown": enhanced_table_content,  # Contenuto arricchito per la ricerca
+                        "table_markdown": numbered_table_content,  # Contenuto numerato per l'embedding
                         "table_markdown_raw": table["table_markdown"],  # Markdown originale
                         "metadata": {
                             "type": "table",
@@ -150,9 +158,13 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                             "bbox": table["bbox"],
                             "table_shape": table["table_data"]["shape"],
                             "caption": table_context.get("caption"),
-                            "context_text": table_context.get("context_text")
+                            "context_text": table_context.get("context_text"),
+                            "table_number": global_table_counter
                         }
                     })
+                    
+                    logger.debug(f"Tabella {global_table_counter} estratta da pagina {page_num+1}")
+                    
                 except Exception as e:
                     logger.warning(f"Errore nell'elaborazione della tabella: {str(e)}")
             
@@ -165,6 +177,8 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     if (base_image["width"] < 50 or base_image["height"] < 50 or 
                         not base_image["image"]):
                         continue
+                    
+                    global_image_counter += 1
                     
                     # Ottieni il rettangolo dell'immagine per estrarre il contesto
                     img_rects = [rect for rect in page.get_image_rects(xref)]
@@ -185,8 +199,9 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     image_base64 = base64.b64encode(optimized_image).decode("utf-8")
                     image_info_ai = get_comprehensive_image_info(image_base64)
                     
-                    # Combina caption AI, OCR, e contesto manuale
+                    # Combina caption AI, OCR, e contesto manuale con numerazione
                     caption_parts = [
+                        f"Immagine: {global_image_counter}",
                         f"Image's Description: {image_info_ai['caption']}",
                         f"Image's Text: {image_info_ai['ocr_text']}" if image_info_ai["ocr_text"].strip() else None,
                         f"Detected Image's Objects: {', '.join(image_info_ai['detected_objects'])}" if image_info_ai["detected_objects"] else None,
@@ -200,7 +215,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                         image_context
                     )
                     
-                    logger.debug(f"Immagine {img_index+1} pagina {page_num+1} - Caption completa: {comprehensive_caption}")
+                    logger.debug(f"Immagine {global_image_counter} pagina {page_num+1} - Caption completa: {comprehensive_caption}")
                     
                     image_metadata = {
                         "type": "image",
@@ -212,13 +227,14 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                         "ocr_text": image_info_ai['ocr_text'],
                         "detected_objects": image_info_ai['detected_objects'],
                         "manual_caption": image_context.get("caption"),
-                        "context_text": image_context.get("context_text")
+                        "context_text": image_context.get("context_text"),
+                        "image_number": global_image_counter
                     }
                     
                     image_elements.append({
                         "image_base64": image_base64,
                         "metadata": image_metadata,
-                        "page_content": enhanced_description  # Descrizione arricchita per la ricerca
+                        "page_content": enhanced_description  # Descrizione numerata per l'embedding
                     })
                         
                 except Exception as img_e:
@@ -229,5 +245,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
         logger.error(f"Errore durante il parsing del PDF: {str(e)}")
         raise RuntimeError(f"PDF parsing failed: {str(e)}") from e
     
-    logger.info(f"Estrazione completata: {len(text_elements)} testi, {len(image_elements)} immagini, {len(table_elements)} tabelle")
+    logger.info(f"Estrazione completata: {len(text_elements)} testi, {len(image_elements)} immagini "
+                f"(numerazione 1-{global_image_counter}), {len(table_elements)} tabelle "
+                f"(numerazione 1-{global_table_counter})")
     return text_elements, image_elements, table_elements
