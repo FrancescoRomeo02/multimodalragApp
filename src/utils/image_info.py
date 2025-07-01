@@ -3,13 +3,14 @@
 import base64
 from io import BytesIO
 from PIL import Image
-from transformers import BlipProcessor, BlipForConditionalGeneration
+from groq import Groq
 import logging
 import cv2
 import pytesseract
 import os
 import numpy as np
 from ultralytics import YOLO
+from src.config import GROQ_API_KEY
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -38,9 +39,9 @@ def get_detected_objects(base64_str: str) -> list:
             for box in result.boxes:
                 label = model.names[int(box.cls)]
                 confidence = float(box.conf)
-                detected_objects.append(f"{label} (confidenza: {confidence:.2f})")
-                
-        return detected_objects
+                detected_objects.append(f"{label}" if confidence > 0.5 else None)
+
+        return [obj for obj in detected_objects if obj is not None]
     except Exception as e:
         logger.error(f"Errore nel rilevamento oggetti: {e}")
         return []
@@ -48,7 +49,7 @@ def get_detected_objects(base64_str: str) -> list:
 
 def get_caption(base64_str: str) -> str:
     """
-    Genera una descrizione testuale di un'immagine usando BLIP model.
+    Genera una descrizione testuale di un'immagine usando Groq's vision model.
     
     Args:
         base64_str: Stringa base64 dell'immagine
@@ -57,26 +58,37 @@ def get_caption(base64_str: str) -> str:
         Descrizione testuale dell'immagine
     """
     try:
-        model_path = "Salesforce/blip-image-captioning-base"
-        cache_dir = os.path.join(os.path.expanduser("~"), ".cache/huggingface")
+        if not GROQ_API_KEY:
+            raise ValueError("La chiave API di Groq non è stata impostata (GROQ_API_KEY).")
 
-        logger.info("Caricamento modello BLIP...")
-        processor = BlipProcessor.from_pretrained(model_path, cache_dir=cache_dir)
-        model = BlipForConditionalGeneration.from_pretrained(model_path, cache_dir=cache_dir)
+        client = Groq(api_key=GROQ_API_KEY)
 
-        # Decodifica e conversione immagine
-        image_data = base64.b64decode(base64_str)
-        image = Image.open(BytesIO(image_data)).convert("RGB")
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Descrivi dettagliatamente cosa vedi in questa immagine. Fornisci una descrizione accurata e completa degli oggetti, delle persone, del contesto e di qualsiasi testo visibile."},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_str}",
+                            },
+                        },
+                    ],
+                }
+            ],
+            model="meta-llama/llama-4-scout-17b-16e-instruct",
+            max_tokens=300,
+            temperature=0.1,
+        )
 
-        # Generazione caption
-        inputs = processor(image, return_tensors="pt") # type: ignore
-        out = model.generate(**inputs, max_new_tokens=100) # type: ignore
-        caption = processor.decode(out[0], skip_special_tokens=True) # type: ignore
-
-        return caption
+        caption = chat_completion.choices[0].message.content
+        logger.info(f"Caption generata con successo usando Groq")
+        return caption if caption else "Immagine non descrivibile"
 
     except Exception as e:
-        logger.error(f"Errore generazione caption: {e}")
+        logger.error(f"Errore generazione caption con Groq: {e}")
         return "Immagine non descrivibile"
 
 def get_image_text(base64_str: str) -> str:
