@@ -13,6 +13,28 @@ from src.utils.image_info import get_comprehensive_image_info
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+def is_valid_table(df: pd.DataFrame):
+        """
+        Filtro euristico per tabelle:
+        - almeno 2 righe e 2 colonne
+        - meno del 50% delle celle vuote
+        - almeno una colonna con valori non unici (=> ripetizioni tipiche delle tabelle)
+        """
+        if df.shape[0] < 2 or df.shape[1] < 2:
+            return False
+
+        total_cells = df.size
+        empty_cells = df.isna().sum().sum()
+        if empty_cells / total_cells > 0.5:
+            return False
+
+        duplicate_col = any(df[col].duplicated().any() for col in df.columns if df[col].dtype == object)
+        if not duplicate_col:
+            return False
+
+        return True
+
 def extract_tables_from_page(page: fitz.Page) -> List[Dict[str, Any]]:
     """
     Estrae tabelle da una pagina PDF usando PyMuPDF
@@ -27,20 +49,24 @@ def extract_tables_from_page(page: fitz.Page) -> List[Dict[str, Any]]:
     try:
         # Metodo principale: Rilevamento tabelle di PyMuPDF
         tabs = page.find_tables()
-        
-        if len(tabs.tables) == 0:
+        if not tabs or len(tabs.tables) == 0:
             return tables
             
         for i, table in enumerate(tabs.tables):
             try:
-                # Estrai i dati della tabella
+                # Verifica preliminare del bounding box
+                if not hasattr(table, 'bbox') or not table.bbox:
+                    continue
+                    
                 df = table.to_pandas()
                 
-                # Pulisci i dati della tabella
+                # Converti tutti i valori a stringa e pulisci
+                df = df.applymap(lambda x: str(x).strip() if pd.notna(x) else x)
                 df = df.replace(r'^\s*$', np.nan, regex=True)
                 df = df.dropna(how='all').dropna(how='all', axis=1)
                 
-                if df.empty:
+                if not is_valid_table(df):
+                    logger.debug(f"Tabella {i+1} scartata per criteri di validità")
                     continue
                 
                 # Converti la tabella in formato markdown
