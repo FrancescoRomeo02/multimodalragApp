@@ -99,13 +99,13 @@ def is_valid_image(width: int, height: int, image_data: bytes) -> bool:
     - Rapporto di aspetto ragionevole (non troppo allungate)
     """
     # Controlli dimensioni di base
-    if width < 50 or height < 50:
+    if width < 120 or height < 120:
         logger.debug(f"Immagine scartata: dimensioni troppo piccole ({width}x{height})")
         return False
     
     # Controllo area minima
     area = width * height
-    if area < 2500:  # ~50x50 pixel
+    if area < 14400:  # ~120x120 pixel
         logger.debug(f"Immagine scartata: area troppo piccola ({area} pixel)")
         return False
     
