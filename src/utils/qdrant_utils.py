@@ -45,9 +45,10 @@ class QdrantManager:
             id=str(uuid.uuid4()),
             vector=vector,
             payload={
-                "metadata": element.metadata.dict(),
-                "content_type": "text",
-                "page": element.metadata.page,
+                "page_content": "testo", #TOGLIERE (?)
+                "page_content": element.text,
+                "metadata": element.metadata.model_dump(),
+                "content_type": "text" #TOGLIERE (?)
             }
         )
     
@@ -56,11 +57,11 @@ class QdrantManager:
             id=str(uuid.uuid4()),
             vector=vector,
             payload={
-                "page": element.metadata.page,
-                "content_type": "image",
+                "page": element.metadata.page, #TOGLIERE (?)
                 "page_content": element.page_content,
-                "image_base64": element.image_base64,  # Includiamo l'immagine per il recupero completo
-                "metadata": element.metadata.dict()
+                "image_base64": element.image_base64, 
+                "content_type": "image", #TOGLIERE (?)
+                "metadata": element.metadata.model_dump()
             }
         )
     
@@ -70,9 +71,9 @@ class QdrantManager:
             vector=vector,
             payload={
                 "page_content": element.table_markdown,
-                "metadata": element.metadata.dict(),
-                "content_type": "table",
-                "table_data": element.table_data.dict()
+                "metadata": element.metadata.model_dump(),
+                "content_type": "table", #TOGLIERE (?)
+                "table_data": element.table_data.model_dump()
             }
         )
     
@@ -115,7 +116,7 @@ class QdrantManager:
             logger.error(f"Errore verifica collezione: {e}")
             return False
     
-    def create_collection(self, embedding_dim: int, force_recreate: bool = False) -> bool: #magari metterlo a true
+    def create_collection(self, embedding_dim: int, force_recreate: bool = False) -> bool:
         try:
             if force_recreate and self.collection_exists():
                 self.delete_collection()
@@ -500,7 +501,7 @@ class QdrantManager:
     def search_similar_documents(self, 
                                 query: str,
                                 selected_files: List[str] = None,
-                                similarity_threshold: float = 0.3,
+                                similarity_threshold: float = 0.7,
                                 max_results: int = 10) -> List[Dict[str, Any]]:
         """
         Alias per query_text con parametri diversi per retrocompatibilità.
