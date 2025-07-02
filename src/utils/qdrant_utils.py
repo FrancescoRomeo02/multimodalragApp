@@ -69,7 +69,7 @@ class QdrantManager:
     
     def convert_elements_to_points(
         self,
-        elements: List[Union[TextElement, ImageElement, TableElement]],
+        elements: List[Any],
         vectors: List[List[float]]
     ) -> List[models.PointStruct]:
         """
@@ -188,7 +188,37 @@ class QdrantManager:
             return False, error_message
     
     # === FILTRI ===
-
+    
+    def create_content_filter(self, query_type: Optional[str] = None) -> Optional[models.Filter]:
+        if query_type == "image":
+            return models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="metadata.type",
+                        match=models.MatchValue(value="image"),
+                    )
+                ]
+            )
+        elif query_type == "text":
+            return models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="metadata.type",
+                        match=models.MatchValue(value="text"),
+                    )
+                ]
+            )
+        elif query_type == "table":
+            return models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="metadata.type",
+                        match=models.MatchValue(value="table"),
+                    )
+                ]
+            )
+        return None
+    
     def create_file_filter(self, selected_files: List[str]) -> Optional[models.Filter]:
         if not selected_files:
             return None
@@ -230,7 +260,6 @@ class QdrantManager:
         return models.Filter(should=page_conditions)
     
     def build_combined_filter(self, 
-
                             selected_files: List[str] = [],
                             query_type: Optional[str] = None,
                             pages: List[int] = []) -> Optional[models.Filter]:
@@ -240,6 +269,11 @@ class QdrantManager:
             file_filter = self.create_file_filter(selected_files)
             if file_filter:
                 filters.append(file_filter)
+        
+        if query_type:
+            content_filter = self.create_content_filter(query_type)
+            if content_filter:
+                filters.append(content_filter)
         
         if pages:
             page_filter = self.create_page_filter(pages)
@@ -262,7 +296,7 @@ class QdrantManager:
                       pages: List[int] = [],
                       score_threshold: Optional[float] = None) -> List[models.ScoredPoint]:
         try:
-            qdrant_filter = self.build_combined_filter(selected_files, pages)
+            qdrant_filter = self.build_combined_filter(selected_files, query_type, pages)
             
             # Log del filtro per debug
             if qdrant_filter:
@@ -277,13 +311,13 @@ class QdrantManager:
                 with_vectors=False,
                 score_threshold=score_threshold
             )
-            logger.info(f"Ricerca vettoriale: trovati {len(results)} risultati per files={selected_files}")
+            logger.info(f"Ricerca vettoriale: trovati {len(results)} risultati per query_type='{query_type}', files={selected_files}")
             return results
         except Exception as e:
             logger.error(f"Errore ricerca vettoriale: {e}")
             return []
     
-    def query_text(self, 
+    def query_texts(self, 
                    query: str, 
                    selected_files: List[str] = [],
                    top_k: int = 10,
@@ -298,6 +332,7 @@ class QdrantManager:
                 query_embedding=query_embedding,
                 top_k=top_k,
                 selected_files=selected_files,
+                query_type="text",
                 score_threshold=score_threshold
             )
             
@@ -342,7 +377,8 @@ class QdrantManager:
             results = self.search_vectors(
                 query_embedding=query_embedding,
                 top_k=top_k,
-                selected_files=selected_files
+                selected_files=selected_files,
+                query_type="image"
             )
             
             image_results = []
@@ -375,7 +411,6 @@ class QdrantManager:
     def query_tables(self, 
                      query: str, 
                      selected_files: List[str] = [],
-
                      top_k: int = 3) -> List[Dict[str, Any]]:
         logger.info(f"Query tabelle: '{query}' con top_k={top_k}, file: {selected_files}")
         try:
@@ -383,7 +418,8 @@ class QdrantManager:
             results = self.search_vectors(
                 query_embedding=query_embedding,
                 top_k=top_k,
-                selected_files=selected_files
+                selected_files=selected_files,
+                query_type="table"
             )
             
             table_results = []
@@ -629,8 +665,19 @@ class QdrantManager:
                 with_vectors=False
             )
             
-            # Test 3: Query con filtro per file
-            combined_filter = self.build_combined_filter([filename])
+            # Test 3: Query con filtro testo
+            text_filter = self.create_content_filter("text")
+            results_text_filter = self.client.search(
+                collection_name=self.collection_name,
+                query_vector=query_embedding,
+                query_filter=text_filter,
+                limit=5,
+                with_payload=True,
+                with_vectors=False
+            )
+            
+            # Test 4: Query con entrambi i filtri
+            combined_filter = self.build_combined_filter([filename], "text")
             results_combined = self.client.search(
                 collection_name=self.collection_name,
                 query_vector=query_embedding,
@@ -664,6 +711,10 @@ class QdrantManager:
                     "file_filter": {
                         "count": len(results_file_filter),
                         "results": format_results(results_file_filter, "file_filter")
+                    },
+                    "text_filter": {
+                        "count": len(results_text_filter),
+                        "results": format_results(results_text_filter, "text_filter")
                     },
                     "combined_filter": {
                         "count": len(results_combined),

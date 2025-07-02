@@ -6,8 +6,10 @@ from io import BytesIO
 from PIL import Image as PILImage
 import os
 import numpy as np
+import pandas as pd
 from src.utils.context_extractor import ContextExtractor
 from src.utils.image_info import get_comprehensive_image_info
+from src.utils.table_info import enhance_table_with_summary
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -173,7 +175,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     # Aggiungi numerazione al contenuto della tabella per l'embedding
                     numbered_table_content = f"Tabella: {global_table_counter}\n{enhanced_table_content}"
                     
-                    table_elements.append({
+                    table_element = {
                         "table_data": table["table_data"],
                         "table_markdown": numbered_table_content,  # Contenuto numerato per l'embedding
                         "table_markdown_raw": table["table_markdown"],  # Markdown originale
@@ -188,7 +190,12 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                             "context_text": table_context.get("context_text"),
                             "table_number": global_table_counter
                         }
-                    })
+                    }
+                    
+                    # Arricchisci la tabella con il riassunto AI
+                    table_element = enhance_table_with_summary(table_element)
+                    
+                    table_elements.append(table_element)
                     
                     logger.debug(f"Tabella {global_table_counter} estratta da pagina {page_num+1}")
                     

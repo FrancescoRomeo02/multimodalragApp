@@ -15,7 +15,7 @@ from src.core.diagnostics import validate_retrieval_quality
 from src.core.prompts import create_prompt_template
 from src.utils.qdrant_utils import qdrant_manager
 from src.utils.embedder import get_multimodal_embedding_model
-from src.llm.groq_client import get_groq_llm
+from src.llm.groq_client import get_groq_llm, get_text_summary_llm, get_text_rewrite_llm
 from src.config import QDRANT_URL, COLLECTION_NAME, ENABLE_PERFORMANCE_MONITORING
 from src.utils.performance_monitor import performance_monitor, track_performance
 
@@ -53,7 +53,8 @@ def create_rag_chain(selected_files: Optional[List[str]] = None,):
 
     retriever = create_retriever(vector_store, selected_files)
 
-    llm = get_groq_llm()
+    # Usa il modello specifico per il riassunto di testo (versione SM)
+    llm = get_text_summary_llm()
     prompt = create_prompt_template()
 
     # Usa la nuova API: create_stuff_documents_chain invece del vecchio approccio
@@ -97,6 +98,7 @@ def enhanced_rag_query(query: str,
                     "content": content,
                     "table_shape": meta.get("table_shape", {}),
                     "caption": meta.get("caption"),
+                    "table_summary": meta.get("table_summary"),  # Riassunto AI della tabella
                     "table_markdown_raw": content  # Il contenuto è già il markdown
                 })
             elif content_type == "image":
@@ -112,6 +114,15 @@ def enhanced_rag_query(query: str,
             return base_info
         
         source_docs = [build_doc_info(doc) for doc in retrieved_docs]
+
+        # Sempre includi testo nel RAG multimodale
+        texts = []
+        try:
+            texts = qdrant_manager.query_texts(query, selected_files or [], top_k=3)
+            for text in texts:
+                source_docs.append(build_doc_info(text))
+        except Exception as e:
+            logger.warning(f"Errore nel recupero testi: {e}")
 
         # Sempre includi immagini nel RAG multimodale
         images = []
@@ -132,6 +143,8 @@ def enhanced_rag_query(query: str,
         except Exception as e:
             logger.warning(f"Errore nel recupero immagini: {e}")
 
+
+        tables = []
         # Sempre includi tabelle nel RAG multimodale
         try:
             tables = qdrant_manager.query_tables(query, selected_files or [], top_k=3)
@@ -144,6 +157,7 @@ def enhanced_rag_query(query: str,
                     "type": "table",
                     "table_data": table.get("table_data", {}),
                     "caption": table.get("metadata", {}).get("caption"),
+                    "table_summary": table.get("metadata", {}).get("table_summary"),  # Riassunto AI
                     "context_text": table.get("metadata", {}).get("context_text")
                 })
         except Exception as e:
@@ -154,7 +168,7 @@ def enhanced_rag_query(query: str,
         return RetrievalResult(
             answer=result.get("answer", ""),
             source_documents=source_docs,
-            confidence_score=confidence_score[1],
+            confidence_score=confidence_score,
             query_time_ms=query_time_ms,
             retrieved_count=len(source_docs),
             filters_applied={"selected_files": selected_files, "multimodal_mode": True}
@@ -197,7 +211,8 @@ def batch_query(queries: List[str],
     return results
 
 def edit_answer(answer: str):
-    llm = get_groq_llm()
+    # Usa il modello specifico per la riscrittura di testo (versione SM)
+    llm = get_text_rewrite_llm()
     prompt = f"""Sei un esperto editor accademico. Il tuo compito è revisionare e migliorare la seguente risposta, rendendola:
     - più chiara, precisa e ben strutturata
     - adatta a una rivista scientifica
