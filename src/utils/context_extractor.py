@@ -32,8 +32,8 @@ class ContextExtractor:
         """
         text_blocks = []
         
-        # Usa get_text("dict") per avere informazioni dettagliate su posizione
-        text_dict = page.get_text("dict")
+        # Usa get_text("dict") per testo e immagini con posizioni
+        text_dict = page.get_text("dict") # type: ignore
         
         for block in text_dict["blocks"]:
             if "lines" in block:  # Blocco di testo
@@ -299,8 +299,9 @@ class ContextExtractor:
         usando get_text("words") per maggiore granularità
         """
         try:
-            words = page.get_text("words")  # Lista di (x0, y0, x1, y1, "word", block_no, line_no, word_no)
-            
+            # Lista di (x0, y0, x1, y1, "word", block_no, line_no, word_no)
+            words = page.get_text("words")  # type: ignore
+
             # Raggruppa le parole in blocchi testuali
             text_blocks = []
             current_block = []
@@ -315,7 +316,7 @@ class ContextExtractor:
                         if current_block:
                             # Salva il blocco precedente
                             text = " ".join(current_block)
-                            if len(text.strip()) > 3:  # Ignora blocchi troppo corti
+                            if len(text.strip()) > 3 and current_bbox is not None:  # Ignora blocchi troppo corti
                                 text_blocks.append({
                                     "text": text.strip(),
                                     "bbox": current_bbox,
@@ -328,11 +329,12 @@ class ContextExtractor:
                     else:
                         # Aggiungi al blocco corrente
                         current_block.append(word)
-                        # Espandi la bbox
-                        current_bbox[0] = min(current_bbox[0], x0)
-                        current_bbox[1] = min(current_bbox[1], y0)
-                        current_bbox[2] = max(current_bbox[2], x1)
-                        current_bbox[3] = max(current_bbox[3], y1)
+                        # Espandi la bbox solo se current_bbox è inizializzato
+                        if current_bbox is not None:
+                            current_bbox[0] = min(current_bbox[0], x0)
+                            current_bbox[1] = min(current_bbox[1], y0)
+                            current_bbox[2] = max(current_bbox[2], x1)
+                            current_bbox[3] = max(current_bbox[3], y1)
             
             # Non dimenticare l'ultimo blocco
             if current_block and current_bbox:

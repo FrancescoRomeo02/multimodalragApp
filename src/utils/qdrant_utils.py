@@ -312,9 +312,9 @@ class QdrantManager:
         return models.Filter(should=page_conditions)
     
     def build_combined_filter(self, 
-                            selected_files: List[str] = None,
+                            selected_files: List[str] = [],
                             query_type: Optional[str] = None,
-                            pages: List[int] = None) -> Optional[models.Filter]:
+                            pages: List[int] = []) -> Optional[models.Filter]:
         filters = []
         
         if selected_files:
@@ -343,9 +343,9 @@ class QdrantManager:
     def search_vectors(self, 
                       query_embedding: List[float],
                       top_k: int = 12,
-                      selected_files: List[str] = None,
+                      selected_files: List[str] = [],
                       query_type: Optional[str] = None,
-                      pages: List[int] = None,
+                      pages: List[int] = [],
                       score_threshold: Optional[float] = None) -> List[models.ScoredPoint]:
         try:
             qdrant_filter = self.build_combined_filter(selected_files, query_type, pages)
@@ -371,7 +371,7 @@ class QdrantManager:
     
     def query_text(self, 
                    query: str, 
-                   selected_files: List[str] = None,
+                   selected_files: List[str] = [],
                    top_k: int = 12,
                    score_threshold: float = 0.3) -> List[Dict[str, Any]]:
         """
@@ -421,7 +421,7 @@ class QdrantManager:
     
     def query_images(self, 
                     query: str, 
-                    selected_files: List[str] = None,
+                    selected_files: List[str] = [],
                     top_k: int = 12) -> List[ImageResult]:
         logger.info(f"Query immagini: '{query}' con top_k={top_k}, file: {selected_files}")
         try:
@@ -462,7 +462,7 @@ class QdrantManager:
     
     def query_tables(self, 
                      query: str, 
-                     selected_files: List[str] = None,
+                     selected_files: List[str] = [],
                      top_k: int = 12) -> List[Dict[str, Any]]:
         logger.info(f"Query tabelle: '{query}' con top_k={top_k}, file: {selected_files}")
         try:
@@ -504,7 +504,7 @@ class QdrantManager:
     
     def query_all_content(self, 
                          query: str, 
-                         selected_files: List[str] = None,
+                         selected_files: List[str] = [],
                          top_k_per_type: int = 12,
                          score_threshold: float = 0.3) -> Dict[str, Any]:
         """
@@ -542,7 +542,7 @@ class QdrantManager:
     
     def search_similar_documents(self, 
                                 query: str,
-                                selected_files: List[str] = None,
+                                selected_files: List[str] = [],
                                 similarity_threshold: float = 0.3,
                                 max_results: int = 12) -> List[Dict[str, Any]]:
         """
@@ -586,12 +586,12 @@ class QdrantManager:
                 # Combina filtri: (source_filter) AND (page_filter)
                 scroll_filter = models.Filter(
                     must=[
-                        models.Filter(should=filters),  # source
-                        models.Filter(should=page_filters)  # page
+                        models.Filter(should=filters),  # type: ignore
+                        models.Filter(should=page_filters)  # type: ignore
                     ]
                 )
             else:
-                scroll_filter = models.Filter(should=filters)
+                scroll_filter = models.Filter(should=filters) # type: ignore
             
             results, _ = self.client.scroll(
                 collection_name=self.collection_name,

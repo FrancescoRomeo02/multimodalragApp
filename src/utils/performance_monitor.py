@@ -43,7 +43,12 @@ class PerformanceMonitor:
     def start_query_tracking(self, query_id: str, query_text: str, query_type: str) -> QueryMetrics:
         """Inizia il tracking di una query"""
         if not self.enabled:
-            return None
+            return QueryMetrics(
+                query_id=query_id,
+                query_text=query_text,
+                query_type=query_type,
+                start_time=datetime.now()
+            )
             
         metrics = QueryMetrics(
             query_id=query_id,

@@ -26,7 +26,7 @@ def create_retriever(vector_store: Qdrant,
                      selected_files: Optional[List[str]] = None,
                      k: int = 5) -> BaseRetriever:
     qdrant_filter = qdrant_manager.build_combined_filter(
-        selected_files=selected_files,
+        selected_files=selected_files or [],
     )
 
     search_kwargs = {

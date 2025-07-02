@@ -130,6 +130,7 @@ class MultimodalSemanticChunker:
                 logger.error(f"Errore chunking elemento: {e}")
                 # Fallback a chunking classico
                 fallback_chunks = self.fallback_splitter.split_text(element.get("text", ""))
+                metadata = element.get("metadata", {})
                 for i, chunk_text in enumerate(fallback_chunks):
                     if len(chunk_text.strip()) >= self.min_chunk_size:
                         chunk_metadata = metadata.copy()

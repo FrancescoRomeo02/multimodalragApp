@@ -9,7 +9,7 @@ def validate_retrieval_quality(retrieved_docs: List, min_docs: int = 1, min_scor
     Valida la qualità del retrieval
     """
     if not retrieved_docs or len(retrieved_docs) < min_docs:
-        return False, 0.0
+        return 0.0
     
     # Calcola score medio (se disponibile)
     scores = []

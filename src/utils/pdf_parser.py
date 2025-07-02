@@ -141,7 +141,7 @@ def extract_tables_from_page(page: fitz.Page) -> List[Dict[str, Any]]:
     tables = []
     try:
         # Metodo principale: Rilevamento tabelle di PyMuPDF
-        tabs = page.find_tables()
+        tabs = page.find_tables() # type: ignore
         if not tabs or len(tabs.tables) == 0:
             return tables
             
@@ -186,8 +186,8 @@ def extract_tables_from_page(page: fitz.Page) -> List[Dict[str, Any]]:
                 # Log informativo per tabelle accettate
                 rows, cols = df.shape
                 empty_ratio = df.isna().values.sum() / (rows * cols)
-                logger.info(f"Tabella {i+1} pagina {page.number+1} accettata: {rows}x{cols} celle, {empty_ratio:.1%} vuote")
-                
+                logger.info(f"Tabella {i+1} pagina {page.number if page.number is not None else 0 + 1} accettata: {rows}x{cols} celle, {empty_ratio:.1%} vuote")
+
             except Exception as table_e:
                 logger.warning(f"Errore nell'estrazione della tabella {i+1}: {str(table_e)}")
                 continue
@@ -240,7 +240,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
             page_bbox = page.rect
             
             # Estrazione testo con metadati STANDARDIZZATI
-            text = page.get_text("text").strip()
+            text = page.get_text().strip() # type: ignore
             if text:
                 text_elements.append({
                     "text": text,
@@ -308,7 +308,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     logger.info(f"Immagine {img_index+1} pagina {page_num+1} accettata: {base_image['width']}x{base_image['height']} pixel, {len(base_image['image'])/1024:.1f}KB")
                     
                     # Ottieni il rettangolo dell'immagine per estrarre il contesto
-                    img_rects = [rect for rect in page.get_image_rects(xref)]
+                    img_rects = [rect for rect in page.get_image_rects(xref)] # type: ignore
                     image_rect = img_rects[0] if img_rects else page.rect
                     
                     # Estrai contesto manuale per l'immagine
