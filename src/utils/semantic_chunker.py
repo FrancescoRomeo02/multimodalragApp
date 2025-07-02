@@ -338,9 +338,31 @@ class MultimodalSemanticChunker:
             Dizionario con statistiche
         """
         if not elements:
-            return {"total_chunks": 0}
+            return {
+                "total_chunks": 0,
+                "avg_chunk_length": 0,
+                "min_chunk_length": 0,
+                "max_chunk_length": 0,
+                "median_chunk_length": 0,
+                "semantic_chunks": 0,
+                "fallback_chunks": 0
+            }
         
         chunk_lengths = [len(el.get("text", "")) for el in elements]
+        
+        # Gestione caso con chunk_lengths vuoti o solo con valori 0
+        if not chunk_lengths or all(length == 0 for length in chunk_lengths):
+            return {
+                "total_chunks": len(elements),
+                "avg_chunk_length": 0,
+                "min_chunk_length": 0,
+                "max_chunk_length": 0,
+                "median_chunk_length": 0,
+                "semantic_chunks": len([el for el in elements 
+                                      if el.get("metadata", {}).get("chunk_type") == "semantic"]),
+                "fallback_chunks": len([el for el in elements 
+                                      if el.get("metadata", {}).get("chunk_type") == "fallback"])
+            }
         
         return {
             "total_chunks": len(elements),

@@ -111,11 +111,15 @@ class DocumentIndexer:
                             chunked_texts, images_dicts, tables_dicts
                         )
                     
-                    # Statistiche chunking
+                    # Statistiche chunking (gestisce caso con 0 chunk testo)
                     stats = self.semantic_chunker.get_chunking_stats(enriched_texts)
-                    logger.info(f"Chunking semantico - Stats: {len(enriched_texts)} chunk totali, "
-                               f"avg: {stats['avg_chunk_length']:.0f} caratteri, "
-                               f"semantici: {stats['semantic_chunks']}, fallback: {stats['fallback_chunks']}")
+                    if stats['total_chunks'] > 0:
+                        logger.info(f"Chunking semantico - Stats: {len(enriched_texts)} chunk totali, "
+                                   f"avg: {stats['avg_chunk_length']:.0f} caratteri, "
+                                   f"semantici: {stats['semantic_chunks']}, fallback: {stats['fallback_chunks']}")
+                    else:
+                        logger.info(f"Chunking semantico - Nessun chunk di testo, "
+                                   f"ma trovati {len(enriched_images)} immagini e {len(enriched_tables)} tabelle")
                     
                     # Crea istanze modelli Pydantic
                     text_elements = [TextElement(**d) for d in enriched_texts]

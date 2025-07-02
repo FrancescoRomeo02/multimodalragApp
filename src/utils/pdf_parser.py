@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 
 def is_valid_table(df: pd.DataFrame) -> bool:
-    return True
     """
     Filtro avanzato per validazione tabelle con criteri migliorati:
     - Dimensioni minime: almeno 2 righe e 2 colonne
@@ -27,15 +26,6 @@ def is_valid_table(df: pd.DataFrame) -> bool:
     """
     rows, cols = df.shape
     
-    # Controllo dimensioni minime
-    if rows < 2 or cols < 2:
-        logger.debug(f"Tabella scartata: dimensioni insufficienti ({rows}x{cols})")
-        return False
-    
-    # Controllo dimensioni massime ragionevoli
-    if rows > 1000 or cols > 50:
-        logger.debug(f"Tabella scartata: dimensioni eccessive ({rows}x{cols})")
-        return False
     
     total_cells = rows * cols
     empty_cells = df.isna().values.sum()
@@ -77,29 +67,26 @@ def is_valid_table(df: pd.DataFrame) -> bool:
     
     # Verifica varianza nel contenuto (tabelle reali hanno dati diversificati)
     content_variance_score = 0
+    text_only = True
     for col in df.columns:
         col_values = df[col].dropna().astype(str)
+        # Verifica se ci sono valori numerici nella colonna
+        if any(col_values.str.replace('.', '', 1).str.isdigit()):
+            text_only = False
         if len(col_values) > 1:
             unique_values = col_values.nunique()
             variance_ratio = unique_values / len(col_values)
             content_variance_score += variance_ratio
-    
+
     avg_variance = content_variance_score / cols if cols > 0 else 0
-    if avg_variance < 0.1:  # Troppo poco variabile
+    # Se la tabella contiene solo testo, salta il controllo di varianza
+    if not text_only and avg_variance < 0.1:  # Troppo poco variabile
         logger.debug(f"Tabella scartata: contenuto troppo uniforme (variance: {avg_variance:.2f})")
         return False
     
-    # Controllo pattern ripetitivi che indicano layout non tabellare
-    for col in df.columns:
-        col_str_values = df[col].dropna().astype(str)
-        if len(col_str_values) > 0:
-            # Se più del 80% dei valori sono identici, probabilmente non è una tabella significativa
-            most_common_count = col_str_values.value_counts().iloc[0] if len(col_str_values) > 0 else 0
-            if most_common_count / len(col_str_values) > 0.8:
-                logger.debug("Tabella scartata: troppi valori identici in una colonna")
-                return False
     
     logger.debug(f"Tabella valida: {rows}x{cols}, vuote: {empty_ratio:.2%}, significative: {meaningful_ratio:.2%}")
+
     return True
 
 def is_valid_image(width: int, height: int, image_data: bytes) -> bool:
@@ -112,13 +99,13 @@ def is_valid_image(width: int, height: int, image_data: bytes) -> bool:
     - Rapporto di aspetto ragionevole (non troppo allungate)
     """
     # Controlli dimensioni di base
-    if width < 100 or height < 100:
+    if width < 50 or height < 50:
         logger.debug(f"Immagine scartata: dimensioni troppo piccole ({width}x{height})")
         return False
     
     # Controllo area minima
     area = width * height
-    if area < 15000:  # ~122x122 pixel
+    if area < 2500:  # ~50x50 pixel
         logger.debug(f"Immagine scartata: area troppo piccola ({area} pixel)")
         return False
     
@@ -173,7 +160,12 @@ def extract_tables_from_page(page: fitz.Page) -> List[Dict[str, Any]]:
                 
                 # Validazione tabella con informazioni dettagliate
                 if not is_valid_table(df):
+                    rows, cols = df.shape
+                    empty_ratio = df.isna().values.sum() / (rows * cols) if rows * cols > 0 else 1
+                    logger.info(f"Tabella {i+1} pagina {page.number if page.number is not None else 0 + 1} scartata")
+                    logger.debug(df)
                     continue
+
                 
                 # Converti la tabella in formato markdown
                 table_md = df.to_markdown(index=False)
