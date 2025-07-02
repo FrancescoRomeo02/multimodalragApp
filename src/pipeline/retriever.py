@@ -27,7 +27,7 @@ def create_retriever(vector_store: Qdrant,
                      selected_files: Optional[List[str]] = None,
                      k: int = 5) -> BaseRetriever:
     qdrant_filter = qdrant_manager.build_combined_filter(
-        selected_files=selected_files,
+        selected_files=selected_files if selected_files else [],
     )
 
     search_kwargs = {
@@ -80,37 +80,35 @@ def enhanced_rag_query(query: str,
         confidence_score = validate_retrieval_quality(retrieved_docs)
 
         def build_doc_info(doc):
-            meta = doc.metadata or {}
-            content_type = meta.get("content_type", "text")
+            # Con il payload unificato, i metadati essenziali sono in doc.metadata.metadata
+            payload = doc.metadata or {}
+            meta = payload.get("metadata", {})  # I metadati JSON unificati
+            content_type = meta.get("type", "text")  # 'type' invece di 'content_type'
 
             base_info = {
-                "metadata": meta,
+                "metadata": meta,  # Metadati JSON essenziali
                 "source": meta.get("source", "Sconosciuto"),
                 "page": meta.get("page", "N/A"),
                 "type": content_type
             }
 
             if content_type == "table":
-                table_content = meta.get("table_markdown", "Contenuto tabella non disponibile")
-                # Estrai il markdown originale se disponibile, altrimenti usa quello arricchito
-                raw_markdown = doc.page_content if hasattr(doc, 'page_content') else table_content
+                # Per le tabelle, il contenuto è nell'embedding, i metadati nel payload
+                content = doc.page_content or "Contenuto tabella non disponibile"
                 
                 base_info.update({
-                    "content": table_content,
-                    "table_data": meta.get("table_data", {}),
+                    "content": content,
+                    "table_shape": meta.get("table_shape", {}),
                     "caption": meta.get("caption"),
-                    "context_text": meta.get("context_text"),
-                    "table_markdown_raw": raw_markdown
+                    "table_markdown_raw": content  # Il contenuto è già il markdown
                 })
             elif content_type == "image":
                 base_info.update({
                     "content": doc.page_content or "",
-                    "image_base64": meta.get("image_base64", None),
-                    "manual_caption": meta.get("manual_caption"),
-                    "context_text": meta.get("context_text"),
-                    "image_caption": meta.get("image_caption")  # Per caption generate automaticamente
+                    "image_caption": meta.get("image_caption"),
+                    "manual_caption": meta.get("manual_caption")
                 })
-            else:
+            else:  # text
                 content = doc.page_content or ""
                 base_info["content"] = content[:500] + "..." if len(content) > 500 else content
 
@@ -159,7 +157,7 @@ def enhanced_rag_query(query: str,
         return RetrievalResult(
             answer=result.get("answer", ""),
             source_documents=source_docs,
-            confidence_score=confidence_score,
+            confidence_score=confidence_score[1],
             query_time_ms=query_time_ms,
             retrieved_count=len(source_docs),
             filters_applied={"selected_files": selected_files, "include_images": include_images, "include_tables": include_tables}
