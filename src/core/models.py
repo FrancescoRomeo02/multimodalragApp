@@ -34,6 +34,7 @@ class TableMetadata(BaseModel):
     table_shape: Optional[Tuple[int, int]] = Field(None, description="Forma della tabella (righe, colonne)")
     caption: Optional[str] = Field(None, description="Caption o testo circostante della tabella")
     context_text: Optional[str] = Field(None, description="Testo di contesto prima e dopo la tabella")
+    table_summary: Optional[str] = Field(None, description="Riassunto AI generato della tabella")
 
 class TableData(BaseModel):
     """Modello per i dati strutturati della tabella"""

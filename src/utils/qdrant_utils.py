@@ -52,30 +52,66 @@ class QdrantManager:
             }
         )
     
-    def _image_element_to_point(self, element: ImageElement, vector: List[float], image_caption: str = "") -> models.PointStruct:
-        return models.PointStruct(
-            id=str(uuid.uuid4()),
-            vector=vector,
-            payload={
-                "page": element.metadata.page, #TOGLIERE (?)
-                "page_content": element.page_content,
-                "image_base64": element.image_base64, 
-                "content_type": "image", #TOGLIERE (?)
-                "metadata": element.metadata.model_dump()
-            }
-        )
+    def _image_element_to_point(self, element: Union[ImageElement, Dict[str, Any]], vector: List[float], image_caption: str = "") -> models.PointStruct:
+        # Gestisce sia oggetti Pydantic che dizionari dal parser
+        if isinstance(element, dict):
+            # Caso dizionario dal parser legacy
+            metadata = element.get("metadata", {})
+            # Rimuovi image_base64 dai metadati se presente per evitare duplicazione pesante
+            if "image_base64" in metadata:
+                metadata = metadata.copy()
+                del metadata["image_base64"]
+            
+            return models.PointStruct(
+                id=str(uuid.uuid4()),
+                vector=vector,
+                payload={
+                    "page_content": element.get("page_content", ""),
+                    # image_base64 rimosso dal database - troppo pesante e inutile per la ricerca
+                    "content_type": "image",
+                    "metadata": metadata
+                }
+            )
+        else:
+            # Caso oggetto Pydantic
+            return models.PointStruct(
+                id=str(uuid.uuid4()),
+                vector=vector,
+                payload={
+                    "page": element.metadata.page,
+                    "page_content": element.page_content,
+                    # image_base64 rimosso dal database - troppo pesante e inutile per la ricerca
+                    "content_type": "image",
+                    "metadata": element.metadata.model_dump()
+                }
+            )
     
-    def _table_element_to_point(self, element: TableElement, vector: List[float]) -> models.PointStruct:
-        return models.PointStruct(
-            id=str(uuid.uuid4()),
-            vector=vector,
-            payload={
-                "page_content": element.table_markdown,
-                "metadata": element.metadata.model_dump(),
-                "content_type": "table", #TOGLIERE (?)
-                "table_data": element.table_data.model_dump()
-            }
-        )
+    def _table_element_to_point(self, element: Union[TableElement, Dict[str, Any]], vector: List[float]) -> models.PointStruct:
+        # Gestisce sia oggetti Pydantic che dizionari dal parser
+        if isinstance(element, dict):
+            # Caso dizionario dal parser legacy
+            return models.PointStruct(
+                id=str(uuid.uuid4()),
+                vector=vector,
+                payload={
+                    "page_content": element.get("table_markdown", ""),
+                    "metadata": element.get("metadata", {}),
+                    "content_type": "table",
+                    "table_data": element.get("table_data", {})
+                }
+            )
+        else:
+            # Caso oggetto Pydantic
+            return models.PointStruct(
+                id=str(uuid.uuid4()),
+                vector=vector,
+                payload={
+                    "page_content": element.table_markdown,
+                    "metadata": element.metadata.model_dump(),
+                    "content_type": "table",
+                    "table_data": element.table_data.model_dump()
+                }
+            )
     
     def convert_elements_to_points(
         self,
@@ -90,9 +126,15 @@ class QdrantManager:
         for element, vector in zip(elements, vectors):
             if isinstance(element, TextElement):
                 points.append(self._text_element_to_point(element, vector))
-            elif isinstance(element, ImageElement):
+            elif isinstance(element, (ImageElement, dict)) and (
+                hasattr(element, 'image_base64') or 
+                (isinstance(element, dict) and 'image_base64' in element)
+            ):
                 points.append(self._image_element_to_point(element, vector))
-            elif isinstance(element, TableElement):
+            elif isinstance(element, (TableElement, dict)) and (
+                hasattr(element, 'table_markdown') or 
+                (isinstance(element, dict) and 'table_markdown' in element)
+            ):
                 points.append(self._table_element_to_point(element, vector))
             else:
                 logger.warning(f"Elemento non riconosciuto per indicizzazione: {element}")

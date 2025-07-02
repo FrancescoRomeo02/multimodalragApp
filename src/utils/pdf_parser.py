@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 from src.utils.context_extractor import ContextExtractor
 from src.utils.image_info import get_comprehensive_image_info
+from src.utils.table_info import enhance_table_with_summary
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -164,7 +165,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                         table_context
                     )
                     
-                    table_elements.append({
+                    table_element = {
                         "table_data": table["table_data"],
                         "table_markdown": enhanced_table_content,  # Contenuto arricchito per la ricerca
                         "table_markdown_raw": table["table_markdown"],  # Markdown originale
@@ -176,9 +177,15 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                             "bbox": table["bbox"],
                             "table_shape": table["table_data"]["shape"],
                             "caption": table_context.get("caption"),
-                            "context_text": table_context.get("context_text")
+                            "context_text": table_context.get("context_text"),
+                            "table_summary": None  # Placeholder per il riassunto AI
                         }
-                    })
+                    }
+                    # Arricchisci la tabella con il riassunto AI
+                    table_element = enhance_table_with_summary(table_element)
+                    table_elements.append(table_element)
+
+
                 except Exception as e:
                     logger.warning(f"Errore nell'elaborazione della tabella: {str(e)}")
             
