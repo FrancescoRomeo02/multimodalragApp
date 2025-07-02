@@ -14,7 +14,7 @@ from src.core.diagnostics import validate_retrieval_quality
 from src.core.prompts import create_prompt_template
 from src.utils.qdrant_utils import qdrant_manager
 from src.utils.embedder import get_multimodal_embedding_model
-from src.llm.groq_client import get_groq_llm
+from src.llm.groq_client import get_groq_llm, get_text_summary_llm, get_text_rewrite_llm
 from src.config import QDRANT_URL, COLLECTION_NAME, ENABLE_PERFORMANCE_MONITORING
 from src.utils.performance_monitor import performance_monitor, track_performance
 
@@ -26,7 +26,7 @@ def create_retriever(vector_store: Qdrant,
                      selected_files: Optional[List[str]] = None,
                      k: int = 5) -> BaseRetriever:
     qdrant_filter = qdrant_manager.build_combined_filter(
-        selected_files=selected_files,
+        selected_files=selected_files if selected_files else [],
     )
 
     search_kwargs = {
@@ -52,7 +52,8 @@ def create_rag_chain(selected_files: Optional[List[str]] = None,):
 
     retriever = create_retriever(vector_store, selected_files)
 
-    llm = get_groq_llm()
+    # Usa il modello specifico per il riassunto di testo (versione SM)
+    llm = get_text_summary_llm()
     prompt = create_prompt_template()
 
     # Usa la nuova API: create_stuff_documents_chain invece del vecchio approccio
@@ -65,10 +66,7 @@ def create_rag_chain(selected_files: Optional[List[str]] = None,):
 
 @track_performance(query_type="multimodal_rag")
 def enhanced_rag_query(query: str,
-                       selected_files: Optional[List[str]] = None,
-                       multimodal: bool = True,
-                       include_images: bool = False,
-                       include_tables: bool = False) -> RetrievalResult:
+                       selected_files: Optional[List[str]] = None) -> RetrievalResult:
     logger.info(f"Esecuzione query RAG: '{query}'")
     start_time = time.time()
     
@@ -76,40 +74,39 @@ def enhanced_rag_query(query: str,
         rag_chain = create_rag_chain(selected_files)
         result = rag_chain.invoke({"input": query})
         retrieved_docs = result.get("context", [])
-        confidence_score = validate_retrieval_quality(retrieved_docs)
+        _, confidence_score = validate_retrieval_quality(retrieved_docs)
 
         def build_doc_info(doc):
-            meta = doc.metadata or {}
-            content_type = meta.get("content_type", "text")
+            # Con il payload unificato, i metadati essenziali sono in doc.metadata
+            payload = doc.metadata or {}
+            meta = payload.get("metadata", {})  # I metadati JSON unificati
+            content_type = meta.get("type", "text")  # 'type' invece di 'content_type'
 
             base_info = {
-                "metadata": meta,
+                "metadata": meta,  # Metadati JSON essenziali
                 "source": meta.get("source", "Sconosciuto"),
                 "page": meta.get("page", "N/A"),
                 "type": content_type
             }
 
             if content_type == "table":
-                table_content = meta.get("table_markdown", "Contenuto tabella non disponibile")
-                # Estrai il markdown originale se disponibile, altrimenti usa quello arricchito
-                raw_markdown = doc.page_content if hasattr(doc, 'page_content') else table_content
+                # Per le tabelle, il contenuto è nell'embedding, i metadati nel payload
+                content = doc.page_content or "Contenuto tabella non disponibile"
                 
                 base_info.update({
-                    "content": table_content,
-                    "table_data": meta.get("table_data", {}),
+                    "content": content,
+                    "table_shape": meta.get("table_shape", {}),
                     "caption": meta.get("caption"),
-                    "context_text": meta.get("context_text"),
-                    "table_markdown_raw": raw_markdown
+                    "table_summary": meta.get("table_summary"),  # Riassunto AI della tabella
+                    "table_markdown_raw": content  # Il contenuto è già il markdown
                 })
             elif content_type == "image":
                 base_info.update({
                     "content": doc.page_content or "",
-                    "image_base64": meta.get("image_base64", None),
-                    "manual_caption": meta.get("manual_caption"),
-                    "context_text": meta.get("context_text"),
-                    "image_caption": meta.get("image_caption")  # Per caption generate automaticamente
+                    "image_caption": meta.get("image_caption"),
+                    "manual_caption": meta.get("manual_caption")
                 })
-            else:
+            else:  # text
                 content = doc.page_content or ""
                 base_info["content"] = content[:500] + "..." if len(content) > 500 else content
 
@@ -117,6 +114,8 @@ def enhanced_rag_query(query: str,
         
         source_docs = [build_doc_info(doc) for doc in retrieved_docs]
 
+
+        # Sempre includi immagini nel RAG multimodale
         images = []
         if include_images or multimodal:
             try:
@@ -161,7 +160,7 @@ def enhanced_rag_query(query: str,
             confidence_score=confidence_score,
             query_time_ms=query_time_ms,
             retrieved_count=len(source_docs),
-            filters_applied={"selected_files": selected_files, "include_images": include_images, "include_tables": include_tables}
+            filters_applied={"selected_files": selected_files, "multimodal_mode": True}
         )
 
     except Exception as e:
@@ -177,16 +176,15 @@ def enhanced_rag_query(query: str,
         )
 
 def batch_query(queries: List[str], 
-               selected_files: List[str] = None, # type: ignore
-               multimodal: bool = True) -> List[RetrievalResult]:
-    logger.info(f"Esecuzione batch di {len(queries)} query")
+               selected_files: List[str] = None) -> List[RetrievalResult]: # type: ignore
+    logger.info(f"Esecuzione batch di {len(queries)} query in modalità multimodale")
 
     results = []
 
     for i, query in enumerate(queries):
         try:
             logger.info(f"Processando query {i+1}/{len(queries)}: {query[:30]}...")
-            result = enhanced_rag_query(query, selected_files, multimodal)
+            result = enhanced_rag_query(query, selected_files)
             results.append(result)
         except Exception as e:
             logger.error(f"Errore query {i+1}: {str(e)}")
@@ -202,7 +200,8 @@ def batch_query(queries: List[str],
     return results
 
 def edit_answer(answer: str):
-    llm = get_groq_llm()
+    # Usa il modello specifico per la riscrittura di testo (versione SM)
+    llm = get_text_rewrite_llm()
     prompt = f"""Sei un esperto editor accademico. Il tuo compito è revisionare e migliorare la seguente risposta, rendendola:
     - più chiara, precisa e ben strutturata
     - adatta a una rivista scientifica

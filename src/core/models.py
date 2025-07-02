@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Optional, Dict, Tuple
+from typing import List, Optional, Dict, Tuple, Any
 from pydantic import BaseModel, Field
 
 
@@ -21,6 +21,85 @@ class ElementMetadata(BaseModel):
     source: str
     page: int
     type: str
+
+class QdrantPayload(BaseModel):
+    """Payload unificato per Qdrant - solo metadati essenziali in JSON"""
+    metadata: Dict[str, Any] = Field(..., description="Metadati essenziali in formato JSON")
+    
+    @classmethod
+    def create_text_payload(cls, source: str, page: int, **extra_fields) -> "QdrantPayload":
+        """Crea payload per elementi di testo"""
+        metadata = {
+            "type": "text",
+            "source": source,
+            "page": page,
+            **{k: v for k, v in extra_fields.items() if v is not None}
+        }
+        return cls(metadata=metadata)
+    
+    @classmethod
+    def create_table_payload(cls, source: str, page: int, table_shape: Optional[Tuple[int, int]] = None, 
+                           caption: Optional[str] = None, **extra_fields) -> "QdrantPayload":
+        """Crea payload per elementi tabella"""
+        metadata = {
+            "type": "table",
+            "source": source,
+            "page": page
+        }
+        if table_shape:
+            metadata["table_shape"] = {"rows": table_shape[0], "cols": table_shape[1]}
+        if caption:
+            metadata["caption"] = caption
+        
+        # Aggiungi altri campi opzionali
+        metadata.update({k: v for k, v in extra_fields.items() if v is not None})
+        return cls(metadata=metadata)
+    
+    @classmethod  
+    def create_image_payload(cls, source: str, page: int, image_caption: Optional[str] = None,
+                           manual_caption: Optional[str] = None, **extra_fields) -> "QdrantPayload":
+        """Crea payload per elementi immagine"""
+        metadata = {
+            "type": "image",
+            "source": source,
+            "page": page
+        }
+        if image_caption:
+            metadata["image_caption"] = image_caption
+        if manual_caption:
+            metadata["manual_caption"] = manual_caption
+            
+        # Aggiungi altri campi opzionali
+        metadata.update({k: v for k, v in extra_fields.items() if v is not None})
+        return cls(metadata=metadata)
+    
+    @classmethod
+    def from_text_element(cls, text_element: "TextElement") -> "QdrantPayload":
+        """Converte un TextElement in payload Qdrant con metadati essenziali"""
+        return cls.create_text_payload(
+            source=text_element.metadata.source,
+            page=text_element.metadata.page
+        )
+    
+    @classmethod
+    def from_table_element(cls, table_element: "TableElement") -> "QdrantPayload":
+        """Converte un TableElement in payload Qdrant con metadati essenziali"""
+        return cls.create_table_payload(
+            source=table_element.metadata.source,
+            page=table_element.metadata.page,
+            table_shape=table_element.metadata.table_shape,
+            caption=table_element.metadata.caption
+        )
+    
+    @classmethod
+    def from_image_element(cls, image_element: "ImageElement") -> "QdrantPayload":
+        """Converte un ImageElement in payload Qdrant con metadati essenziali"""
+        return cls.create_image_payload(
+            source=image_element.metadata.source,
+            page=image_element.metadata.page,
+            image_caption=image_element.metadata.image_caption,
+            manual_caption=image_element.metadata.manual_caption
+        )
 
 
 #TABELLA

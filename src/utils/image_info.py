@@ -3,13 +3,13 @@
 import base64
 from io import BytesIO
 from PIL import Image
-from transformers import BlipProcessor, BlipForConditionalGeneration
+from groq import Groq
 import logging
 import cv2
 import pytesseract
-import os
 import numpy as np
 from ultralytics import YOLO
+from src.config import GROQ_API_KEY, IMG_DESC_MODEL_SM
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -38,9 +38,9 @@ def get_detected_objects(base64_str: str) -> list:
             for box in result.boxes:
                 label = model.names[int(box.cls)]
                 confidence = float(box.conf)
-                detected_objects.append(f"{label} (confidenza: {confidence:.2f})")
-                
-        return detected_objects
+                detected_objects.append(f"{label}" if confidence > 0.5 else None)
+
+        return [obj for obj in detected_objects if obj is not None]
     except Exception as e:
         logger.error(f"Errore nel rilevamento oggetti: {e}")
         return []
@@ -48,7 +48,7 @@ def get_detected_objects(base64_str: str) -> list:
 
 def get_caption(base64_str: str) -> str:
     """
-    Genera una descrizione testuale di un'immagine usando BLIP model.
+    Genera una descrizione testuale di un'immagine usando Groq's vision model.
     
     Args:
         base64_str: Stringa base64 dell'immagine
@@ -57,27 +57,81 @@ def get_caption(base64_str: str) -> str:
         Descrizione testuale dell'immagine
     """
     try:
-        model_path = "Salesforce/blip-image-captioning-base"
-        cache_dir = os.path.join(os.path.expanduser("~"), ".cache/huggingface")
+        if not GROQ_API_KEY:
+            raise ValueError("La chiave API di Groq non è stata impostata (GROQ_API_KEY).")
 
-        logger.info("Caricamento modello BLIP...")
-        processor = BlipProcessor.from_pretrained(model_path, cache_dir=cache_dir)
-        model = BlipForConditionalGeneration.from_pretrained(model_path, cache_dir=cache_dir)
+        client = Groq(api_key=GROQ_API_KEY)
 
-        # Decodifica e conversione immagine
-        image_data = base64.b64decode(base64_str)
-        image = Image.open(BytesIO(image_data)).convert("RGB")
-
-        # Generazione caption
-        inputs = processor(image, return_tensors="pt") # type: ignore
-        out = model.generate(**inputs, max_new_tokens=100) # type: ignore
-        caption = processor.decode(out[0], skip_special_tokens=True) # type: ignore
-
-        return caption
+        # Prova prima con il modello configurato per immagini
+        try:
+            chat_completion = client.chat.completions.create(
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text", 
+                                "text": "Descrivi dettagliatamente cosa vedi in questa immagine. Fornisci una descrizione accurata e completa degli oggetti, delle persone, del contesto e di qualsiasi testo visibile."
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{base64_str}",
+                                },
+                            },
+                        ],
+                    }
+                ],
+                model=IMG_DESC_MODEL_SM,  # Usa il modello configurato per la descrizione immagini
+                max_tokens=300,
+                temperature=0.1,
+            )
+            
+            caption = chat_completion.choices[0].message.content
+            logger.info(f"Caption generata con successo usando {IMG_DESC_MODEL_SM}")
+            return caption if caption else "Immagine non descrivibile"
+            
+        except Exception as vision_error:
+            logger.warning(f"Modello {IMG_DESC_MODEL_SM} non supporta immagini: {vision_error}")
+            
+            # Fallback: prova con modello vision specifico se disponibile
+            try:
+                chat_completion = client.chat.completions.create(
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text", 
+                                    "text": "Descrivi dettagliatamente cosa vedi in questa immagine. Fornisci una descrizione accurata e completa degli oggetti, delle persone, del contesto e di qualsiasi testo visibile."
+                                },
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{base64_str}",
+                                    },
+                                },
+                            ],
+                        }
+                    ],
+                    model="llama-3.2-11b-vision-preview",  # Modello vision specifico
+                    max_tokens=300,
+                    temperature=0.1,
+                )
+                
+                caption = chat_completion.choices[0].message.content
+                logger.info(f"Caption generata con fallback usando llama-3.2-11b-vision-preview")
+                return caption if caption else "Immagine non descrivibile"
+                
+            except Exception as fallback_error:
+                logger.warning(f"Anche il modello vision fallback è fallito: {fallback_error}")
+                raise fallback_error
 
     except Exception as e:
-        logger.error(f"Errore generazione caption: {e}")
-        return "Immagine non descrivibile"
+        logger.error(f"Errore generazione caption con modelli vision: {e}")
+        # Fallback finale: usa metodo alternativo con OCR + object detection
+        logger.info("Tentativo fallback con metodo alternativo...")
+        return get_caption_alternative(base64_str)
 
 def get_image_text(base64_str: str) -> str:
     """
@@ -120,3 +174,43 @@ def get_comprehensive_image_info(base64_str: str) -> dict:
         "detected_objects": get_detected_objects(base64_str),
     }
     return info
+
+def get_caption_alternative(base64_str: str) -> str:
+    """
+    Versione alternativa che combina OCR + analisi oggetti per generare una caption.
+    
+    Args:
+        base64_str: Stringa base64 dell'immagine
+        
+    Returns:
+        Descrizione testuale dell'immagine
+    """
+    try:
+        # Combina informazioni da OCR e object detection
+        ocr_text = get_image_text(base64_str)
+        detected_objects = get_detected_objects(base64_str)
+        
+        caption_parts = []
+        
+        # Aggiungi oggetti rilevati
+        if detected_objects:
+            unique_objects = list(set(detected_objects))
+            if len(unique_objects) == 1:
+                caption_parts.append(f"Immagine contenente: {unique_objects[0]}")
+            else:
+                caption_parts.append(f"Immagine contenente: {', '.join(unique_objects[:3])}")
+        
+        # Aggiungi testo OCR se presente
+        if ocr_text.strip():
+            clean_text = ocr_text.strip().replace('\n', ' ')[:100]
+            caption_parts.append(f"Con testo visibile: {clean_text}")
+        
+        # Combina le parti
+        if caption_parts:
+            return ". ".join(caption_parts)
+        else:
+            return "Immagine senza contenuto testuale riconoscibile"
+            
+    except Exception as e:
+        logger.error(f"Errore nella caption alternativa: {e}")
+        return "Immagine non analizzabile"
