@@ -49,7 +49,7 @@ SEMANTIC_CHUNK_SIZE = 1000
 SEMANTIC_CHUNK_OVERLAP = 200
 SEMANTIC_THRESHOLD = 0.75
 MIN_CHUNK_SIZE = 100
-CHUNKING_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+CHUNKING_EMBEDDING_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 
 # Configurazione Logging Migliorata
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")

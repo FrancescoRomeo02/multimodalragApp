@@ -115,7 +115,7 @@ class QdrantManager:
     
     def convert_elements_to_points(
         self,
-        elements: List[Union[TextElement, ImageElement, TableElement]],
+        elements: List[Any],
         vectors: List[List[float]]
     ) -> List[models.PointStruct]:
         """
@@ -342,7 +342,7 @@ class QdrantManager:
     
     def search_vectors(self, 
                       query_embedding: List[float],
-                      top_k: int = 10,
+                      top_k: int = 12,
                       selected_files: List[str] = None,
                       query_type: Optional[str] = None,
                       pages: List[int] = None,
@@ -372,7 +372,7 @@ class QdrantManager:
     def query_text(self, 
                    query: str, 
                    selected_files: List[str] = None,
-                   top_k: int = 10,
+                   top_k: int = 12,
                    score_threshold: float = 0.3) -> List[Dict[str, Any]]:
         """
         Cerca documenti di testo simili alla query.
@@ -422,7 +422,7 @@ class QdrantManager:
     def query_images(self, 
                     query: str, 
                     selected_files: List[str] = None,
-                    top_k: int = 3) -> List[ImageResult]:
+                    top_k: int = 12) -> List[ImageResult]:
         logger.info(f"Query immagini: '{query}' con top_k={top_k}, file: {selected_files}")
         try:
             query_embedding = self.embedder.embed_query(query)
@@ -463,7 +463,7 @@ class QdrantManager:
     def query_tables(self, 
                      query: str, 
                      selected_files: List[str] = None,
-                     top_k: int = 3) -> List[Dict[str, Any]]:
+                     top_k: int = 12) -> List[Dict[str, Any]]:
         logger.info(f"Query tabelle: '{query}' con top_k={top_k}, file: {selected_files}")
         try:
             query_embedding = self.embedder.embed_query(query)
@@ -505,7 +505,7 @@ class QdrantManager:
     def query_all_content(self, 
                          query: str, 
                          selected_files: List[str] = None,
-                         top_k_per_type: int = 5,
+                         top_k_per_type: int = 12,
                          score_threshold: float = 0.3) -> Dict[str, Any]:
         """
         Cerca contenuti di tutti i tipi (testo, immagini, tabelle) per una query.
@@ -543,8 +543,8 @@ class QdrantManager:
     def search_similar_documents(self, 
                                 query: str,
                                 selected_files: List[str] = None,
-                                similarity_threshold: float = 0.7,
-                                max_results: int = 10) -> List[Dict[str, Any]]:
+                                similarity_threshold: float = 0.3,
+                                max_results: int = 12) -> List[Dict[str, Any]]:
         """
         Alias per query_text con parametri diversi per retrocompatibilità.
         """

@@ -120,7 +120,7 @@ def enhanced_rag_query(query: str,
         images = []
         if include_images or multimodal:
             try:
-                images = qdrant_manager.query_images(query, selected_files or [], top_k=3)
+                images = qdrant_manager.query_images(query, selected_files or [], top_k=12)
                 for img in images:
                     source_docs.append({
                         "content": img.page_content,
@@ -138,7 +138,13 @@ def enhanced_rag_query(query: str,
 
         if include_tables or multimodal:
             try:
-                tables = qdrant_manager.query_tables(query, selected_files or [], top_k=3)
+                tables = qdrant_manager.query_tables(query, selected_files or [], top_k=12)
+                print("=" * 80)
+                for result in tables:
+                    payload = result.get("payload", {})
+                    metadata = payload.get("metadata", {})
+                    logger.info(f"Tabella trovata: {metadata.get('caption', 'Sconosciuto')} - Contesto: {metadata.get('context_text', 'N/A')[:100]}...")
+                print("=" * 80)
                 for table in tables:
                     source_docs.append({
                         "content": table.get("table_markdown", ""),

@@ -35,7 +35,7 @@ SEMANTIC_CHUNK_SIZE = 1000          # Dimensione target dei chunk
 SEMANTIC_CHUNK_OVERLAP = 200        # Sovrapposizione tra chunk
 SEMANTIC_THRESHOLD = 0.75            # Soglia similarità semantica
 MIN_CHUNK_SIZE = 100                 # Dimensione minima chunk
-CHUNKING_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+CHUNKING_EMBEDDING_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 ```
 
 ### Nuove Dipendenze
