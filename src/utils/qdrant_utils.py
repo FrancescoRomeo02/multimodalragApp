@@ -3,7 +3,7 @@ import logging
 import qdrant_client
 from qdrant_client.http import models
 from src.config import QDRANT_URL, COLLECTION_NAME
-from src.core.models import ImageResult, TextElement, ImageElement, TableElement
+from src.core.models import ImageResult, TextElement, ImageElement, TableElement, QdrantPayload
 from src.utils.embedder import get_multimodal_embedding_model
 import uuid
 
@@ -38,42 +38,33 @@ class QdrantManager:
             self._embedder = get_multimodal_embedding_model()
         return self._embedder
     
-    # === Funzioni helper per convertire i modelli in punti Qdrant ===
+    # === Funzioni helper per convertire i modelli in punti Qdrant con payload unificato ===
     
     def _text_element_to_point(self, element: TextElement, vector: List[float]) -> models.PointStruct:
+        """Converte TextElement in punto Qdrant con payload unificato contenente solo metadati JSON"""
+        payload = QdrantPayload.from_text_element(element)
         return models.PointStruct(
             id=str(uuid.uuid4()),
             vector=vector,
-            payload={
-                "metadata": element.metadata.dict(),
-                "content_type": "text",
-                "page": element.metadata.page,
-            }
+            payload=payload.model_dump()  # Solo metadati JSON essenziali
         )
     
     def _image_element_to_point(self, element: ImageElement, vector: List[float], image_caption: str = "") -> models.PointStruct:
+        """Converte ImageElement in punto Qdrant con payload unificato contenente solo metadati JSON"""
+        payload = QdrantPayload.from_image_element(element)
         return models.PointStruct(
             id=str(uuid.uuid4()),
             vector=vector,
-            payload={
-                "page": element.metadata.page,
-                "content_type": "image",
-                "page_content": element.page_content,
-                "image_base64": element.image_base64,  # Includiamo l'immagine per il recupero completo
-                "metadata": element.metadata.dict()
-            }
+            payload=payload.model_dump()  # Solo metadati JSON essenziali
         )
     
     def _table_element_to_point(self, element: TableElement, vector: List[float]) -> models.PointStruct:
+        """Converte TableElement in punto Qdrant con payload unificato contenente solo metadati JSON"""
+        payload = QdrantPayload.from_table_element(element)
         return models.PointStruct(
             id=str(uuid.uuid4()),
             vector=vector,
-            payload={
-                "page_content": element.table_markdown,
-                "metadata": element.metadata.dict(),
-                "content_type": "table",
-                "table_data": element.table_data.dict()
-            }
+            payload=payload.model_dump()  # Solo metadati JSON essenziali
         )
     
     def convert_elements_to_points(
@@ -115,7 +106,7 @@ class QdrantManager:
             logger.error(f"Errore verifica collezione: {e}")
             return False
     
-    def create_collection(self, embedding_dim: int, force_recreate: bool = False) -> bool: #magari metterlo a true
+    def create_collection(self, embedding_dim: int, force_recreate: bool = False) -> bool:
         try:
             if force_recreate and self.collection_exists():
                 self.delete_collection()
@@ -239,8 +230,10 @@ class QdrantManager:
         return models.Filter(should=page_conditions)
     
     def build_combined_filter(self, 
-                            selected_files: Optional[List[str]] = None,
-                            pages: Optional[List[int]] = None) -> Optional[models.Filter]:
+
+                            selected_files: List[str] = [],
+                            query_type: Optional[str] = None,
+                            pages: List[int] = []) -> Optional[models.Filter]:
         filters = []
         
         if selected_files:
@@ -264,8 +257,9 @@ class QdrantManager:
     def search_vectors(self, 
                       query_embedding: List[float],
                       top_k: int = 10,
-                      selected_files: Optional[List[str]] = None,
-                      pages: Optional[List[int]] = None,
+                      selected_files: List[str] = [],
+                      query_type: Optional[str] = None,
+                      pages: List[int] = [],
                       score_threshold: Optional[float] = None) -> List[models.ScoredPoint]:
         try:
             qdrant_filter = self.build_combined_filter(selected_files, pages)
@@ -291,7 +285,7 @@ class QdrantManager:
     
     def query_text(self, 
                    query: str, 
-                   selected_files: Optional[List[str]] = None,
+                   selected_files: List[str] = [],
                    top_k: int = 10,
                    score_threshold: float = 0.3) -> List[Dict[str, Any]]:
         """
@@ -340,7 +334,7 @@ class QdrantManager:
     
     def query_images(self, 
                     query: str, 
-                    selected_files: Optional[List[str]] = None,
+                    selected_files: List[str] = [],
                     top_k: int = 3) -> List[ImageResult]:
         logger.info(f"Query immagini: '{query}' con top_k={top_k}, file: {selected_files}")
         try:
@@ -380,7 +374,8 @@ class QdrantManager:
     
     def query_tables(self, 
                      query: str, 
-                     selected_files: Optional[List[str]] = None,
+                     selected_files: List[str] = [],
+
                      top_k: int = 3) -> List[Dict[str, Any]]:
         logger.info(f"Query tabelle: '{query}' con top_k={top_k}, file: {selected_files}")
         try:
@@ -421,7 +416,7 @@ class QdrantManager:
     
     def query_all_content(self, 
                          query: str, 
-                         selected_files: Optional[List[str]] = None,
+                         selected_files: List[str] = [],
                          top_k_per_type: int = 5,
                          score_threshold: float = 0.3) -> Dict[str, Any]:
         """
@@ -459,8 +454,8 @@ class QdrantManager:
     
     def search_similar_documents(self, 
                                 query: str,
-                                selected_files: Optional[List[str]] = None,
-                                similarity_threshold: float = 0.3,
+                                selected_files: List[str] = [],
+                                similarity_threshold: float = 0.7,
                                 max_results: int = 10) -> List[Dict[str, Any]]:
         """
         Alias per query_text con parametri diversi per retrocompatibilità.
