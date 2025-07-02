@@ -78,7 +78,7 @@ def enhanced_rag_query(query: str,
         _, confidence_score = validate_retrieval_quality(retrieved_docs)
 
         def build_doc_info(doc):
-            # Con il payload unificato, i metadati essenziali sono in doc.metadata.metadata
+            # Con il payload unificato, i metadati essenziali sono in doc.metadata
             payload = doc.metadata or {}
             meta = payload.get("metadata", {})  # I metadati JSON unificati
             content_type = meta.get("type", "text")  # 'type' invece di 'content_type'
@@ -115,14 +115,6 @@ def enhanced_rag_query(query: str,
         
         source_docs = [build_doc_info(doc) for doc in retrieved_docs]
 
-        # Sempre includi testo nel RAG multimodale
-        texts = []
-        try:
-            texts = qdrant_manager.query_texts(query, selected_files or [], top_k=3)
-            for text in texts:
-                source_docs.append(build_doc_info(text))
-        except Exception as e:
-            logger.warning(f"Errore nel recupero testi: {e}")
 
         # Sempre includi immagini nel RAG multimodale
         images = []

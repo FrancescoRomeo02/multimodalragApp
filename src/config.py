@@ -19,9 +19,9 @@ COLLECTION_NAME = "papers_custom_pipeline"
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 # Modello LLM generale (per query RAG generiche)
-LLM_MODEL_NAME = "llama-3.3-70b-versatile"
+LLM_MODEL_NAME = "meta-llama/llama-4-scout-17b-16e-instruct"
 
-# 📸 Modelli per la descrizione immagini (multimodale)
+# Modelli per la descrizione immagini (multimodale)
 IMG_DESC_MODEL_SM="meta-llama/llama-4-scout-17b-16e-instruct"
 IMG_DESC_MODEL_LG="meta-llama/llama-4-maverick-17b-128e-instruct"
 
