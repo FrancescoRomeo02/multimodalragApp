@@ -199,7 +199,6 @@ def enhanced_chat_interface_widget(selected_sources: list[str]):
 
     # Opzioni sempre attive (rimosse dalla UI per semplicità)
     show_sources = True
-    multimodal = True
     compact_sources = True
 
     # Inizializzazione messaggi
@@ -281,8 +280,7 @@ def enhanced_chat_interface_widget(selected_sources: list[str]):
             with st.spinner("🔍 Sto analizzando i documenti..."):
                 response = enhanced_rag_query(
                     query=prompt,
-                    selected_files=selected_sources,
-                    multimodal=multimodal
+                    selected_files=selected_sources
                 )
                 
                 if not response:
