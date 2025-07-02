@@ -319,7 +319,7 @@ class QdrantManager:
     
     def query_text(self, 
                    query: str, 
-                   selected_files: List[str] = None,
+                   selected_files: List[str] = [],
                    top_k: int = 10,
                    score_threshold: float = 0.3) -> List[Dict[str, Any]]:
         """
@@ -410,7 +410,7 @@ class QdrantManager:
     
     def query_tables(self, 
                      query: str, 
-                     selected_files: List[str] = None,
+                     selected_files: List[str] = [],
                      top_k: int = 3) -> List[Dict[str, Any]]:
         logger.info(f"Query tabelle: '{query}' con top_k={top_k}, file: {selected_files}")
         try:
