@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def is_valid_table(df: pd.DataFrame) -> bool:
+    return True
     """
     Filtro avanzato per validazione tabelle con criteri migliorati:
     - Dimensioni minime: almeno 2 righe e 2 colonne
@@ -101,73 +102,6 @@ def is_valid_table(df: pd.DataFrame) -> bool:
     logger.debug(f"Tabella valida: {rows}x{cols}, vuote: {empty_ratio:.2%}, significative: {meaningful_ratio:.2%}")
     return True
 
-def extract_tables_from_page(page: fitz.Page) -> List[Dict[str, Any]]:
-    """
-    Estrae tabelle da una pagina PDF usando PyMuPDF
-    
-    Args:
-        page: La pagina PDF da analizzare
-        
-    Returns:
-        Lista di dizionari contenenti i dati delle tabelle
-    """
-    tables = []
-    try:
-        # Metodo principale: Rilevamento tabelle di PyMuPDF
-        tabs = page.find_tables()
-        if not tabs or len(tabs.tables) == 0:
-            return tables
-            
-        for i, table in enumerate(tabs.tables):
-            try:
-                # Verifica preliminare del bounding box
-                if not hasattr(table, 'bbox') or not table.bbox:
-                    continue
-                    
-                df = table.to_pandas()
-                
-                # Converti tutti i valori a stringa e pulisci
-                df = df.map(lambda x: str(x).strip() if pd.notna(x) else x)
-                df = df.replace(r'^\s*$', np.nan, regex=True)
-                df = df.dropna(how='all').dropna(how='all', axis=1)
-                
-                # Validazione tabella con informazioni dettagliate
-                if not is_valid_table(df):
-                    rows, cols = df.shape
-                    empty_ratio = df.isna().values.sum() / (rows * cols) if rows * cols > 0 else 1
-                    logger.info(f"Tabella {i+1} pagina {page.number+1} scartata: {rows}x{cols} celle, {empty_ratio:.1%} vuote")
-                    continue
-                
-                # Converti la tabella in formato markdown
-                table_md = df.to_markdown(index=False)
-                
-                # Crea una rappresentazione strutturata della tabella
-                table_data = {
-                    "cells": df.values.tolist(),
-                    "headers": df.columns.tolist(),
-                    "shape": df.shape
-                }
-                
-                tables.append({
-                    "table_data": table_data,
-                    "table_markdown": table_md,
-                    "bbox": table.bbox  # Rettangolo che contiene la tabella
-                })
-                
-                # Log informativo per tabelle accettate
-                rows, cols = df.shape
-                empty_ratio = df.isna().values.sum() / (rows * cols)
-                logger.info(f"Tabella {i+1} pagina {page.number+1} accettata: {rows}x{cols} celle, {empty_ratio:.1%} vuote")
-                
-            except Exception as table_e:
-                logger.warning(f"Errore nell'estrazione della tabella {i+1}: {str(table_e)}")
-                continue
-                
-    except Exception as e:
-        logger.error(f"Errore generale nell'estrazione delle tabelle: {str(e)}")
-    
-    return tables
-
 def is_valid_image(width: int, height: int, image_data: bytes) -> bool:
     """
     Filtro per immagini valide basato su dimensioni e qualità:
@@ -205,6 +139,71 @@ def is_valid_image(width: int, height: int, image_data: bytes) -> bool:
         return False
     
     return True
+
+
+def extract_tables_from_page(page: fitz.Page) -> List[Dict[str, Any]]:
+    """
+    Estrae tabelle da una pagina PDF usando PyMuPDF
+    
+    Args:
+        page: La pagina PDF da analizzare
+        
+    Returns:
+        Lista di dizionari contenenti i dati delle tabelle
+    """
+    tables = []
+    try:
+        # Metodo principale: Rilevamento tabelle di PyMuPDF
+        tabs = page.find_tables()
+        if not tabs or len(tabs.tables) == 0:
+            return tables
+            
+        for i, table in enumerate(tabs.tables):
+            try:
+                # Verifica preliminare del bounding box
+                if not hasattr(table, 'bbox') or not table.bbox:
+                    continue
+                    
+                df = table.to_pandas()
+                
+                # Converti tutti i valori a stringa e pulisci
+                df = df.map(lambda x: str(x).strip() if pd.notna(x) else x)
+                df = df.replace(r'^\s*$', np.nan, regex=True)
+                df = df.dropna(how='all').dropna(how='all', axis=1)
+                
+                # Validazione tabella con informazioni dettagliate
+                if not is_valid_table(df):
+                    continue
+                
+                # Converti la tabella in formato markdown
+                table_md = df.to_markdown(index=False)
+                
+                # Crea una rappresentazione strutturata della tabella
+                table_data = {
+                    "cells": df.values.tolist(),
+                    "headers": df.columns.tolist(),
+                    "shape": df.shape
+                }
+                
+                tables.append({
+                    "table_data": table_data,
+                    "table_markdown": table_md,
+                    "bbox": table.bbox  # Rettangolo che contiene la tabella
+                })
+                
+                # Log informativo per tabelle accettate
+                rows, cols = df.shape
+                empty_ratio = df.isna().values.sum() / (rows * cols)
+                logger.info(f"Tabella {i+1} pagina {page.number+1} accettata: {rows}x{cols} celle, {empty_ratio:.1%} vuote")
+                
+            except Exception as table_e:
+                logger.warning(f"Errore nell'estrazione della tabella {i+1}: {str(table_e)}")
+                continue
+                
+    except Exception as e:
+        logger.error(f"Errore generale nell'estrazione delle tabelle: {str(e)}")
+    
+    return tables
 
 def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
