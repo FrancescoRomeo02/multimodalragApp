@@ -12,7 +12,7 @@ RAW_DATA_PATH = os.path.join(PROJECT_ROOT, "data", "raw")
 
 # Qdrant
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
-COLLECTION_NAME = "papers_custom_pipeline"
+COLLECTION_NAME = "papers_custom_pipeline_v2"
 
 
 # LLM di Groq e relativa API
@@ -42,6 +42,14 @@ DEFAULT_EMBEDDING_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 DEFAULT_BATCH_SIZE = 32
 FALLBACK_TEXT_FOR_EMPTY_DOC = " "
 FALLBACK_TEXT_FOR_IMAGE_FAILURE = "Immagine non processabile"
+
+# SEMANTIC CHUNKING SETTINGS
+SEMANTIC_CHUNKING_ENABLED = True           # Flag globale per abilitare chunking semantico
+SEMANTIC_CHUNK_SIZE = 1000
+SEMANTIC_CHUNK_OVERLAP = 200
+SEMANTIC_THRESHOLD = 0.75
+MIN_CHUNK_SIZE = 100
+CHUNKING_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 # Configurazione Logging Migliorata
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")

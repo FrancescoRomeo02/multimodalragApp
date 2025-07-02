@@ -29,22 +29,33 @@ st.markdown(get_custom_css(), unsafe_allow_html=True)
 @st.cache_resource
 def load_main_services():
     """Carica i servizi pesanti una sola volta all'avvio dell'app."""
-    logger.info("Inizializzazione dei servizi (embedder e indexer)...")
+    logger.info("Inizializzazione dei servizi (embedder e indexer con chunking semantico)...")
     try:
         embedder = get_multimodal_embedding_model()
+        # Usa la configurazione globale per il chunking semantico
         indexer = DocumentIndexer(embedder=embedder)
-        logger.info("Servizi inizializzati con successo.")
-        return indexer
+        
+        # Verifica se chunking semantico è attivo
+        chunking_type = "Semantico" if indexer.semantic_chunker else "Classico"
+        logger.info(f"Servizi inizializzati con successo. Chunking: {chunking_type}")
+        return indexer, chunking_type
     except Exception as e:
         logger.error(f"Errore critico durante il caricamento dei servizi: {e}", exc_info=True)
-        return None
+        return None, None
 
 # --- Avvio dell'Applicazione ---
-indexer = load_main_services()
+indexer, chunking_type = load_main_services()
 
 if not indexer:
     st.error("Errore critico: impossibile caricare i servizi di base. L'applicazione non può continuare. Controlla i log per i dettagli.")
     st.stop()
+
+# Mostra il tipo di chunking utilizzato
+if chunking_type:
+    if chunking_type == "Semantico":
+        st.success(f"🧠 Sistema attivo con Chunking {chunking_type} - Segmentazione intelligente dei documenti")
+    else:
+        st.warning(f"📝 Sistema attivo con Chunking {chunking_type} - Fallback alla segmentazione classica")
 
 st.title("Assistente di Ricerca per Paper Scientifici 🔬")
 

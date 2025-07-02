@@ -18,16 +18,22 @@ from src.config import COLLECTION_NAME
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def reindex_with_context():
+def reindex_with_context(use_semantic_chunking: bool = True):
     """
-    Re-indicizza tutti i documenti nella cartella data/raw con il nuovo sistema
+    Re-indicizza tutti i documenti nella cartella data/raw con chunking semantico (default)
+    che include chunking semantico e estrazione contesto
     """
-    logger.info("Inizio re-indicizzazione con estrazione contesto...")
+    chunk_type = "semantico" if use_semantic_chunking else "classico"
+    logger.info(f"Inizio re-indicizzazione con chunking {chunk_type}...")
     
     try:
-        # Inizializza i servizi
+        # Inizializza i servizi con chunking semantico come default
         embedder = get_multimodal_embedding_model()
-        indexer = DocumentIndexer(embedder=embedder)
+        indexer = DocumentIndexer(embedder=embedder, use_semantic_chunking=use_semantic_chunking)
+        
+        # Mostra tipo di chunking attivo
+        actual_chunking = "semantico" if indexer.semantic_chunker else "classico (fallback)"
+        logger.info(f"Indexer inizializzato con chunking: {actual_chunking}")
         
         # Elimina la collezione esistente per ricrearne una pulita
         logger.info("Eliminazione collezione esistente...")
@@ -65,9 +71,10 @@ def reindex_with_context():
         
         caption_count = 0
         context_count = 0
+        semantic_chunk_count = 0
         
         for point in points[0]:
-            payload = point.payload
+            payload = point.payload if point.payload else {}
             metadata = payload.get('metadata', {})
             
             # Conta elementi con caption
@@ -77,24 +84,38 @@ def reindex_with_context():
             # Conta elementi con contesto
             if metadata.get('context_text'):
                 context_count += 1
+            
+            # Conta chunk semantici
+            if metadata.get('chunk_type') == 'semantic':
+                semantic_chunk_count += 1
         
         logger.info(f"Elementi con caption: {caption_count}/5 verificati")
         logger.info(f"Elementi con contesto: {context_count}/5 verificati")
+        logger.info(f"Chunk semantici: {semantic_chunk_count}/5 verificati")
         
         # Mostra un esempio dettagliato
         if points[0]:
             example = points[0][0]
-            payload = example.payload
+            payload = example.payload if example.payload else {}
             metadata = payload.get('metadata', {})
             content_type = payload.get('content_type', 'unknown')
             
             logger.info(f"\nEsempio dettagliato - Tipo: {content_type}")
+            
+            # Informazioni chunking
+            if metadata.get('chunk_type'):
+                logger.info(f"  Tipo chunk: {metadata.get('chunk_type')}")
+                logger.info(f"  Chunk ID: {metadata.get('chunk_id', 'N/A')}")
+                logger.info(f"  Lunghezza chunk: {metadata.get('chunk_length', 'N/A')}")
+            
             if content_type == 'table':
                 logger.info(f"  Caption tabella: {metadata.get('caption', 'MANCANTE')}")
                 logger.info(f"  Contesto: {metadata.get('context_text', 'MANCANTE')[:100]}...")
             elif content_type == 'image':
                 logger.info(f"  Caption immagine: {metadata.get('manual_caption', 'MANCANTE')}")
                 logger.info(f"  Contesto: {metadata.get('context_text', 'MANCANTE')[:100]}...")
+            elif content_type == 'text':
+                logger.info(f"  Testo: {payload.get('page_content', 'MANCANTE')[:100]}...")
         
         logger.info("Re-indicizzazione completata con successo!")
         return True
@@ -104,6 +125,24 @@ def reindex_with_context():
         return False
 
 if __name__ == "__main__":
-    success = reindex_with_context()
-    print(f"\nRe-indicizzazione {'RIUSCITA' if success else 'FALLITA'}!")
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Re-indicizza documenti con chunking semantico (default)")
+    parser.add_argument("--classic", action="store_true", 
+                       help="Usa chunking classico invece del chunking semantico (default)")
+    
+    args = parser.parse_args()
+    
+    # Default è chunking semantico, --classic lo disabilita
+    use_semantic = not args.classic
+    success = reindex_with_context(use_semantic_chunking=use_semantic)
+    
+    chunk_type = "semantico" if use_semantic else "classico"
+    print(f"\nRe-indicizzazione con chunking {chunk_type} {'RIUSCITA' if success else 'FALLITA'}!")
+    
+    if success and use_semantic:
+        print("🧠 Chunking semantico attivo: segmentazione intelligente dei documenti")
+    elif success:
+        print("📝 Chunking classico attivo: segmentazione per lunghezza")
+        
     sys.exit(0 if success else 1)

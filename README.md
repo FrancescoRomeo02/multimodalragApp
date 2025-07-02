@@ -10,7 +10,8 @@ Un sistema RAG (Retrieval-Augmented Generation) multimodale avanzato per interro
 
 - 📄 **Upload multipli di PDF** con processing automatico
 - 🔍 **Estrazione intelligente** di testo, immagini e tabelle
-- 🧠 **Embedding multimodali** (testo e immagini) tramite modelli CLIP/BGE
+- 🧠 **Chunking semantico avanzato** per segmentazione intelligente
+- 🔗 **Embedding multimodali** (testo e immagini) tramite modelli CLIP/BGE
 - 🗂️ **Indicizzazione vettoriale** su database Qdrant
 - 🔎 **Ricerca semantica** avanzata con similarità vettoriale
 - 🤖 **Generazione risposte** tramite LLM (GPT-4o, Claude, Llama)
@@ -18,6 +19,7 @@ Un sistema RAG (Retrieval-Augmented Generation) multimodale avanzato per interro
 - 📊 **Supporto tabelle** con estrazione contesto e caption
 - 🖼️ **Analisi immagini** con OCR e descrizioni automatiche
 - 📈 **Monitoring e metriche** delle performance integrate
+- 🎯 **Sistema chunking ibrido** (semantico + classico con fallback)
 - 🐳 **Deploy containerizzato** con Docker/Docker Compose
 - 🧪 **Suite di test** completa con coverage
 
@@ -69,6 +71,22 @@ docker run -d -p 6333:6333 qdrant/qdrant
 
 # 3. Avvia l'applicazione
 streamlit run streamlit_app/Home.py
+```
+
+### 🧠 Test Chunking Semantico
+
+```bash
+# Test base chunking semantico
+python test_semantic_chunking.py
+
+# Confronto semantico vs classico con metriche
+python test_chunking_comparison.py
+
+# Re-indicizzazione con chunking semantico (default)
+python scripts/reindex_with_context.py
+
+# Re-indicizzazione con chunking classico
+python scripts/reindex_with_context.py --classic
 ```
 
 ### 📋 Checklist
@@ -368,6 +386,7 @@ Questo progetto è rilasciato sotto licenza MIT. Vedi il file `LICENSE` per dett
 ## 📚 Documentazione Completa
 
 - 📋 **[Guida Rapida Avvio](docs/GUIDA_AVVIO.md)** - Setup e avvio
+- 🧠 **[Chunking Semantico](docs/CHUNKING_SEMANTICO.md)** - Guida completa al chunking semantico
 - 🧪 **[Testing Guide](tests/README.md)** - Documentazione suite di test
 - 🛠️ **[Makefile Commands](#-guida-per-comandi-makefile)** - Automazione sviluppo
 

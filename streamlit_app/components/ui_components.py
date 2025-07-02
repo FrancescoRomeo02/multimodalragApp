@@ -293,7 +293,9 @@ def enhanced_chat_interface_widget(selected_sources: list[str]):
                     source_docs = response.source_documents or []
 
                 # Modifica la risposta per migliorare la qualità
-                edited_answer = edit_answer(answer).content
+                # edited_answer = edit_answer(answer).content
+                # st.markdown(edited_answer)
+                edited_answer = answer
                 st.markdown(edited_answer)
 
                 # Salva messaggio con documenti di origine

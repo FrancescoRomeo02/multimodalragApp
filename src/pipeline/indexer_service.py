@@ -1,11 +1,20 @@
 import os
 import logging
-from typing import List, Dict, Any, Union
+from typing import List, Dict, Any, Union, Optional
 
 from src.utils.pdf_parser import parse_pdf_elements
 from src.utils.qdrant_utils import qdrant_manager
 from src.utils.embedder import AdvancedEmbedder
+from src.utils.semantic_chunker import MultimodalSemanticChunker
 from src.core.models import TextElement, ImageElement, TableElement
+from src.config import (
+    SEMANTIC_CHUNK_SIZE, 
+    SEMANTIC_CHUNK_OVERLAP, 
+    SEMANTIC_THRESHOLD, 
+    MIN_CHUNK_SIZE,
+    CHUNKING_EMBEDDING_MODEL,
+    SEMANTIC_CHUNKING_ENABLED
+)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -15,12 +24,38 @@ class DocumentIndexer:
     """
     Gestisce l'indicizzazione di documenti PDF in Qdrant.
     Utilizza QdrantManager per tutte le operazioni sul database vettoriale.
-    Supporta testo, immagini e tabelle.
+    Supporta testo, immagini e tabelle con chunking semantico avanzato.
     """
 
-    def __init__(self, embedder: AdvancedEmbedder):
+    def __init__(self, embedder: AdvancedEmbedder, use_semantic_chunking: Optional[bool] = None):
         self.embedder = embedder
         self.qdrant_manager = qdrant_manager
+        
+        # Usa configurazione globale se non specificato
+        if use_semantic_chunking is None:
+            use_semantic_chunking = SEMANTIC_CHUNKING_ENABLED
+            
+        self.use_semantic_chunking = use_semantic_chunking
+        
+        # Inizializza il chunker semantico se abilitato
+        if use_semantic_chunking:
+            try:
+                self.semantic_chunker = MultimodalSemanticChunker(
+                    embedding_model=CHUNKING_EMBEDDING_MODEL,
+                    chunk_size=SEMANTIC_CHUNK_SIZE,
+                    chunk_overlap=SEMANTIC_CHUNK_OVERLAP,
+                    semantic_threshold=SEMANTIC_THRESHOLD,
+                    min_chunk_size=MIN_CHUNK_SIZE
+                )
+                logger.info("Chunker semantico inizializzato con successo")
+            except Exception as e:
+                logger.warning(f"Errore inizializzazione chunker semantico: {e}")
+                logger.warning("Fallback a chunking classico")
+                self.semantic_chunker = None
+                self.use_semantic_chunking = False
+        else:
+            self.semantic_chunker = None
+            logger.info("Chunking semantico disabilitato, uso metodo classico")
 
     def index_files(self, pdf_paths: List[str], force_recreate: bool = False) -> bool:
         if not pdf_paths:
@@ -63,10 +98,35 @@ class DocumentIndexer:
             try:
                 texts_dicts, images_dicts, tables_dicts = parse_pdf_elements(pdf_path)
 
-                # Crea istanze modelli Pydantic per ciascun tipo
-                text_elements = [TextElement(**d) for d in texts_dicts]
-                image_elements = [ImageElement(**d) for d in images_dicts]
-                table_elements = [TableElement(**d) for d in tables_dicts]
+                # Usa sempre chunking semantico se disponibile, altrimenti classico
+                if self.semantic_chunker:
+                    logger.info(f"Applicando chunking semantico per {os.path.basename(pdf_path)}")
+                    
+                    # Chunking semantico del testo
+                    chunked_texts = self.semantic_chunker.chunk_text_elements(texts_dicts)
+                    
+                    # Associa elementi multimediali ai chunk
+                    enriched_texts, enriched_images, enriched_tables = \
+                        self.semantic_chunker.associate_media_to_chunks(
+                            chunked_texts, images_dicts, tables_dicts
+                        )
+                    
+                    # Statistiche chunking
+                    stats = self.semantic_chunker.get_chunking_stats(enriched_texts)
+                    logger.info(f"Chunking semantico - Stats: {len(enriched_texts)} chunk totali, "
+                               f"avg: {stats['avg_chunk_length']:.0f} caratteri, "
+                               f"semantici: {stats['semantic_chunks']}, fallback: {stats['fallback_chunks']}")
+                    
+                    # Crea istanze modelli Pydantic
+                    text_elements = [TextElement(**d) for d in enriched_texts]
+                    image_elements = [ImageElement(**d) for d in enriched_images] 
+                    table_elements = [TableElement(**d) for d in enriched_tables]
+                else:
+                    # Fallback al comportamento precedente (senza chunking)
+                    logger.info(f"Chunking semantico non disponibile per {os.path.basename(pdf_path)}, uso metodo classico")
+                    text_elements = [TextElement(**d) for d in texts_dicts]
+                    image_elements = [ImageElement(**d) for d in images_dicts]
+                    table_elements = [TableElement(**d) for d in tables_dicts]
 
                 all_text_elements.extend(text_elements)
                 all_image_elements.extend(image_elements)
