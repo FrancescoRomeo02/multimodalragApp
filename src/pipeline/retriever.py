@@ -8,7 +8,6 @@ from langchain.schema.retriever import BaseRetriever
 from langchain.schema.messages import HumanMessage
 import qdrant_client
 import time
-import uuid
 
 from src.core.models import RetrievalResult
 from src.core.diagnostics import validate_retrieval_quality
@@ -152,7 +151,7 @@ def enhanced_rag_query(query: str,
                         "context_text": table.get("metadata", {}).get("context_text")
                     })
             except Exception as e:
-                logger.warning(f"Errore nel recupero tabelle: {e}")
+                logger.warning(f"Errore nel recupero tabelle: {e}")             
 
         query_time_ms = int((time.time() - start_time) * 1000)
         

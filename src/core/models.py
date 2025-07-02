@@ -74,7 +74,7 @@ class ImageElement(BaseModel):
 class RetrievalResult(BaseModel):
     answer: str
     source_documents: List[Dict]
-    confidence_score: float = Field(default=0.0, ge=0.0, le=1.0, description="Score di confidenza della risposta")
+    confidence_score:float
     query_time_ms: Optional[int] = Field(None, description="Tempo di esecuzione query in millisecondi")
     retrieved_count: Optional[int] = Field(None, description="Numero di documenti recuperati")
     filters_applied: Optional[Dict] = Field(None, description="Filtri applicati alla ricerca")

@@ -75,7 +75,7 @@ def get_embedding_model() -> AdvancedEmbedder:
     return AdvancedEmbedder()
 
 
-# Funzione mantenuta per compatibilità (può essere deprecata in futuro)
+# Funzione mantenuta per compatibilità MIGLIORARE QUESTA GESTIONE
 def get_multimodal_embedding_model() -> AdvancedEmbedder:
     """Alias per get_embedding_model() per mantenere compatibilità"""
     logger.warning("get_multimodal_embedding_model() è deprecato, usa get_embedding_model()")

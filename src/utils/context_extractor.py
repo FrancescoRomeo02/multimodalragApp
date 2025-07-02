@@ -6,6 +6,8 @@ import re
 import logging
 from typing import List, Dict, Any, Optional, Tuple
 
+import pandas
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -200,6 +202,7 @@ class ContextExtractor:
         
         return " || ".join(context_parts)
     
+
     def extract_table_context(self, table_bbox: List[float], page: fitz.Page) -> Dict[str, Optional[str]]:
         """
         Estrae contesto e caption per una tabella usando approccio migliorato
@@ -212,6 +215,7 @@ class ContextExtractor:
             Dict con 'caption' e 'context_text'
         """
         # Prova prima il metodo alternativo, poi fallback al metodo standard
+        
         try:
             text_blocks = self.get_full_page_text_with_positions(page)
         except:
