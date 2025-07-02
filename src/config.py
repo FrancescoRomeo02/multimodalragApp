@@ -15,9 +15,27 @@ QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 COLLECTION_NAME = "papers_custom_pipeline"
 
 
-# LLM Generativo (usando Groq)
+# LLM di Groq e relativa API
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-LLM_MODEL_NAME = "meta-llama/llama-4-scout-17b-16e-instruct"  # Modello valido disponibile su Groq
+
+# Modello LLM generale (per query RAG generiche)
+LLM_MODEL_NAME = "meta-llama/llama-4-scout-17b-16e-instruct"
+
+# Modelli per la descrizione immagini (multimodale)
+IMG_DESC_MODEL_SM="meta-llama/llama-4-scout-17b-16e-instruct"
+IMG_DESC_MODEL_LG="meta-llama/llama-4-maverick-17b-128e-instruct"
+
+# Modelli per il riassunto di tabelle
+TABLE_SUMMARY_MODEL_SM="llama-3.1-8b-instant"
+TABLE_SUMMARY_MODEL_LG="llama-3.3-70b-versatile"
+
+# Modelli per il riassunto di testo
+TEXT_SUMMARY_MODEL_SM="llama-3.1-8b-instant"
+TEXT_SUMMARY_MODEL_LG="llama-3.3-70b-versatile"
+
+#  Modelli per la riscrittura di testo
+TEXT_REWRITE_MODEL_SM="llama-3.1-8b-instant"
+TEXT_REWRITE_MODEL_LG="llama-3.3-70b-versatile"
 
 #EMBEDDING SETTINFS
 DEFAULT_EMBEDDING_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
