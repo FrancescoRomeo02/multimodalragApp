@@ -65,10 +65,7 @@ def create_rag_chain(selected_files: Optional[List[str]] = None,):
 
 @track_performance(query_type="multimodal_rag")
 def enhanced_rag_query(query: str,
-                       selected_files: Optional[List[str]] = None,
-                       multimodal: bool = True,
-                       include_images: bool = False,
-                       include_tables: bool = False) -> RetrievalResult:
+                       selected_files: Optional[List[str]] = None) -> RetrievalResult:
     logger.info(f"Esecuzione query RAG: '{query}'")
     start_time = time.time()
     
@@ -76,7 +73,7 @@ def enhanced_rag_query(query: str,
         rag_chain = create_rag_chain(selected_files)
         result = rag_chain.invoke({"input": query})
         retrieved_docs = result.get("context", [])
-        confidence_score = validate_retrieval_quality(retrieved_docs)
+        _, confidence_score = validate_retrieval_quality(retrieved_docs)
 
         def build_doc_info(doc):
             meta = doc.metadata or {}
@@ -117,6 +114,7 @@ def enhanced_rag_query(query: str,
         
         source_docs = [build_doc_info(doc) for doc in retrieved_docs]
 
+        # Sempre includi immagini nel RAG multimodale
         images = []
         if include_images or multimodal:
             try:
@@ -161,7 +159,7 @@ def enhanced_rag_query(query: str,
             confidence_score=confidence_score,
             query_time_ms=query_time_ms,
             retrieved_count=len(source_docs),
-            filters_applied={"selected_files": selected_files, "include_images": include_images, "include_tables": include_tables}
+            filters_applied={"selected_files": selected_files, "multimodal_mode": True}
         )
 
     except Exception as e:
@@ -177,16 +175,15 @@ def enhanced_rag_query(query: str,
         )
 
 def batch_query(queries: List[str], 
-               selected_files: List[str] = None, # type: ignore
-               multimodal: bool = True) -> List[RetrievalResult]:
-    logger.info(f"Esecuzione batch di {len(queries)} query")
+               selected_files: List[str] = None) -> List[RetrievalResult]: # type: ignore
+    logger.info(f"Esecuzione batch di {len(queries)} query in modalità multimodale")
 
     results = []
 
     for i, query in enumerate(queries):
         try:
             logger.info(f"Processando query {i+1}/{len(queries)}: {query[:30]}...")
-            result = enhanced_rag_query(query, selected_files, multimodal)
+            result = enhanced_rag_query(query, selected_files)
             results.append(result)
         except Exception as e:
             logger.error(f"Errore query {i+1}: {str(e)}")

@@ -40,7 +40,7 @@ class PerformanceMonitor:
         self.metrics_history: List[QueryMetrics] = []
         self.start_time = datetime.now()
         
-    def start_query_tracking(self, query_id: str, query_text: str, query_type: str) -> QueryMetrics:
+    def start_query_tracking(self, query_id: str, query_text: str) -> Optional[QueryMetrics]:
         """Inizia il tracking di una query"""
         if not self.enabled:
             return None
@@ -48,7 +48,7 @@ class PerformanceMonitor:
         metrics = QueryMetrics(
             query_id=query_id,
             query_text=query_text[:100],  # Limita lunghezza per privacy
-            query_type=query_type,
+            query_type="multimodal_rag",  # Sempre multimodale ora
             start_time=datetime.now(),
             memory_usage_mb=psutil.Process().memory_info().rss / 1024 / 1024,
             cpu_usage_percent=psutil.cpu_percent()
@@ -56,7 +56,7 @@ class PerformanceMonitor:
         
         return metrics
     
-    def end_query_tracking(self, metrics: QueryMetrics, 
+    def end_query_tracking(self, metrics: Optional[QueryMetrics], 
                           documents_retrieved: int = 0,
                           confidence_score: float = 0.0,
                           success: bool = True,
@@ -147,8 +147,7 @@ def track_performance(query_type: str = "unknown"):
             
             metrics = performance_monitor.start_query_tracking(
                 query_id=query_id,
-                query_text=query_text,
-                query_type=query_type
+                query_text=query_text
             )
             
             try:
