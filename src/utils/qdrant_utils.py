@@ -4,7 +4,7 @@ import qdrant_client
 from qdrant_client.http import models
 from src.config import QDRANT_URL, COLLECTION_NAME
 from src.core.models import ImageResult, TextElement, ImageElement, TableElement
-from src.utils.embedder import get_multimodal_embedding_model
+from src.utils.embedder import get_embedding_model
 import uuid
 
 logging.basicConfig(level=logging.INFO)
@@ -35,7 +35,7 @@ class QdrantManager:
     @property
     def embedder(self):
         if self._embedder is None:
-            self._embedder = get_multimodal_embedding_model()
+            self._embedder = get_embedding_model()
         return self._embedder
     
     # === Funzioni helper per convertire i modelli in punti Qdrant ===
@@ -45,10 +45,8 @@ class QdrantManager:
             id=str(uuid.uuid4()),
             vector=vector,
             payload={
-                "page_content": "testo", #TOGLIERE (?)
                 "page_content": element.text,
                 "metadata": element.metadata.model_dump(),
-                "content_type": "text" #TOGLIERE (?)
             }
         )
     

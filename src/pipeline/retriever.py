@@ -1,74 +1,31 @@
 from typing import List, Optional
 import logging
-from langchain.chains import create_retrieval_chain 
-from langchain.chains.combine_documents.stuff import create_stuff_documents_chain
-
-from langchain_qdrant import Qdrant
-from langchain.schema.retriever import BaseRetriever
 from langchain.schema.messages import HumanMessage
-import qdrant_client
 import time
 
 from src.core.models import RetrievalResult
-from src.core.diagnostics import validate_retrieval_quality
 from src.core.prompts import create_prompt_template
 from src.utils.qdrant_utils import qdrant_manager
-from src.utils.embedder import get_multimodal_embedding_model
 from src.llm.groq_client import get_groq_llm
-from src.config import QDRANT_URL, COLLECTION_NAME, ENABLE_PERFORMANCE_MONITORING
-from src.utils.performance_monitor import performance_monitor, track_performance
+from src.utils.performance_monitor import track_performance
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def create_retriever(vector_store: Qdrant, 
-                     selected_files: Optional[List[str]] = None,
-                     k: int = 5) -> BaseRetriever:
-    qdrant_filter = qdrant_manager.build_combined_filter(
-        selected_files=selected_files or [],
-    )
-
-    search_kwargs = {
-        "k": k,
-        "score_threshold": 0.3
-    }
-    if qdrant_filter:
-        search_kwargs["filter"] = qdrant_filter
-
-    return vector_store.as_retriever(
-        search_type="similarity",
-        search_kwargs=search_kwargs
-    )
-
-def create_rag_chain(selected_files: Optional[List[str]] = None,):
-    logger.info(f"Creazione catena RAG per i file: {selected_files or 'tutti'}")
-
-    client = qdrant_client.QdrantClient(url=QDRANT_URL)
-    embedding_model = get_multimodal_embedding_model()
-    vector_store = Qdrant(client=client,
-                         collection_name=COLLECTION_NAME,
-                         embeddings=embedding_model)
-
-    retriever = create_retriever(vector_store, selected_files)
-
-    llm = get_groq_llm()
-    prompt = create_prompt_template()
-
-    # Usa la nuova API: create_stuff_documents_chain invece del vecchio approccio
-    document_chain = create_stuff_documents_chain(llm, prompt)
-    
-    # Creazione della catena di retrieval
-    chain = create_retrieval_chain(retriever, document_chain)
-    
-    return chain
-
 @track_performance(query_type="multimodal_rag")
 def enhanced_rag_query(query: str,
-                       selected_files: Optional[List[str]] = None,
-                       multimodal: bool = True,
-                       include_images: bool = True,
-                       include_tables: bool = True) -> RetrievalResult:
+                       selected_files: Optional[List[str]] = None) -> RetrievalResult:
+    """
+    Esegue una query RAG unificata su tutti i tipi di contenuto (testo, immagini, tabelle).
+    
+    Args:
+        query: La domanda da porre al sistema
+        selected_files: Lista opzionale di file specifici su cui cercare
+    
+    Returns:
+        RetrievalResult con risposta e documenti recuperati
+    """
     logger.info(f"Esecuzione query RAG unificata: '{query}'")
     start_time = time.time()
     
@@ -76,12 +33,12 @@ def enhanced_rag_query(query: str,
         # Invece di usare retriever separati, facciamo una ricerca unificata
         query_embedding = qdrant_manager.embedder.embed_query(query)
         
-        # Ricerca unificata su tutti i tipi di contenuto senza filtri di tipo
+        # Ricerca unificata su tutti i tipi di contenuto
         all_results = qdrant_manager.search_vectors(
             query_embedding=query_embedding,
             top_k=15,  # Aumentiamo per avere più risultati misti
             selected_files=selected_files or [],
-            query_type=None,  # IMPORTANTE: Non filtriamo per tipo!
+            query_type=None,  # Non filtriamo per tipo!
             score_threshold=0.3
         )
         
@@ -202,46 +159,3 @@ def enhanced_rag_query(query: str,
             filters_applied={"error": str(e)}
         )
 
-def batch_query(queries: List[str], 
-               selected_files: List[str] = None, # type: ignore
-               multimodal: bool = True) -> List[RetrievalResult]:
-    logger.info(f"Esecuzione batch di {len(queries)} query")
-
-    results = []
-
-    for i, query in enumerate(queries):
-        try:
-            logger.info(f"Processando query {i+1}/{len(queries)}: {query[:30]}...")
-            result = enhanced_rag_query(query, selected_files, multimodal)
-            results.append(result)
-        except Exception as e:
-            logger.error(f"Errore query {i+1}: {str(e)}")
-            results.append(RetrievalResult(
-                answer=f"Errore nella query {i+1}: {str(e)}",
-                source_documents=[],
-                confidence_score=0.0,
-                query_time_ms=0,
-                retrieved_count=0,
-                filters_applied={"error": str(e)}
-            ))
-
-    return results
-
-def edit_answer(answer: str):
-    llm = get_groq_llm()
-    prompt = f"""Sei un esperto editor accademico. Il tuo compito è revisionare e migliorare la seguente risposta, rendendola:
-    - più chiara, precisa e ben strutturata
-    - adatta a una rivista scientifica
-    - priva di ripetizioni, ambiguità o frasi colloquiali
-    - coerente nel tono e nel registro formale
-    - in formato markdown
-    - non aggiungere alcuna nota aggiuntiva, limitati a revisionare il testo
-
-    Potresti ricevere un messaggio vuoto, in tal caso scrivi solo che non hai informazioni utili
-    Agisci come un editor di articoli peer-reviewed. Mantieni intatti i contenuti tecnici e le eventuali referenze, ma migliora forma, logica e stile espositivo.
-TESTO ORIGINALE:
-{answer}
-RISPOSTA REVISIONATA:
-"""
-    response = llm.invoke([HumanMessage(content=prompt)])
-    return response

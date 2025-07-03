@@ -9,7 +9,11 @@ from typing import List, Dict, Any, Optional, Tuple
 from sentence_transformers import SentenceTransformer
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_experimental.text_splitter import SemanticChunker
-from langchain_community.embeddings import HuggingFaceEmbeddings
+import warnings
+# Suppress deprecation warning for HuggingFaceEmbeddings until migration is complete
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", DeprecationWarning)
+    from langchain_community.embeddings import HuggingFaceEmbeddings
 import re
 
 from src.config import DEFAULT_EMBEDDING_MODEL

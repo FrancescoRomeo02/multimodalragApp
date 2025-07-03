@@ -6,7 +6,7 @@ import base64
 from io import BytesIO
 from PIL import Image
 from src.config import RAW_DATA_PATH
-from src.pipeline.retriever import edit_answer, enhanced_rag_query
+from src.pipeline.retriever import enhanced_rag_query
 from streamlit_app.backend_logic import process_uploaded_file, delete_source
 
 def upload_widget(indexer):
@@ -282,7 +282,6 @@ def enhanced_chat_interface_widget(selected_sources: list[str]):
                 response = enhanced_rag_query(
                     query=prompt,
                     selected_files=selected_sources,
-                    multimodal=multimodal
                 )
                 
                 if not response:
@@ -292,9 +291,7 @@ def enhanced_chat_interface_widget(selected_sources: list[str]):
                     answer = response.answer or "❌ Nessuna risposta generata."
                     source_docs = response.source_documents or []
 
-                # Modifica la risposta per migliorare la qualità
-                # edited_answer = edit_answer(answer).content
-                # st.markdown(edited_answer)
+                # Mostra la risposta direttamente
                 edited_answer = answer
                 st.markdown(edited_answer)
 
