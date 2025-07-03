@@ -8,6 +8,7 @@ langchain_community>=0.0.20
 langchain-groq>=0.1.0
 langchain-text-splitters>=0.0.1
 langchain-experimental>=0.0.20
+langchain-huggingface>=0.3.0  # Updated for LangChain v0.3 compatibility
 llama-index>=0.10.0
 llama-index-embeddings-huggingface>=0.2.0
 tiktoken>=0.5.0
