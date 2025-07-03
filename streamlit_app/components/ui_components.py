@@ -197,11 +197,8 @@ def enhanced_chat_interface_widget(selected_sources: list[str]):
         st.warning("⚠️ Seleziona almeno una fonte per avviare la chat.")
         return
 
-    # Opzioni sempre attive (rimosse dalla UI per semplicità)
     show_sources = True
-    multimodal = True
     compact_sources = True
-
     # Inizializzazione messaggi
     if "messages" not in st.session_state:
         st.session_state.messages = [
@@ -228,9 +225,14 @@ def enhanced_chat_interface_widget(selected_sources: list[str]):
                     # Raggruppa per fonte e pagina
                     sources_summary = {}
                     for doc in msg["source_docs"]:
-                        source = doc.get("source", "Sconosciuto")
-                        page = doc.get("page", "N/A")
-                        doc_type = doc.get("type", "text")
+                        if isinstance(doc, dict):
+                            source = doc.get("source", "Sconosciuto")
+                            page = doc.get("page", "N/A")
+                            doc_type = doc.get("type", "text")
+                        else:
+                            source = str(doc)
+                            page = "N/A"
+                            doc_type = "text"
                         
                         key = f"{source}"
                         if key not in sources_summary:
@@ -252,23 +254,8 @@ def enhanced_chat_interface_widget(selected_sources: list[str]):
                         
                         types_str = ", ".join(types_list)
                         
-                        # Emoji per tipo di documento
-                        if "image" in types_list:
-                            emoji = "🖼️"
-                        elif "table" in types_list:
-                            emoji = "📊"
-                        else:
-                            emoji = "📄"
-                        
-                        st.markdown(f"{emoji} **{source}**: {pages_str} *({types_str})*")
-                
-                else:
-                    # Visualizzazione dettagliata
-                    st.markdown("**📚 Documenti di origine dettagliati:**")
-                    
-                    for i, doc in enumerate(msg["source_docs"]):
-                        display_source_document(doc, i)
-
+                        st.markdown(f"**{source}**: {pages_str} *({types_str})*")
+            
     # Input utente e generazione risposta
     if prompt := st.chat_input("Fai la tua domanda..."):
         # Aggiungi messaggio utente

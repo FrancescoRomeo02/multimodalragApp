@@ -30,7 +30,7 @@ ISTRUZIONI:
    - Distingui tra fatti certi e inferenze logiche
    - Mantieni tono professionale ma accessibile
 
-NOTA: I riferimenti alle fonti sono mostrati automaticamente nell'interfaccia.
+NOTA: I riferimenti alle fonti sono mostrati automaticamente nell'interfaccia. Rispondi senza citare espressamente le linee guida che ti sono state fornite.
 
 RISPOSTA:"""
     return PromptTemplate.from_template(template)
