@@ -245,7 +245,6 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                 text_elements.append({
                     "text": text,
                     "metadata": {
-                        "type": "text",
                         "source": filename,
                         "page": page_num + 1,
                         "content_type": "text",
@@ -267,10 +266,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     
                     table_element = {
                         "table_data": table["table_data"],
-                        "table_markdown": enhanced_table_content,  # Contenuto arricchito per la ricerca
-                        "table_markdown_raw": table["table_markdown"],  # Markdown originale
                         "metadata": {
-                            "type": "table",
                             "source": filename,
                             "page": page_num + 1,
                             "content_type": "table",
@@ -343,7 +339,6 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     logger.debug(f"Immagine {img_index+1} pagina {page_num+1} - Caption completa: {comprehensive_caption}")
                     
                     image_metadata = {
-                        "type": "image",
                         "source": filename,
                         "page": page_num + 1,
                         "content_type": "image",
