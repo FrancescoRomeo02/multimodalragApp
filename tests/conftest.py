@@ -24,7 +24,7 @@ def sample_text_element():
         metadata=TextMetadata(
             source="test.pdf",
             page=1,
-            type="text"
+            content_type="text"
         )
     )
 
@@ -35,13 +35,13 @@ def sample_pdf_content():
         "texts": [
             {
                 "text": "Introduzione al machine learning",
-                "metadata": {"source": "test.pdf", "page": 1, "type": "text", "content_type": "text"}
+                "metadata": {"source": "test.pdf", "page": 1, "content_type": "text"}
             }
         ],
         "images": [
             {
                 "image_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-                "metadata": {"source": "test.pdf", "page": 1, "type": "image", "content_type": "image"},
+                "metadata": {"source": "test.pdf", "page": 1, "content_type": "image"},
                 "page_content": "Descrizione immagine test"
             }
         ],
@@ -49,7 +49,7 @@ def sample_pdf_content():
             {
                 "table_data": {"cells": [["A", "B"], ["1", "2"]], "headers": ["Col1", "Col2"], "shape": [2, 2]},
                 "table_markdown": "| Col1 | Col2 |\n|------|------|\n| A    | B    |\n| 1    | 2    |",
-                "metadata": {"source": "test.pdf", "page": 1, "type": "table", "content_type": "table"}
+                "metadata": {"source": "test.pdf", "page": 1, "content_type": "table"}
             }
         ]
     }

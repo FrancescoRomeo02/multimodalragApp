@@ -404,7 +404,6 @@ class QdrantManager:
                         "score": result.score,
                         "source": metadata.get("source", "Unknown"),
                         "page": metadata.get("page", "N/A"),
-                        "type": metadata.get("type", "text"),
                         "content_type": payload.get("content_type", "text")
                     })
                 except Exception as e:
@@ -609,7 +608,6 @@ class QdrantManager:
                     "id": result.id,
                     "source": metadata.get("source", payload.get("source", "Unknown")),
                     "page": metadata.get("page", payload.get("page", "N/A")),
-                    "type": metadata.get("type", "unknown"),
                     "content_type": payload.get("content_type", "unknown")
                 }
                 documents.append(doc_info)

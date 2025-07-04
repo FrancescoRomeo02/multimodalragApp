@@ -104,7 +104,7 @@ def enhanced_rag_query(query: str,
                 "metadata": meta,
                 "source": meta.get("source", "Sconosciuto"),
                 "page": meta.get("page", "N/A"),
-                "type": content_type,
+                "content_type": content_type,
                 "score": result.score  # Aggiungiamo il punteggio per ordinamento
             }
 
