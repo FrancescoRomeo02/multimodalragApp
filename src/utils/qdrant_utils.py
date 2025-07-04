@@ -371,7 +371,7 @@ class QdrantManager:
                    query: str, 
                    selected_files: List[str] = [],
                    top_k: int = 12,
-                   score_threshold: float = 0.3) -> List[Dict[str, Any]]:
+                   score_threshold: float = 0.6) -> List[Dict[str, Any]]:
         """
         Cerca documenti di testo simili alla query.
         """
@@ -504,7 +504,7 @@ class QdrantManager:
                          query: str, 
                          selected_files: List[str] = [],
                          top_k_per_type: int = 12,
-                         score_threshold: float = 0.3) -> Dict[str, Any]:
+                         score_threshold: float = 0.6) -> Dict[str, Any]:
         """
         Cerca contenuti di tutti i tipi (testo, immagini, tabelle) per una query.
         """
@@ -541,8 +541,8 @@ class QdrantManager:
     def search_similar_documents(self, 
                                 query: str,
                                 selected_files: List[str] = [],
-                                similarity_threshold: float = 0.3,
-                                max_results: int = 12) -> List[Dict[str, Any]]:
+                                similarity_threshold: float = 0.6,
+                                max_results: int = 500) -> List[Dict[str, Any]]:
         """
         Alias per query_text con parametri diversi per retrocompatibilità.
         """

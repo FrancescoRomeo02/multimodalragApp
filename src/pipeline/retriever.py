@@ -36,10 +36,10 @@ def enhanced_rag_query(query: str,
         # Ricerca unificata su tutti i tipi di contenuto
         all_results = qdrant_manager.search_vectors(
             query_embedding=query_embedding,
-            top_k=15,  # Aumentiamo per avere più risultati misti
+            top_k=500,  # Aumentiamo per avere più risultati misti
             selected_files=selected_files or [],
             query_type=None,  # Non filtriamo per tipo!
-            score_threshold=0.3
+            score_threshold=0.6
         )
         
         logger.info(f"Trovati {len(all_results)} risultati unificati per query: '{query}'")
@@ -100,7 +100,7 @@ def enhanced_rag_query(query: str,
         # Ora passa i documenti al LLM per generare la risposta
         # Costruiamo un contesto unificato con tutti i tipi di contenuto
         context_texts = []
-        for doc in source_docs[:len(source_docs)]:
+        for doc in source_docs[:len(source_docs)]:  # Prendiamo i top 10 per non sovraccaricare
             doc_type = doc.get("type", "text")
             source = doc.get("source", "Sconosciuto")
             page = doc.get("page", "N/A")

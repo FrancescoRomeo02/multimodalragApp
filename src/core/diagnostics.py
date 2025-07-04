@@ -4,7 +4,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def validate_retrieval_quality(retrieved_docs: List, min_docs: int = 1, min_score: float = 0.3) -> float:
+def validate_retrieval_quality(retrieved_docs: List, min_docs: int = 1, min_score: float = 0.6) -> float:
     """
     Valida la qualità del retrieval
     """

@@ -36,7 +36,7 @@ class TableMetadata(BaseModel):
     context_text: Optional[str] = Field(None, description="Testo di contesto prima e dopo la tabella")
     table_summary: Optional[str] = Field(None, description="Riassunto AI generato della tabella")
 
-class TableData(BaseModel):
+class TableData(BaseModel): 
     """Modello per i dati strutturati della tabella"""
     cells: List[List[Optional[str]]]
     headers: List[str]
