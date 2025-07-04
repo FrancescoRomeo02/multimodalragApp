@@ -11,6 +11,31 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 
+def sanitize_table_cells(tables_dicts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Converte tutti i valori delle celle delle tabelle in stringa per evitare errori di validazione.
+    Garantisce che i dati della tabella siano serializzabili e uniformi.
+    
+    Args:
+        tables_dicts: Lista di dizionari contenenti i dati delle tabelle
+        
+    Returns:
+        Lista di dizionari con i valori delle celle convertiti in stringa
+    """
+    for table in tables_dicts:
+        cells = table.get("table_data", {}).get("cells", [])
+        for i, row in enumerate(cells):
+            for j, cell in enumerate(row):
+                if cell is None:
+                    cells[i][j] = ""
+                elif isinstance(cell, float):
+                    # Converti float in stringa senza notazione scientifica
+                    cells[i][j] = f"{cell:.6f}".rstrip('0').rstrip('.') if '.' in f"{cell:.6f}" else str(cell)
+                elif not isinstance(cell, str):
+                    cells[i][j] = str(cell)
+    return tables_dicts
+
+
 def create_table_summary(table_markdown: str, table_data: Dict[str, Any], context_info: Optional[Dict[str, str]] = None) -> str:
     """
     Genera un riassunto intelligente di una tabella usando Groq LLM.

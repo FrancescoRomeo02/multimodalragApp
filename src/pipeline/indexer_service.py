@@ -15,30 +15,19 @@ from src.config import (
     CHUNKING_EMBEDDING_MODEL,
     SEMANTIC_CHUNKING_ENABLED
 )
+from src.utils.table_info import sanitize_table_cells
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
 class DocumentIndexer:
-    """
-    Gestisce l'indicizzazione di documenti PDF in Qdrant.
-    Utilizza QdrantManager per tutte le operazioni sul database vettoriale.
-    Supporta testo, immagini e tabelle con chunking semantico avanzato.
-    """
-
     def __init__(self, embedder: AdvancedEmbedder, use_semantic_chunking: Optional[bool] = None):
         self.embedder = embedder
         self.qdrant_manager = qdrant_manager
-        
-        # Usa configurazione globale se non specificato
-        if use_semantic_chunking is None:
-            use_semantic_chunking = SEMANTIC_CHUNKING_ENABLED
-            
-        self.use_semantic_chunking = use_semantic_chunking
-        
-        # Inizializza il chunker semantico se abilitato
-        if use_semantic_chunking:
+        self.use_semantic_chunking = SEMANTIC_CHUNKING_ENABLED if use_semantic_chunking is None else use_semantic_chunking
+
+        if self.use_semantic_chunking:
             try:
                 self.semantic_chunker = MultimodalSemanticChunker(
                     embedding_model=CHUNKING_EMBEDDING_MODEL,
@@ -50,7 +39,6 @@ class DocumentIndexer:
                 logger.info("Chunker semantico inizializzato con successo")
             except Exception as e:
                 logger.warning(f"Errore inizializzazione chunker semantico: {e}")
-                logger.warning("Fallback a chunking classico")
                 self.semantic_chunker = None
                 self.use_semantic_chunking = False
         else:
@@ -64,12 +52,10 @@ class DocumentIndexer:
 
         logger.info(f"Inizio indicizzazione di {len(pdf_paths)} file")
 
-        # Verifica connessione Qdrant
         if not self.qdrant_manager.verify_connection():
             logger.error("Impossibile connettersi a Qdrant")
             return False
 
-        # Gestione creazione/ricreazione collezione
         try:
             if force_recreate:
                 logger.info("Forzata ricreazione della collezione")
@@ -87,46 +73,35 @@ class DocumentIndexer:
             logger.error(f"Errore gestione collezione: {e}")
             return False
 
-        # Liste di elementi per tipo
         all_text_elements: List[TextElement] = []
         all_image_elements: List[ImageElement] = []
         all_table_elements: List[TableElement] = []
-
         processed_files = 0
 
         for pdf_path in pdf_paths:
             try:
                 texts_dicts, images_dicts, tables_dicts = parse_pdf_elements(pdf_path)
+                tables_dicts = sanitize_table_cells(tables_dicts)
 
-                # Usa sempre chunking semantico se disponibile, altrimenti classico
                 if self.semantic_chunker:
                     logger.info(f"Applicando chunking semantico per {os.path.basename(pdf_path)}")
-                    
-                    # Chunking semantico del testo
                     chunked_texts = self.semantic_chunker.chunk_text_elements(texts_dicts)
-                    
-                    # Associa elementi multimediali ai chunk
                     enriched_texts, enriched_images, enriched_tables = \
-                        self.semantic_chunker.associate_media_to_chunks(
-                            chunked_texts, images_dicts, tables_dicts
-                        )
-                    
-                    # Statistiche chunking (gestisce caso con 0 chunk testo)
+                        self.semantic_chunker.associate_media_to_chunks(chunked_texts, images_dicts, tables_dicts)
+
                     stats = self.semantic_chunker.get_chunking_stats(enriched_texts)
                     if stats['total_chunks'] > 0:
                         logger.info(f"Chunking semantico - Stats: {len(enriched_texts)} chunk totali, "
-                                   f"avg: {stats['avg_chunk_length']:.0f} caratteri, "
-                                   f"semantici: {stats['semantic_chunks']}, fallback: {stats['fallback_chunks']}")
+                                    f"avg: {stats['avg_chunk_length']:.0f} caratteri, "
+                                    f"semantici: {stats['semantic_chunks']}, fallback: {stats['fallback_chunks']}")
                     else:
                         logger.info(f"Chunking semantico - Nessun chunk di testo, "
-                                   f"ma trovati {len(enriched_images)} immagini e {len(enriched_tables)} tabelle")
-                    
-                    # Crea istanze modelli Pydantic
+                                    f"ma trovati {len(enriched_images)} immagini e {len(enriched_tables)} tabelle")
+
                     text_elements = [TextElement(**d) for d in enriched_texts]
-                    image_elements = [ImageElement(**d) for d in enriched_images] 
+                    image_elements = [ImageElement(**d) for d in enriched_images]
                     table_elements = [TableElement(**d) for d in enriched_tables]
                 else:
-                    # Fallback al comportamento precedente (senza chunking)
                     logger.info(f"Chunking semantico non disponibile per {os.path.basename(pdf_path)}, uso metodo classico")
                     text_elements = [TextElement(**d) for d in texts_dicts]
                     image_elements = [ImageElement(**d) for d in images_dicts]
@@ -139,7 +114,6 @@ class DocumentIndexer:
                 processed_files += 1
                 logger.info(f"Processato {processed_files}/{len(pdf_paths)}: {os.path.basename(pdf_path)} "
                             f"(testi: {len(text_elements)}, immagini: {len(image_elements)}, tabelle: {len(table_elements)})")
-
             except Exception as e:
                 logger.error(f"Errore processamento file {pdf_path}: {e}")
 
@@ -149,7 +123,6 @@ class DocumentIndexer:
 
         success = True
 
-        # Indicizzazione testi
         if all_text_elements:
             try:
                 text_vectors = [self.embedder.embed_query(el.text) for el in all_text_elements]
@@ -163,7 +136,6 @@ class DocumentIndexer:
                 logger.error(f"Errore indicizzazione testi: {e}")
                 success = False
 
-        # Indicizzazione immagini
         if all_image_elements:
             try:
                 image_vectors = [self.embedder.embed_query(el.image_base64) for el in all_image_elements]
@@ -173,12 +145,10 @@ class DocumentIndexer:
                 else:
                     logger.error("Fallito inserimento punti immagini")
                     success = False
-
             except Exception as e:
-                logger.error(f"Errore indicizzazione immagini e descrizioni: {e}")
+                logger.error(f"Errore indicizzazione immagini: {e}")
                 success = False
 
-        # Indicizzazione tabelle
         if all_table_elements:
             try:
                 table_texts = [el.table_markdown for el in all_table_elements]
