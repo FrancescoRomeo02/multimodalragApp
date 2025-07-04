@@ -344,7 +344,7 @@ class QdrantManager:
                       selected_files: List[str] = [],
                       query_type: Optional[str] = None,
                       pages: List[int] = [],
-                      score_threshold: Optional[float] = None) -> List[models.ScoredPoint]:
+                      score_threshold: Optional[float] = 0.5) -> List[models.ScoredPoint]:
         try:
             qdrant_filter = self.build_combined_filter(selected_files, query_type, pages)
             

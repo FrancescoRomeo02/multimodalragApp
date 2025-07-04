@@ -274,7 +274,6 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                             "source": filename,
                             "page": page_num + 1,
                             "content_type": "table",
-                            "bbox": table["bbox"],
                             "table_shape": table["table_data"]["shape"],
                             "caption": table_context.get("caption"),
                             "context_text": table_context.get("context_text"),
