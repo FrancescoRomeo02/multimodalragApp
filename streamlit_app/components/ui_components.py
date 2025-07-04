@@ -1,5 +1,3 @@
-# streamlit_app/components/ui_components.py
-
 import streamlit as st
 import os
 import base64
