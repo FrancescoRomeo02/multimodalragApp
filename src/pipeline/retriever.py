@@ -100,7 +100,7 @@ def enhanced_rag_query(query: str,
         # Ora passa i documenti al LLM per generare la risposta
         # Costruiamo un contesto unificato con tutti i tipi di contenuto
         context_texts = []
-        for doc in source_docs[:10]:  # Prendiamo i top 10 per non sovraccaricare
+        for doc in source_docs[:len(source_docs)]:
             doc_type = doc.get("type", "text")
             source = doc.get("source", "Sconosciuto")
             page = doc.get("page", "N/A")
