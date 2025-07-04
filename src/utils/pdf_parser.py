@@ -266,6 +266,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     
                     table_element = {
                         "table_data": table["table_data"],
+                        "table_markdown": table["table_markdown"],
                         "metadata": {
                             "source": filename,
                             "page": page_num + 1,
