@@ -12,7 +12,7 @@ RAW_DATA_PATH = os.path.join(PROJECT_ROOT, "data", "raw")
 
 # Qdrant
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
-COLLECTION_NAME = "papers_custom_pipeline_v2"
+COLLECTION_NAME = "papers_custom_pipeline_v3"
 
 
 # LLM di Groq e relativa API
