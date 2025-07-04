@@ -139,8 +139,6 @@ def enhanced_rag_query(query: str,
                 base_info.update({
                     "content": payload.get("page_content", ""),
                     "image_base64": payload.get("image_base64", None),
-                    "manual_caption": meta.get("manual_caption"),
-                    "context_text": meta.get("context_text"),
                     "image_caption": meta.get("image_caption")
                 })
             else:

@@ -67,15 +67,10 @@ def create_table_summary(table_markdown: str, table_data: Dict[str, Any], contex
         
         # Aggiungi informazioni di contesto se disponibili
         if context_info:
-            if context_info.get('caption'):
+            if context_info.get('summary'):
                 prompt_parts.extend([
                     "",
-                    f"CAPTION: {context_info['caption']}"
-                ])
-            if context_info.get('context_text'):
-                prompt_parts.extend([
-                    "",
-                    f"CONTESTO: {context_info['context_text'][:300]}..."  # Limita lunghezza
+                    f"RIASSUNTO ESISTENTE: {context_info['summary']}"
                 ])
         
         prompt_parts.extend([
@@ -146,9 +141,9 @@ def create_table_summary_fallback(table_markdown: str, table_data: Dict[str, Any
                 fill_rate = (non_empty_cells / total_data_cells) * 100
                 summary_parts.append(f"Completezza dati: {fill_rate:.0f}%")
         
-        # Aggiungi caption se disponibile
-        if context_info and context_info.get('caption'):
-            summary_parts.append(f"Descrizione: {context_info['caption']}")
+        # Aggiungi informazioni di base se disponibili
+        if context_info and context_info.get('summary'):
+            summary_parts.append(f"Riassunto: {context_info['summary']}")
         
         # Prova a identificare il tipo di contenuto
         content_type = identify_table_content_type(headers, cells)
@@ -223,10 +218,9 @@ def enhance_table_with_summary(table_element: Dict[str, Any]) -> Dict[str, Any]:
         table_data = table_element.get('table_data', {})
         metadata = table_element.get('metadata', {})
         
-        # Estrai informazioni di contesto
+        # Estrai informazioni di contesto dai metadati esistenti
         context_info = {
-            'caption': metadata.get('caption'),
-            'context_text': metadata.get('context_text')
+            'summary': metadata.get('table_summary')
         }
         
         # Genera il riassunto

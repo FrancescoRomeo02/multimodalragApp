@@ -239,7 +239,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
             page = doc.load_page(page_num)
             page_bbox = page.rect
             
-            # Estrazione testo con metadati STANDARDIZZATI
+            # Estrazione testo con metadati essenziali
             text = page.get_text().strip() # type: ignore
             if text:
                 text_elements.append({
@@ -247,7 +247,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     "metadata": {
                         "source": filename,
                         "page": page_num + 1,
-                        "content_type": "text",
+                        "content_type": "text"
                     }
                 })
             
@@ -271,9 +271,6 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                             "source": filename,
                             "page": page_num + 1,
                             "content_type": "table",
-                            "table_shape": table["table_data"]["shape"],
-                            "caption": table_context.get("caption"),
-                            "context_text": table_context.get("context_text"),
                             "table_summary": None  # Placeholder per il riassunto AI
                         }
                     }
@@ -322,14 +319,14 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     image_base64 = base64.b64encode(optimized_image).decode("utf-8")
                     image_info_ai = get_comprehensive_image_info(image_base64)
                     
-                    # Combina caption AI, OCR, e contesto manuale
+                    # Combina caption AI, OCR, e contesto manuale in una descrizione unificata
                     caption_parts = [
-                        f"Image's Description: {image_info_ai['caption']}",
-                        f"Image's Text: {image_info_ai['ocr_text']}" if image_info_ai["ocr_text"].strip() else None,
-                        f"Detected Image's Objects: {', '.join(image_info_ai['detected_objects'])}" if image_info_ai["detected_objects"] else None,
-                        f"Image's Caption: {image_context.get('caption')}" if image_context.get('caption') else None
+                        f"Descrizione: {image_info_ai['caption']}",
+                        f"Testo rilevato: {image_info_ai['ocr_text']}" if image_info_ai["ocr_text"].strip() else None,
+                        f"Oggetti rilevati: {', '.join(image_info_ai['detected_objects'])}" if image_info_ai["detected_objects"] else None,
+                        f"Caption manuale: {image_context.get('caption')}" if image_context.get('caption') else None
                     ]
-                    comprehensive_caption = "\n".join([p for p in caption_parts if p])
+                    comprehensive_caption = " | ".join([p for p in caption_parts if p])
                     
                     # Combina caption AI con contesto manuale per la ricerca
                     enhanced_description = context_extractor.enhance_text_with_context(
@@ -337,18 +334,13 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                         image_context
                     )
                     
-                    logger.debug(f"Immagine {img_index+1} pagina {page_num+1} - Caption completa: {comprehensive_caption}")
+                    logger.debug(f"Immagine {img_index+1} pagina {page_num+1} - Caption: {comprehensive_caption}")
                     
                     image_metadata = {
                         "source": filename,
                         "page": page_num + 1,
                         "content_type": "image",
-                        "image_caption": comprehensive_caption,  # Caption completa per compatibilità
-                        "ai_caption": image_info_ai['caption'],
-                        "ocr_text": image_info_ai['ocr_text'],
-                        "detected_objects": image_info_ai['detected_objects'],
-                        "manual_caption": image_context.get("caption"),
-                        "context_text": image_context.get("context_text")
+                        "image_caption": comprehensive_caption
                     }
                     
                     image_elements.append({
