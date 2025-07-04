@@ -44,6 +44,7 @@ def test_unified_metadata():
             source="test.pdf",
             page=2,
             content_type="image",
+            image_id="image_1",
             image_caption="Caption test"
         )
         print(f"✅ ImageMetadata: {image_meta.content_type}")
@@ -65,6 +66,7 @@ def test_unified_metadata():
             source="test.pdf",
             page=3,
             content_type="table",
+            table_id="table_1",
             table_summary="Tabella di esempio"
         )
         print(f"✅ TableMetadata: {table_meta.content_type}")

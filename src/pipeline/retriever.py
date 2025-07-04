@@ -157,7 +157,7 @@ def enhanced_rag_query(query: str,
         # Log dei tipi di contenuto recuperati per debug
         content_types = {}
         for doc in source_docs:
-            doc_type = doc.get("type", "unknown")
+            doc_type = doc.get("content_type", "unknown")
             content_types[doc_type] = content_types.get(doc_type, 0) + 1
         
         logger.info(f"Contenuti recuperati per tipo: {content_types}")
@@ -166,20 +166,19 @@ def enhanced_rag_query(query: str,
         # Costruiamo un contesto unificato con tutti i tipi di contenuto
         context_texts = []
         for doc in source_docs[:len(source_docs)]:
-            doc_type = doc.get("type", "text")
+            doc_type = doc.get("content_type", "text")
             source = doc.get("source", "Sconosciuto")
             page = doc.get("page", "N/A")
             content = doc.get("content", "")
             
             if doc_type == "table":
-                context_prefix = ""
-                table_context = doc.get("context_text", "")
-                if table_context:
-                    context_prefix = f"Contesto: {table_context}\n\n"
-                
-                context_texts.append(f"[TABELLA da {source}, pagina {page}]\n{context_prefix}{content}\n")
+                table_id = doc.get("metadata", {}).get("table_id", "")
+                identifier = f"[{table_id}] " if table_id else ""
+                context_texts.append(f"[TABELLA {identifier}da {source}, pagina {page}]\n{content}\n")
             elif doc_type == "image":
-                context_texts.append(f"[IMMAGINE da {source}, pagina {page}]\n{content}\n")
+                image_id = doc.get("metadata", {}).get("image_id", "")
+                identifier = f"[{image_id}] " if image_id else ""
+                context_texts.append(f"[IMMAGINE {identifier}da {source}, pagina {page}]\n{content}\n")
             else:
                 context_texts.append(f"[TESTO da {source}, pagina {page}]\n{content}\n")
         

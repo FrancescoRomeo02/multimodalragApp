@@ -235,6 +235,10 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
         doc = fitz.open(pdf_path)
         filename = os.path.basename(pdf_path)
         
+        # Contatori globali per identificatori univoci
+        table_counter = 0
+        image_counter = 0
+        
         for page_num in range(len(doc)):
             page = doc.load_page(page_num)
             page_bbox = page.rect
@@ -255,6 +259,9 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
             tables = extract_tables_from_page(page)
             for table in tables:
                 try:
+                    table_counter += 1
+                    table_id = f"table_{table_counter}"
+                    
                     # Estrai contesto per la tabella
                     table_context = context_extractor.extract_table_context(table["bbox"], page)
                     
@@ -271,6 +278,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                             "source": filename,
                             "page": page_num + 1,
                             "content_type": "table",
+                            "table_id": table_id,
                             "table_summary": None  # Placeholder per il riassunto AI
                         }
                     }
@@ -297,8 +305,11 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                         logger.debug(f"Immagine {img_index+1} pagina {page_num+1} scartata per dimensioni/qualità")
                         continue
                     
+                    image_counter += 1
+                    image_id = f"image_{image_counter}"
+                    
                     # Log informativo per immagini accettate
-                    logger.info(f"Immagine {img_index+1} pagina {page_num+1} accettata: {base_image['width']}x{base_image['height']} pixel, {len(base_image['image'])/1024:.1f}KB")
+                    logger.info(f"Immagine {img_index+1} pagina {page_num+1} accettata ({image_id}): {base_image['width']}x{base_image['height']} pixel, {len(base_image['image'])/1024:.1f}KB")
                     
                     # Ottieni il rettangolo dell'immagine per estrarre il contesto
                     img_rects = [rect for rect in page.get_image_rects(xref)] # type: ignore
@@ -321,7 +332,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     
                     # Combina caption AI, OCR, e contesto manuale in una descrizione unificata
                     caption_parts = [
-                        f"Descrizione: {image_info_ai['caption']}",
+                        f"[{image_id}] Descrizione: {image_info_ai['caption']}",
                         f"Testo rilevato: {image_info_ai['ocr_text']}" if image_info_ai["ocr_text"].strip() else None,
                         f"Oggetti rilevati: {', '.join(image_info_ai['detected_objects'])}" if image_info_ai["detected_objects"] else None,
                         f"Caption manuale: {image_context.get('caption')}" if image_context.get('caption') else None
@@ -334,12 +345,13 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                         image_context
                     )
                     
-                    logger.debug(f"Immagine {img_index+1} pagina {page_num+1} - Caption: {comprehensive_caption}")
+                    logger.debug(f"Immagine {img_index+1} pagina {page_num+1} ({image_id}) - Caption: {comprehensive_caption}")
                     
                     image_metadata = {
                         "source": filename,
                         "page": page_num + 1,
                         "content_type": "image",
+                        "image_id": image_id,
                         "image_caption": comprehensive_caption
                     }
                     

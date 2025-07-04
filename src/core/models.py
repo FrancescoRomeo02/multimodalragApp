@@ -29,6 +29,7 @@ class TableMetadata(BaseModel):
     content_type: str = Field(default="table", description="Tipo di contenuto (sempre 'table')")
     source: str = Field(..., description="Nome del file sorgente")
     page: int = Field(..., description="Numero di pagina della tabella")
+    table_id: str = Field(..., description="Identificatore univoco della tabella (es. table_1)")
     table_summary: Optional[str] = Field(None, description="Riassunto AI generato della tabella")
 
 class TableData(BaseModel):
@@ -55,6 +56,7 @@ class TextElement(BaseModel):
 #IMMAGINI
 class ImageMetadata(ElementMetadata):
     content_type: str = Field(default="image", description="Tipo di contenuto (sempre 'image')")
+    image_id: str = Field(..., description="Identificatore univoco dell'immagine (es. image_1)")
     image_caption: Optional[str] = Field(None, description="Caption generata dall'AI combinata con contesto")
 
 class ImageElement(BaseModel):
