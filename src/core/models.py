@@ -20,20 +20,16 @@ class ElementMetadata(BaseModel):
     """Metadati comuni a tutti gli elementi, validati da Pydantic."""
     source: str
     page: int
-    type: str
+    content_type: str
 
 
 #TABELLA
 class TableMetadata(BaseModel):
-    """Metadati standard per gli elementi tabella"""
-    type: str = Field(default="table", description="Tipo di elemento (sempre 'table')")
+    """Metadati essenziali per gli elementi tabella"""
+    content_type: str = Field(default="table", description="Tipo di contenuto (sempre 'table')")
     source: str = Field(..., description="Nome del file sorgente")
     page: int = Field(..., description="Numero di pagina della tabella")
-    content_type: str = Field(default="table", description="Tipo di contenuto (sempre 'table')")
-    bbox: Optional[List[float]] = Field(None, description="Bounding box della tabella [x0, y0, x1, y1]")
-    table_shape: Optional[Tuple[int, int]] = Field(None, description="Forma della tabella (righe, colonne)")
-    caption: Optional[str] = Field(None, description="Caption o testo circostante della tabella")
-    context_text: Optional[str] = Field(None, description="Testo di contesto prima e dopo la tabella")
+    table_id: str = Field(..., description="Identificatore univoco della tabella (es. table_1)")
     table_summary: Optional[str] = Field(None, description="Riassunto AI generato della tabella")
 
 class TableData(BaseModel): 
@@ -50,8 +46,7 @@ class TableElement(BaseModel):
 
 #TESTO
 class TextMetadata(ElementMetadata):
-    content_type: str = Field(default="text", description="Tipo di contenuto (sempre 'text')")
-    page: int
+    pass  # Eredita tutti i campi necessari da ElementMetadata
 
 class TextElement(BaseModel):
     """Modello per un elemento testuale."""
@@ -60,10 +55,9 @@ class TextElement(BaseModel):
 
 #IMMAGINI
 class ImageMetadata(ElementMetadata):
-    #content_type: str = Field(default="image", description="Tipo di contenuto (sempre 'image')")
-    image_caption: Optional[str] = Field(None, description="Caption generata automaticamente dall'immagine")
-    context_text: Optional[str] = Field(None, description="Testo di contesto prima e dopo l'immagine")
-    manual_caption: Optional[str] = Field(None, description="Caption estratta dal PDF (se presente)")
+    content_type: str = Field(default="image", description="Tipo di contenuto (sempre 'image')")
+    image_id: str = Field(..., description="Identificatore univoco dell'immagine (es. image_1)")
+    image_caption: Optional[str] = Field(None, description="Caption generata dall'AI combinata con contesto")
 
 class ImageElement(BaseModel):
     page_content: str  # Può contenere didascalia o testo associato all'immagine

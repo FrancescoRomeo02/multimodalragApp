@@ -1,4 +1,4 @@
-# Configurazione pre-commit per garantire qualità del codice
+# Config file for pre-commit hooks
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0

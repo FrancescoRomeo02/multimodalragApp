@@ -26,7 +26,15 @@ def get_detected_objects(base64_str: str) -> list:
         Una lista di oggetti rilevati con il loro nome e confidenza.
     """
     try:
-        model = YOLO("yolov8n.pt") # Carica un modello pre-addestrato
+        # Path relativo al modello YOLO
+        import os
+        from pathlib import Path
+        
+        # Ottieni il path del progetto (root)
+        project_root = Path(__file__).parent.parent.parent
+        model_path = project_root / "data" / "models" / "yolov8n.pt"
+        
+        model = YOLO(str(model_path))  # Carica il modello dal path corretto
         
         image_data = base64.b64decode(base64_str)
         image = Image.open(BytesIO(image_data)).convert("RGB")

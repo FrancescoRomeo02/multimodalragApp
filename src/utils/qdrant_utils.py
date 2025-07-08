@@ -340,11 +340,11 @@ class QdrantManager:
     
     def search_vectors(self, 
                       query_embedding: List[float],
-                      top_k: int = 12,
+                      top_k: int = 500,
                       selected_files: List[str] = [],
                       query_type: Optional[str] = None,
                       pages: List[int] = [],
-                      score_threshold: Optional[float] = None) -> List[models.ScoredPoint]:
+                      score_threshold: Optional[float] = 0.80) -> List[models.ScoredPoint]:
         try:
             qdrant_filter = self.build_combined_filter(selected_files, query_type, pages)
             
@@ -370,8 +370,8 @@ class QdrantManager:
     def query_text(self, 
                    query: str, 
                    selected_files: List[str] = [],
-                   top_k: int = 12,
-                   score_threshold: float = 0.6) -> List[Dict[str, Any]]:
+                   top_k: int = 500,
+                   score_threshold: float = 0.80) -> List[Dict[str, Any]]:
         """
         Cerca documenti di testo simili alla query.
         """
@@ -404,7 +404,6 @@ class QdrantManager:
                         "score": result.score,
                         "source": metadata.get("source", "Unknown"),
                         "page": metadata.get("page", "N/A"),
-                        "type": metadata.get("type", "text"),
                         "content_type": payload.get("content_type", "text")
                     })
                 except Exception as e:
@@ -420,7 +419,7 @@ class QdrantManager:
     def query_images(self, 
                     query: str, 
                     selected_files: List[str] = [],
-                    top_k: int = 12) -> List[ImageResult]:
+                    top_k: int = 500) -> List[ImageResult]:
         logger.info(f"Query immagini: '{query}' con top_k={top_k}, file: {selected_files}")
         try:
             query_embedding = self.embedder.embed_query(query)
@@ -461,7 +460,7 @@ class QdrantManager:
     def query_tables(self, 
                      query: str, 
                      selected_files: List[str] = [],
-                     top_k: int = 12) -> List[Dict[str, Any]]:
+                     top_k: int = 500) -> List[Dict[str, Any]]:
         logger.info(f"Query tabelle: '{query}' con top_k={top_k}, file: {selected_files}")
         try:
             query_embedding = self.embedder.embed_query(query)
@@ -503,8 +502,8 @@ class QdrantManager:
     def query_all_content(self, 
                          query: str, 
                          selected_files: List[str] = [],
-                         top_k_per_type: int = 12,
-                         score_threshold: float = 0.6) -> Dict[str, Any]:
+                         top_k_per_type: int = 500,
+                         score_threshold: float = 0.80) -> Dict[str, Any]:
         """
         Cerca contenuti di tutti i tipi (testo, immagini, tabelle) per una query.
         """
@@ -541,7 +540,7 @@ class QdrantManager:
     def search_similar_documents(self, 
                                 query: str,
                                 selected_files: List[str] = [],
-                                similarity_threshold: float = 0.6,
+                                similarity_threshold: float = 0.80,
                                 max_results: int = 500) -> List[Dict[str, Any]]:
         """
         Alias per query_text con parametri diversi per retrocompatibilità.
@@ -609,7 +608,6 @@ class QdrantManager:
                     "id": result.id,
                     "source": metadata.get("source", payload.get("source", "Unknown")),
                     "page": metadata.get("page", payload.get("page", "N/A")),
-                    "type": metadata.get("type", "unknown"),
                     "content_type": payload.get("content_type", "unknown")
                 }
                 documents.append(doc_info)

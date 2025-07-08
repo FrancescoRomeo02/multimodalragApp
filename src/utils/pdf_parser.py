@@ -235,20 +235,23 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
         doc = fitz.open(pdf_path)
         filename = os.path.basename(pdf_path)
         
+        # Contatori globali per identificatori univoci
+        table_counter = 0
+        image_counter = 0
+        
         for page_num in range(len(doc)):
             page = doc.load_page(page_num)
             page_bbox = page.rect
             
-            # Estrazione testo con metadati STANDARDIZZATI
+            # Estrazione testo con metadati essenziali
             text = page.get_text().strip() # type: ignore
             if text:
                 text_elements.append({
                     "text": text,
                     "metadata": {
-                        "type": "text",
                         "source": filename,
                         "page": page_num + 1,
-                        "content_type": "text",
+                        "content_type": "text"
                     }
                 })
             
@@ -256,6 +259,9 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
             tables = extract_tables_from_page(page)
             for table in tables:
                 try:
+                    table_counter += 1
+                    table_id = f"table_{table_counter}"
+                    
                     # Estrai contesto per la tabella
                     table_context = context_extractor.extract_table_context(table["bbox"], page)
                     
@@ -267,17 +273,12 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     
                     table_element = {
                         "table_data": table["table_data"],
-                        "table_markdown": enhanced_table_content,  # Contenuto arricchito per la ricerca
-                        "table_markdown_raw": table["table_markdown"],  # Markdown originale
+                        "table_markdown": table["table_markdown"],
                         "metadata": {
-                            "type": "table",
                             "source": filename,
                             "page": page_num + 1,
                             "content_type": "table",
-                            "bbox": table["bbox"],
-                            "table_shape": table["table_data"]["shape"],
-                            "caption": table_context.get("caption"),
-                            "context_text": table_context.get("context_text"),
+                            "table_id": table_id,
                             "table_summary": None  # Placeholder per il riassunto AI
                         }
                     }
@@ -304,8 +305,11 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                         logger.debug(f"Immagine {img_index+1} pagina {page_num+1} scartata per dimensioni/qualità")
                         continue
                     
+                    image_counter += 1
+                    image_id = f"image_{image_counter}"
+                    
                     # Log informativo per immagini accettate
-                    logger.info(f"Immagine {img_index+1} pagina {page_num+1} accettata: {base_image['width']}x{base_image['height']} pixel, {len(base_image['image'])/1024:.1f}KB")
+                    logger.info(f"Immagine {img_index+1} pagina {page_num+1} accettata ({image_id}): {base_image['width']}x{base_image['height']} pixel, {len(base_image['image'])/1024:.1f}KB")
                     
                     # Ottieni il rettangolo dell'immagine per estrarre il contesto
                     img_rects = [rect for rect in page.get_image_rects(xref)] # type: ignore
@@ -326,14 +330,14 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     image_base64 = base64.b64encode(optimized_image).decode("utf-8")
                     image_info_ai = get_comprehensive_image_info(image_base64)
                     
-                    # Combina caption AI, OCR, e contesto manuale
+                    # Combina caption AI, OCR, e contesto manuale in una descrizione unificata
                     caption_parts = [
-                        f"Image's Description: {image_info_ai['caption']}",
-                        f"Image's Text: {image_info_ai['ocr_text']}" if image_info_ai["ocr_text"].strip() else None,
-                        f"Detected Image's Objects: {', '.join(image_info_ai['detected_objects'])}" if image_info_ai["detected_objects"] else None,
-                        f"Image's Caption: {image_context.get('caption')}" if image_context.get('caption') else None
+                        f"[{image_id}] Descrizione: {image_info_ai['caption']}",
+                        f"Testo rilevato: {image_info_ai['ocr_text']}" if image_info_ai["ocr_text"].strip() else None,
+                        f"Oggetti rilevati: {', '.join(image_info_ai['detected_objects'])}" if image_info_ai["detected_objects"] else None,
+                        f"Caption manuale: {image_context.get('caption')}" if image_context.get('caption') else None
                     ]
-                    comprehensive_caption = "\n".join([p for p in caption_parts if p])
+                    comprehensive_caption = " | ".join([p for p in caption_parts if p])
                     
                     # Combina caption AI con contesto manuale per la ricerca
                     enhanced_description = context_extractor.enhance_text_with_context(
@@ -341,19 +345,14 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                         image_context
                     )
                     
-                    logger.debug(f"Immagine {img_index+1} pagina {page_num+1} - Caption completa: {comprehensive_caption}")
+                    logger.debug(f"Immagine {img_index+1} pagina {page_num+1} ({image_id}) - Caption: {comprehensive_caption}")
                     
                     image_metadata = {
-                        "type": "image",
                         "source": filename,
                         "page": page_num + 1,
                         "content_type": "image",
-                        "image_caption": comprehensive_caption,  # Caption completa per compatibilità
-                        "ai_caption": image_info_ai['caption'],
-                        "ocr_text": image_info_ai['ocr_text'],
-                        "detected_objects": image_info_ai['detected_objects'],
-                        "manual_caption": image_context.get("caption"),
-                        "context_text": image_context.get("context_text")
+                        "image_id": image_id,
+                        "image_caption": comprehensive_caption
                     }
                     
                     image_elements.append({

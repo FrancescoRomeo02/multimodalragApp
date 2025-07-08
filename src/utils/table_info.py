@@ -36,7 +36,7 @@ def sanitize_table_cells(tables_dicts: List[Dict[str, Any]]) -> List[Dict[str, A
     return tables_dicts
 
 
-def create_table_summary(table_markdown: str, table_data: Dict[str, Any], context_info: Optional[Dict[str, str]] = None) -> str:
+def create_table_summary(table_markdown: str, table_data: Dict[str, Any], context_info: Optional[Dict[str, str]] = None, table_id: Optional[str] = None) -> str:
     """
     Genera un riassunto intelligente di una tabella usando Groq LLM.
     
@@ -54,33 +54,29 @@ def create_table_summary(table_markdown: str, table_data: Dict[str, Any], contex
             return create_table_summary_fallback(table_markdown, table_data, context_info)
 
         # Costruisci il prompt per il riassunto
+        table_identifier = f"[{table_id}] " if table_id else ""
         prompt_parts = [
-            "Analizza la seguente tabella e fornisci un riassunto conciso e informativo che includa:",
+            f"Analizza la seguente tabella {table_identifier}e fornisci un riassunto conciso e informativo che includa:",
             "- Il tipo di dati contenuti",
-            "- Le principali tendenze o pattern",
+            "- Le principali tendenze o pattern", 
             "- I valori chiave o interessanti",
             "- Il contesto o scopo della tabella (se evidente)",
             "",
-            f"TABELLA ({table_data.get('shape', 'N/A')} celle):",
+            f"TABELLA {table_identifier}({table_data.get('shape', 'N/A')} celle):",
             table_markdown
         ]
         
         # Aggiungi informazioni di contesto se disponibili
         if context_info:
-            if context_info.get('caption'):
+            if context_info.get('summary'):
                 prompt_parts.extend([
                     "",
-                    f"CAPTION: {context_info['caption']}"
-                ])
-            if context_info.get('context_text'):
-                prompt_parts.extend([
-                    "",
-                    f"CONTESTO: {context_info['context_text'][:300]}..."  # Limita lunghezza
+                    f"RIASSUNTO ESISTENTE: {context_info['summary']}"
                 ])
         
         prompt_parts.extend([
             "",
-            "Fornisci un riassunto chiaro e strutturato in italiano (massimo 200 parole):",
+            f"Fornisci un riassunto chiaro e strutturato in italiano per {table_identifier}(massimo 200 parole):",
         ])
         
         prompt = "\n".join(prompt_parts)
@@ -97,10 +93,10 @@ def create_table_summary(table_markdown: str, table_data: Dict[str, Any], contex
                 return summary
             else:
                 logger.warning("Riassunto tabella vuoto o troppo breve, uso fallback")
-                return create_table_summary_fallback(table_markdown, table_data, context_info)
+                return create_table_summary_fallback(table_markdown, table_data, context_info, table_id)
         except Exception as llm_error:
             logger.error(f"Errore durante la generazione riassunto tabella con LLM: {llm_error}")
-            return create_table_summary_fallback(table_markdown, table_data, context_info)
+            return create_table_summary_fallback(table_markdown, table_data, context_info, table_id)
     
     except Exception as e:
         logger.error(f"Errore nel riassunto tabella: {e}")
@@ -108,7 +104,7 @@ def create_table_summary(table_markdown: str, table_data: Dict[str, Any], contex
         
 
 
-def create_table_summary_fallback(table_markdown: str, table_data: Dict[str, Any], context_info: Optional[Dict[str, str]] = None) -> str:
+def create_table_summary_fallback(table_markdown: str, table_data: Dict[str, Any], context_info: Optional[Dict[str, str]] = None, table_id: Optional[str] = None) -> str:
     """
     Genera un riassunto basico della tabella senza LLM (fallback).
     
@@ -127,8 +123,11 @@ def create_table_summary_fallback(table_markdown: str, table_data: Dict[str, Any
         
         summary_parts = []
         
+        # Aggiungi identificatore se disponibile
+        table_identifier = f"[{table_id}] " if table_id else ""
+        
         # Informazioni base
-        summary_parts.append(f"Tabella con {shape[0]} righe e {shape[1]} colonne")
+        summary_parts.append(f"{table_identifier}Tabella con {shape[0]} righe e {shape[1]} colonne")
         
         # Headers
         if headers:
@@ -146,9 +145,9 @@ def create_table_summary_fallback(table_markdown: str, table_data: Dict[str, Any
                 fill_rate = (non_empty_cells / total_data_cells) * 100
                 summary_parts.append(f"Completezza dati: {fill_rate:.0f}%")
         
-        # Aggiungi caption se disponibile
-        if context_info and context_info.get('caption'):
-            summary_parts.append(f"Descrizione: {context_info['caption']}")
+        # Aggiungi informazioni di base se disponibili
+        if context_info and context_info.get('summary'):
+            summary_parts.append(f"Riassunto: {context_info['summary']}")
         
         # Prova a identificare il tipo di contenuto
         content_type = identify_table_content_type(headers, cells)
@@ -223,14 +222,16 @@ def enhance_table_with_summary(table_element: Dict[str, Any]) -> Dict[str, Any]:
         table_data = table_element.get('table_data', {})
         metadata = table_element.get('metadata', {})
         
-        # Estrai informazioni di contesto
+        # Estrai identificatore della tabella
+        table_id = metadata.get('table_id')
+        
+        # Estrai informazioni di contesto dai metadati esistenti
         context_info = {
-            'caption': metadata.get('caption'),
-            'context_text': metadata.get('context_text')
+            'summary': metadata.get('table_summary')
         }
         
-        # Genera il riassunto
-        summary = create_table_summary(table_markdown, table_data, context_info)
+        # Genera il riassunto con l'identificatore
+        summary = create_table_summary(table_markdown, table_data, context_info, table_id)
         
         # Aggiungi il riassunto ai metadati
         metadata['table_summary'] = summary

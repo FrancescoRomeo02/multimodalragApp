@@ -10,52 +10,51 @@ logger = logging.getLogger(__name__)
 
 def process_uploaded_file(uploaded_file, indexer: DocumentIndexer) -> tuple[bool, str]:
     """
-    Salva e indicizza un file caricato. Non contiene codice UI.
-    Restituisce (successo, messaggio).
+    Save and index an uploaded file.
     """
     try:
         file_name = uploaded_file.name
         save_path = os.path.join(RAW_DATA_PATH, file_name)
 
-        # Salva il file
+        # Save the file
         os.makedirs(RAW_DATA_PATH, exist_ok=True)
         with open(save_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
-        
-        # Indicizza il file
+
+        # Index the file
         if uploaded_file.type == "application/pdf":
             indexer.index_files([save_path], force_recreate=False)
-            msg = f"File '{file_name}' indicizzato con successo."
+            msg = f"File '{file_name}' indexed successfully."
             logger.info(msg)
             return True, msg
         else:
-            # Qui potresti estendere per gestire anche le immagini
-            raise NotImplementedError("Attualmente è supportato solo il formato PDF.")
+            # Here you could extend to also handle images
+            raise NotImplementedError("Currently, only PDF format is supported.")
 
     except Exception as e:
-        logger.error(f"Errore durante l'elaborazione di '{uploaded_file.name}': {e}", exc_info=True)
-        return False, f"Errore durante l'indicizzazione: {e}"
+        logger.error(f"Error processing '{uploaded_file.name}': {e}", exc_info=True)
+        return False, f"Error indexing: {e}"
 
 def delete_source(filename: str) -> tuple[bool, str]:
     """
-    Gestisce l'eliminazione di una fonte da Qdrant e dal disco. Non contiene codice UI.
-    Restituisce (successo, messaggio).
+    Manage the deletion of a source from Qdrant and the disk. Does not contain UI code.
+    Returns (success, message).
     """
     try:
-        # 1. Elimina da Qdrant
+        # 1. Delete from Qdrant
         success_qdrant, msg_qdrant = qdrant_manager.delete_by_source(filename)
         if not success_qdrant:
-            raise Exception(f"Errore Qdrant: {msg_qdrant}")
+            raise Exception(f"Qdrant error: {msg_qdrant}")
 
-        # 2. Elimina dal disco
+        # 2. Delete from disk
         file_path = os.path.join(RAW_DATA_PATH, filename)
         if os.path.exists(file_path):
             os.remove(file_path)
-        
-        msg = f"Fonte '{filename}' eliminata con successo."
+
+        msg = f"Source '{filename}' deleted successfully."
         logger.info(msg)
         return True, msg
 
     except Exception as e:
-        logger.error(f"Errore durante l'eliminazione di '{filename}': {e}", exc_info=True)
-        return False, f"Errore durante l'eliminazione: {e}"
+        logger.error(f"Error deleting '{filename}': {e}", exc_info=True)
+        return False, f"Error deleting: {e}"

@@ -125,7 +125,7 @@ class DocumentIndexer:
 
         if all_text_elements:
             try:
-                text_vectors = [self.embedder.embed_query(el.text) for el in all_text_elements]
+                text_vectors = self.embedder.embed_documents([el.text for el in all_text_elements])
                 text_points = self.qdrant_manager.convert_elements_to_points(all_text_elements, text_vectors)
                 if self.qdrant_manager.upsert_points(text_points):
                     logger.info(f"Indicizzati {len(text_points)} elementi testuali")

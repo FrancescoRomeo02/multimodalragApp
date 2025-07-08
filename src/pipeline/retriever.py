@@ -13,6 +13,59 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+def _filter_table_context(context_text: str) -> str:
+    """
+    Filtra il contesto delle tabelle per rimuovere altre tabelle e mantenere solo testo descrittivo utile
+    """
+    if not context_text:
+        return ""
+    
+    # Dividi il contesto in parti (precedente e successivo)
+    parts = context_text.split(" | ")
+    filtered_parts = []
+    
+    for part in parts:
+        part_clean = part.strip()
+        if not part_clean:
+            continue
+        
+        # Rimuovi etichette come "Contesto precedente:" e "Contesto successivo:"
+        if part_clean.startswith("Contesto precedente:"):
+            part_clean = part_clean.replace("Contesto precedente:", "").strip()
+        elif part_clean.startswith("Contesto successivo:"):
+            part_clean = part_clean.replace("Contesto successivo:", "").strip()
+        
+        # Verifica se il contesto è significativo (non un'altra tabella)
+        part_lower = part_clean.lower()
+        
+        # Indicatori che suggeriscono che il contesto è un'altra tabella
+        table_indicators = [
+            "|", "---|", "table", "tabella", 
+            "row", "column", "cell", "header", "thead", "tbody"
+        ]
+        
+        # Verifica se il contesto contiene principalmente indicatori di tabella
+        table_indicator_count = sum(1 for indicator in table_indicators if indicator in part_lower)
+        
+        # Considera significativo se:
+        # 1. È abbastanza lungo (>50 caratteri)
+        # 2. Non ha troppi indicatori di tabella (<3)
+        # 3. Non è principalmente simboli (|, -, etc.)
+        symbol_ratio = sum(1 for char in part_clean if char in "||-") / len(part_clean) if part_clean else 1
+        
+        if (len(part_clean) > 50 and 
+            table_indicator_count < 3 and 
+            symbol_ratio < 0.3):  # Meno del 30% di simboli tabella
+            
+            # Tronca se troppo lungo
+            if len(part_clean) > 200:
+                part_clean = part_clean[:200] + "..."
+            
+            filtered_parts.append(part_clean)
+    
+    return " | ".join(filtered_parts) if filtered_parts else ""
+
+
 @track_performance(query_type="multimodal_rag")
 def enhanced_rag_query(query: str,
                        selected_files: Optional[List[str]] = None) -> RetrievalResult:
@@ -36,10 +89,7 @@ def enhanced_rag_query(query: str,
         # Ricerca unificata su tutti i tipi di contenuto
         all_results = qdrant_manager.search_vectors(
             query_embedding=query_embedding,
-            top_k=500,  # Aumentiamo per avere più risultati misti
             selected_files=selected_files or [],
-            query_type=None,  # Non filtriamo per tipo!
-            score_threshold=0.6
         )
         
         logger.info(f"Trovati {len(all_results)} risultati unificati per query: '{query}'")
@@ -54,26 +104,41 @@ def enhanced_rag_query(query: str,
                 "metadata": meta,
                 "source": meta.get("source", "Sconosciuto"),
                 "page": meta.get("page", "N/A"),
-                "type": content_type,
+                "content_type": content_type,
                 "score": result.score  # Aggiungiamo il punteggio per ordinamento
             }
 
             if content_type == "table":
                 table_content = payload.get("page_content", meta.get("table_markdown", "Contenuto tabella non disponibile"))
                 
+                # Gestione intelligente del contesto per tabelle
+                context_text = meta.get("context_text", "")
+                meaningful_context = ""
+                
+                if context_text:
+                    meaningful_context = _filter_table_context(context_text)
+                
+            if content_type == "table":
+                table_content = payload.get("page_content", meta.get("table_markdown", "Contenuto tabella non disponibile"))
+                
+                # Gestione intelligente del contesto per tabelle
+                context_text = meta.get("context_text", "")
+                meaningful_context = ""
+                
+                if context_text:
+                    meaningful_context = _filter_table_context(context_text)
+                
                 base_info.update({
                     "content": table_content,
                     "table_data": payload.get("table_data", {}),
                     "caption": meta.get("caption"),
-                    "context_text": meta.get("context_text"),
+                    "context_text": meaningful_context,  # Solo contesto significativo
                     "table_markdown_raw": meta.get("table_markdown")
                 })
             elif content_type == "image":
                 base_info.update({
                     "content": payload.get("page_content", ""),
                     "image_base64": payload.get("image_base64", None),
-                    "manual_caption": meta.get("manual_caption"),
-                    "context_text": meta.get("context_text"),
                     "image_caption": meta.get("image_caption")
                 })
             else:
@@ -92,7 +157,7 @@ def enhanced_rag_query(query: str,
         # Log dei tipi di contenuto recuperati per debug
         content_types = {}
         for doc in source_docs:
-            doc_type = doc.get("type", "unknown")
+            doc_type = doc.get("content_type", "unknown")
             content_types[doc_type] = content_types.get(doc_type, 0) + 1
         
         logger.info(f"Contenuti recuperati per tipo: {content_types}")
@@ -100,16 +165,20 @@ def enhanced_rag_query(query: str,
         # Ora passa i documenti al LLM per generare la risposta
         # Costruiamo un contesto unificato con tutti i tipi di contenuto
         context_texts = []
-        for doc in source_docs[:len(source_docs)]:  # Prendiamo i top 10 per non sovraccaricare
-            doc_type = doc.get("type", "text")
+        for doc in source_docs[:len(source_docs)]:
+            doc_type = doc.get("content_type", "text")
             source = doc.get("source", "Sconosciuto")
             page = doc.get("page", "N/A")
             content = doc.get("content", "")
             
             if doc_type == "table":
-                context_texts.append(f"[TABELLA da {source}, pagina {page}]\n{content}\n")
+                table_id = doc.get("metadata", {}).get("table_id", "")
+                identifier = f"[{table_id}] " if table_id else ""
+                context_texts.append(f"[TABELLA {identifier}da {source}, pagina {page}]\n{content}\n")
             elif doc_type == "image":
-                context_texts.append(f"[IMMAGINE da {source}, pagina {page}]\n{content}\n")
+                image_id = doc.get("metadata", {}).get("image_id", "")
+                identifier = f"[{image_id}] " if image_id else ""
+                context_texts.append(f"[IMMAGINE {identifier}da {source}, pagina {page}]\n{content}\n")
             else:
                 context_texts.append(f"[TESTO da {source}, pagina {page}]\n{content}\n")
         

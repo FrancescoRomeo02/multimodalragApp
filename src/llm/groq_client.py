@@ -20,7 +20,8 @@ def get_groq_llm(model_name: Optional[str] = None):
     return ChatGroq(
         model=model_name or LLM_MODEL_NAME,
         api_key=SecretStr(GROQ_API_KEY),
-        max_tokens=1000
+        max_tokens=1000,
+        stop_sequences=["<|endoftext|>"],
     )
 
 def get_table_summary_llm():

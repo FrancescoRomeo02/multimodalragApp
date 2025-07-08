@@ -12,7 +12,7 @@ from langchain_experimental.text_splitter import SemanticChunker
 from langchain_huggingface import HuggingFaceEmbeddings
 import re
 
-from src.config import DEFAULT_EMBEDDING_MODEL
+from src.config import DEFAULT_EMBEDDING_MODEL, SEMANTIC_THRESHOLD
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ class MultimodalSemanticChunker:
         embedding_model: str = DEFAULT_EMBEDDING_MODEL,
         chunk_size: int = 1000,
         chunk_overlap: int = 200,
-        semantic_threshold: float = 0.75,
+        semantic_threshold: float = SEMANTIC_THRESHOLD,
         min_chunk_size: int = 100
     ):
         """
