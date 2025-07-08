@@ -366,6 +366,66 @@ multimodalrag/
 
 ---
 
+## ✅ Controlli di Qualità e Testing
+
+Il progetto include una suite completa di controlli di qualità per garantire code quality e affidabilità.
+
+### 🔍 Controllo Qualità Completo
+
+```bash
+# Esegui tutti i controlli di qualità in una volta
+python scripts/quality_check.py
+
+# Oppure tramite Makefile
+make ci
+```
+
+Questo script esegue automaticamente:
+- ✅ **Verifica struttura progetto** - File e directory richiesti
+- ✅ **Controllo sintassi Python** - Validazione syntax errors
+- ✅ **Formattazione codice** (Black) - Code style consistency
+- ✅ **Linting** (Flake8) - PEP8 compliance e best practices
+- ✅ **Import sorting** (isort) - Ordinamento import standardizzato
+- ✅ **Test struttura progetto** - Validazione architettura
+- ✅ **Test qualità codice** - Anti-patterns e code smells
+- ✅ **Test integrazione** - Componenti principali
+- ✅ **Security scan** (Bandit) - Vulnerabilità sicurezza
+- ✅ **Dependency check** (Safety) - Vulnerabilità dipendenze
+
+### 🧪 Suite di Testing
+
+```bash
+# Test completi con coverage
+make test-coverage
+
+# Test specifici
+make test-structure     # Solo test struttura progetto
+make test-unit         # Solo test unitari
+make test-integration  # Solo test integrazione
+```
+
+### 🔧 Correzione Automatica
+
+```bash
+# Formattazione automatica del codice
+make format
+
+# Setup environment con pre-commit hooks
+make setup-dev
+
+# Lint e format in un comando
+make lint-format
+```
+
+### 📊 Report Qualità
+
+Dopo aver eseguito i test:
+- **Coverage HTML**: Apri `htmlcov/index.html` per report dettagliato
+- **Test results**: Output dettagliato di tutti i controlli
+- **Quality metrics**: Statistiche su code quality e test coverage
+
+---
+
 ## 🤝 Contribuire
 
 Le contribuzioni sono benvenute! Per favore:

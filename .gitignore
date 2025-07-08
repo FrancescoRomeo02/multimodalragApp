@@ -1,7 +1,12 @@
 # Project-specific ignores
 temp/
-*.pdf
+data/temp/
+data/raw/*.pdf
 logs/*.log
+
+# Model files (too large for git)
+# data/models/*.pt
+# data/models/*.bin
 
 # macOS
 .DS_Store
@@ -11,6 +16,14 @@ logs/*.log
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Coverage reports
+htmlcov/
+.coverage
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -212,6 +225,3 @@ cython_debug/
 .DS_Store
 .AppleDouble
 .LSOverride
-
-# Data files
-.pdf
