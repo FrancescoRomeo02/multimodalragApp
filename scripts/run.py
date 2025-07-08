@@ -70,7 +70,7 @@ def run_dev():
         "--server.runOnSave=true",
         "--server.fileWatcherType=auto"
     ]
-    print(f"🔧 Avvio modalità sviluppo: {' '.join(cmd)}")
+    print(f"Avvio modalità sviluppo: {' '.join(cmd)}")
     subprocess.run(cmd, cwd=ROOT_DIR)
 
 
@@ -79,14 +79,14 @@ def main():
     parser = argparse.ArgumentParser(description="Avvia MultimodalRAG")
     parser.add_argument(
         "mode",
-        choices=["local", "docker", "docker-compose", "dev"],
+        choices=["local", "docker", "docker-compose", "dev", "build"],
         help="Modalità di avvio"
     )
     
     args = parser.parse_args()
     
-    print(f"Avvio MultimodalRAG in modalità: {args.mode}")
-    print(f"Directory di lavoro: {ROOT_DIR}")
+    print(f"🚀 Avvio MultimodalRAG in modalità: {args.mode}")
+    print(f"📁 Directory di lavoro: {ROOT_DIR}")
     
     try:
         if args.mode == "local":
@@ -97,10 +97,12 @@ def main():
             run_docker_compose()
         elif args.mode == "dev":
             run_dev()
+        elif args.mode == "build":
+            run_docker_build()
     except KeyboardInterrupt:
-        print("\nArresto dell'applicazione...")
+        print("\n⏹️  Arresto dell'applicazione...")
     except subprocess.CalledProcessError as e:
-        print(f"Errore durante l'esecuzione: {e}")
+        print(f"❌ Errore durante l'esecuzione: {e}")
         sys.exit(1)
 
 
