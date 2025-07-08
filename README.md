@@ -224,16 +224,6 @@ docker-compose --profile monitoring up -d
 
 ---
 
-## Deployment
-
-Vedi [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) per istruzioni dettagliate su:
-- Deployment locale e cloud
-- Configurazioni di produzione
-- Monitoring e backup
-- Troubleshooting
-
----
-
 ## Sviluppo
 
 ### Setup Ambiente
