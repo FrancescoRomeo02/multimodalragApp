@@ -2,7 +2,6 @@
 
 import logging
 from typing import Dict, Any, Optional, List
-from groq import Groq
 from langchain.schema.messages import HumanMessage
 from src.config import GROQ_API_KEY, TABLE_SUMMARY_MODEL_SM
 from src.llm.groq_client import get_table_summary_llm

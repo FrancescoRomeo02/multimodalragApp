@@ -5,7 +5,7 @@ Preserva i metadati e gestisce testo, immagini e tabelle in modo intelligente.
 
 import logging
 import numpy as np
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Tuple
 from sentence_transformers import SentenceTransformer
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_experimental.text_splitter import SemanticChunker

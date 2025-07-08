@@ -1,7 +1,6 @@
 """
 Sistema di metriche e monitoring delle performance per MultimodalRAG
 """
-import time
 import psutil
 import logging
 from typing import Dict, Any, List, Optional

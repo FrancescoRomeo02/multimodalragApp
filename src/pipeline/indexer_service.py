@@ -1,6 +1,6 @@
 import os
 import logging
-from typing import List, Dict, Any, Union, Optional
+from typing import List, Dict, Any, Optional
 
 from src.utils.pdf_parser import parse_pdf_elements
 from src.utils.qdrant_utils import qdrant_manager

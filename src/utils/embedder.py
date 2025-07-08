@@ -2,7 +2,6 @@
 
 import logging
 from typing import List, Optional
-import torch
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from langchain_core.embeddings import Embeddings
 from src.config import DEFAULT_EMBEDDING_MODEL, DEFAULT_BATCH_SIZE, FALLBACK_TEXT_FOR_EMPTY_DOC
@@ -11,7 +10,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 class AdvancedEmbedder(Embeddings):
-    """Embedder avanzato per testo e descrizioni di immagini"""
+    """Advanced embedder for text and image descriptions"""
     
     def __init__(
         self,
@@ -24,7 +23,7 @@ class AdvancedEmbedder(Embeddings):
         super().__init__(**kwargs)
         self.model_name = model_name
         self.batch_size = batch_size
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = device or "cpu"
         
         try:
             self.model = HuggingFaceEmbedding(
@@ -34,23 +33,23 @@ class AdvancedEmbedder(Embeddings):
                 embed_batch_size=self.batch_size
             )
             self._determine_embedding_dim()
-            logger.info(f"Embedder inizializzato con {model_name}")
+            logger.info(f"Embedder initialized with {model_name}")
         except Exception as e:
-            logger.error(f"Errore inizializzazione: {e}")
+            logger.error(f"Initialization error: {e}")
             raise
 
     def _determine_embedding_dim(self):
-        """Determina automaticamente la dimensione degli embedding"""
+        """Automatically determine embedding dimensions"""
         try:
             test_embedding = self.model.get_text_embedding("test")
             self.embedding_dim = len(test_embedding)
-            logger.info(f"Dimensione embedding: {self.embedding_dim}")
+            logger.info(f"Embedding dimension: {self.embedding_dim}")
         except Exception as e:
-            logger.error("Impossibile determinare dimensione embedding")
-            raise RuntimeError("Dimensioni embedding sconosciute") from e
+            logger.error("Unable to determine embedding dimension")
+            raise RuntimeError("Unknown embedding dimensions") from e
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        """Embedding per documenti testuali"""
+        """Embedding for textual documents"""
         if not texts:
             return []
 
@@ -59,24 +58,24 @@ class AdvancedEmbedder(Embeddings):
         try:
             return self.model.get_text_embedding_batch(sanitized_texts, show_progress=False)
         except Exception as e:
-            logger.error(f"Errore batch embedding: {e}")
+            logger.error(f"Batch embedding error: {e}")
             return [self.embed_query(text) for text in sanitized_texts]
 
     def embed_query(self, text: str) -> List[float]:
-        """Embedding per singola query"""
+        """Embedding for single query"""
         try:
             return self.model.get_text_embedding(text or FALLBACK_TEXT_FOR_EMPTY_DOC)
         except Exception as e:
-            logger.error(f"Errore embedding query: {e}")
+            logger.error(f"Query embedding error: {e}")
             return [0.0] * self.embedding_dim
 
 def get_embedding_model() -> AdvancedEmbedder:
-    """Factory function per creare un'istanza preconfigurata"""
+    """Factory function to create a pre-configured instance"""
     return AdvancedEmbedder()
 
 
-# Funzione mantenuta per compatibilità MIGLIORARE QUESTA GESTIONE
+# Function maintained for compatibility - IMPROVE THIS MANAGEMENT
 def get_multimodal_embedding_model() -> AdvancedEmbedder:
-    """Alias per get_embedding_model() per mantenere compatibilità"""
-    logger.warning("get_multimodal_embedding_model() è deprecato, usa get_embedding_model()")
+    """Alias for get_embedding_model() to maintain compatibility"""
+    logger.warning("get_multimodal_embedding_model() is deprecated, use get_embedding_model()")
     return get_embedding_model()

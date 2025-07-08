@@ -1,8 +1,5 @@
 import streamlit as st
 import os
-import base64
-from io import BytesIO
-from PIL import Image
 from src.config import RAW_DATA_PATH
 from src.pipeline.retriever import enhanced_rag_query
 from streamlit_app.backend_logic import process_uploaded_file, delete_source
