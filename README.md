@@ -1,4 +1,4 @@
-# 🧠 MultimodalRAG
+# MultimodalRAG
 
 Un sistema RAG (Retrieval-Augmented Generation) multimodale avanzato per interrogare documenti PDF contenenti testo, immagini e tabelle. Utilizza embedding vettoriali, retrieval semantico e Large Language Models via Groq per fornire risposte accurate e contestualizzate.
 
@@ -6,26 +6,26 @@ Un sistema RAG (Retrieval-Augmented Generation) multimodale avanzato per interro
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## ✨ Caratteristiche principali
+## Caratteristiche principali
 
-- 📄 **Upload multipli di PDF** con processing automatico
-- 🔍 **Estrazione intelligente** di testo, immagini e tabelle
-- 🧠 **Chunking semantico avanzato** per segmentazione intelligente
-- 🔗 **Embedding multimodali** (testo e immagini) tramite modelli CLIP/BGE
-- 🗂️ **Indicizzazione vettoriale** su database Qdrant
-- 🔎 **Ricerca semantica** avanzata con similarità vettoriale
-- 🤖 **Generazione risposte** tramite LLM (GPT-4o, Claude, Llama)
-- 🖥️ **Interfaccia web** moderna e user-friendly con Streamlit
-- 📊 **Supporto tabelle** con estrazione contesto e caption
-- 🖼️ **Analisi immagini** con OCR e descrizioni automatiche
-- 📈 **Monitoring e metriche** delle performance integrate
-- 🎯 **Sistema chunking ibrido** (semantico + classico con fallback)
-- 🐳 **Deploy containerizzato** con Docker/Docker Compose
-- 🧪 **Suite di test** completa con coverage
+- **Upload multipli di PDF** con processing automatico
+- **Estrazione intelligente** di testo, immagini e tabelle
+- **Chunking semantico avanzato** per segmentazione intelligente
+- **Embedding multimodali** (testo e immagini) tramite modelli CLIP/BGE
+- **Indicizzazione vettoriale** su database Qdrant
+- **Ricerca semantica** avanzata con similarità vettoriale
+- **Generazione risposte** tramite LLM (GPT-4o, Claude, Llama)
+- **Interfaccia web** moderna e user-friendly con Streamlit
+- **Supporto tabelle** con estrazione contesto e caption
+- **Analisi immagini** con OCR e descrizioni automatiche
+- **Monitoring e metriche** delle performance integrate
+- **Sistema chunking ibrido** (semantico + classico con fallback)
+- **Deploy containerizzato** con Docker/Docker Compose
+- **Suite di test** completa con coverage
 
 ---
 
-## 🛠️ Stack Tecnologico
+## Stack Tecnologico
 
 | Componente | Tecnologia | Descrizione |
 |------------|------------|-------------|
@@ -35,14 +35,13 @@ Un sistema RAG (Retrieval-Augmented Generation) multimodale avanzato per interro
 | **LLM** | Groq API | Claude, GPT-4o, Llama via API |
 | **Processing** | PyMuPDF, Tesseract | Estrazione testo, tabelle e OCR |
 | **Orchestrazione** | LangChain | Framework per pipeline LLM |
-| **Testing** | Pytest | Test unitari e di integrazione |
 | **CI/CD** | Pre-commit, GitHub Actions | Quality assurance automatizzata |
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
-### ⚡ Avvio Rapido
+### Avvio Rapido
 
 ```bash
 # 1. Clona il repository
@@ -60,7 +59,7 @@ docker-compose up -d
 open http://localhost:8501
 ```
 
-### 🔧 Setup Locale (Alternativo)
+### Setup Locale (Alternativo)
 
 ```bash
 # 1. Installa dipendenze Python
@@ -73,37 +72,22 @@ docker run -d -p 6333:6333 qdrant/qdrant
 streamlit run streamlit_app/Home.py
 ```
 
-### 🧠 Test Chunking Semantico
 
-```bash
-# Test base chunking semantico
-python test_semantic_chunking.py
-
-# Confronto semantico vs classico con metriche
-python test_chunking_comparison.py
-
-# Re-indicizzazione con chunking semantico (default)
-python scripts/reindex_with_context.py
-
-# Re-indicizzazione con chunking classico
-python scripts/reindex_with_context.py --classic
-```
-
-### 📋 Checklist
+### Checklist
 
 - [ ] **Docker installato** (per Qdrant e deployment)
 - [ ] **Python 3.8+** installato
 - [ ] **GROQ_API_KEY** configurata nel file `.env`
 - [ ] **Porte libere**: 8501 (Streamlit), 6333 (Qdrant)
 
-### 🎯 Test Funzionalità Principali
+### Test Funzionalità Principali
 
 1. **Upload PDF**: Carica un documento di esempio
 2. **Query Testuale**: "Di cosa parla questo documento?"
 3. **Query Multimodale**: "Mostrami le immagini relative a..."
 4. **Query Tabelle**: "Quali dati ci sono nelle tabelle?"
 
-### 🐛 Risoluzione Problemi Comuni
+### Risoluzione Problemi Comuni
 
 **Errore Qdrant non raggiungibile:**
 ```bash
@@ -125,7 +109,7 @@ streamlit run streamlit_app/Home.py --server.port=8502
 
 ---
 
-## 🔧 Setup Avanzato per Sviluppatori
+## Setup Avanzato per Sviluppatori
 
 ### Con Docker Compose
 
@@ -160,11 +144,11 @@ make run
 
 ---
 
-## 🎓 Guida per Comandi Makefile
+## Guida per Comandi Makefile
 
 Il progetto include un **Makefile** per automatizzare le operazioni comuni:
 
-### 📋 Comandi Principali
+### Comandi Principali
 
 ```bash
 # Vedi tutti i comandi disponibili
@@ -183,32 +167,8 @@ make qdrant-start
 make run-indexer
 ```
 
-### 🧪 Testing e Quality Assurance
 
-```bash
-# Esegui tutti i test
-make test
-
-# Test con coverage HTML (apri htmlcov/index.html dopo)
-make test-cov
-
-# Solo test unitari
-make test-unit
-
-# Solo test di integrazione  
-make test-integration
-
-# Controlli qualità del codice (lint + type checking)
-make lint
-
-# Formattazione automatica del codice
-make format
-
-# Pipeline CI completa (test + lint + format)
-make check-all
-```
-
-### 🐳 Docker Commands
+### Docker Commands
 
 ```bash
 # Build immagine Docker dell'app
@@ -221,7 +181,7 @@ make docker-run
 make qdrant-start
 ```
 
-### 🧹 Manutenzione
+### Manutenzione
 
 ```bash
 # Pulisci file temporanei e cache
@@ -233,7 +193,7 @@ make ci
 
 ---
 
-## 📊 Monitoring e Performance
+## Monitoring e Performance
 
 ### Attivazione Monitoring
 
@@ -264,7 +224,7 @@ docker-compose --profile monitoring up -d
 
 ---
 
-## 🚀 Deployment
+## Deployment
 
 Vedi [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) per istruzioni dettagliate su:
 - Deployment locale e cloud
@@ -274,7 +234,7 @@ Vedi [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) per istruzioni dettagliate su:
 
 ---
 
-## 🛠️ Sviluppo
+## Sviluppo
 
 ### Setup Ambiente
 
@@ -302,7 +262,7 @@ make clean
 
 ---
 
-## 📄 Licenza
+## Licenza
 
 Questo progetto è rilasciato sotto licenza MIT. Vedi il file `LICENSE` per dettagli.
 
@@ -337,7 +297,7 @@ streamlit run streamlit_app/Home.py
 
 ---
 
-## 📁 Struttura del Progetto
+## Struttura del Progetto
 
 ```
 multimodalrag/
@@ -357,7 +317,7 @@ multimodalrag/
 
 ---
 
-## 🔧 Utilizzo
+## Utilizzo
 
 1. **Upload PDF**: Carica i tuoi documenti tramite l'interfaccia web
 2. **Indicizzazione**: I documenti vengono processati automaticamente
@@ -366,88 +326,11 @@ multimodalrag/
 
 ---
 
-## ✅ Controlli di Qualità e Testing
-
-Il progetto include una suite completa di controlli di qualità per garantire code quality e affidabilità.
-
-### 🔍 Controllo Qualità Completo
-
-```bash
-# Esegui tutti i controlli di qualità in una volta
-python scripts/quality_check.py
-
-# Oppure tramite Makefile
-make ci
-```
-
-Questo script esegue automaticamente:
-- ✅ **Verifica struttura progetto** - File e directory richiesti
-- ✅ **Controllo sintassi Python** - Validazione syntax errors
-- ✅ **Formattazione codice** (Black) - Code style consistency
-- ✅ **Linting** (Flake8) - PEP8 compliance e best practices
-- ✅ **Import sorting** (isort) - Ordinamento import standardizzato
-- ✅ **Test struttura progetto** - Validazione architettura
-- ✅ **Test qualità codice** - Anti-patterns e code smells
-- ✅ **Test integrazione** - Componenti principali
-- ✅ **Security scan** (Bandit) - Vulnerabilità sicurezza
-- ✅ **Dependency check** (Safety) - Vulnerabilità dipendenze
-
-### 🧪 Suite di Testing
-
-```bash
-# Test completi con coverage
-make test-coverage
-
-# Test specifici
-make test-structure     # Solo test struttura progetto
-make test-unit         # Solo test unitari
-make test-integration  # Solo test integrazione
-```
-
-### 🔧 Correzione Automatica
-
-```bash
-# Formattazione automatica del codice
-make format
-
-# Setup environment con pre-commit hooks
-make setup-dev
-
-# Lint e format in un comando
-make lint-format
-```
-
-### 📊 Report Qualità
-
-Dopo aver eseguito i test:
-- **Coverage HTML**: Apri `htmlcov/index.html` per report dettagliato
-- **Test results**: Output dettagliato di tutti i controlli
-- **Quality metrics**: Statistiche su code quality e test coverage
-
----
-
-## 🤝 Contribuire
-
-Le contribuzioni sono benvenute! Per favore:
-1. Fai un fork del progetto
-2. Crea un branch per la tua feature (`git checkout -b feature/AmazingFeature`)
-3. Committa le modifiche (`git commit -m 'Add some AmazingFeature'`)
-4. Pusha al branch (`git push origin feature/AmazingFeature`)
-5. Apri una Pull Request
-
----
-
-## 📄 Licenza
-
-Questo progetto è rilasciato sotto licenza MIT. Vedi il file `LICENSE` per dettagli.
-
----
 
 ## 📚 Documentazione Completa
 
 - 📋 **[Guida Rapida Avvio](docs/GUIDA_AVVIO.md)** - Setup e avvio
 - 🧠 **[Chunking Semantico](docs/CHUNKING_SEMANTICO.md)** - Guida completa al chunking semantico
-- 🧪 **[Testing Guide](tests/README.md)** - Documentazione suite di test
 - 🛠️ **[Makefile Commands](#-guida-per-comandi-makefile)** - Automazione sviluppo
 
 ---

@@ -21,11 +21,6 @@ install-dev: ## Installa dipendenze di sviluppo
 	$(PIP) install -r requirements.txt
 	pre-commit install
 
-test: ## Esegue tutti i test
-	$(PYTEST) tests/ -v
-
-test-unit: ## Esegue solo i test unitari
-	$(PYTEST) tests/unit/ -v
 
 # Makefile per automatizzare task comuni
 .PHONY: help install test lint format clean setup-dev run docker-build docker-run test-structure
@@ -51,23 +46,9 @@ install-dev: ## Installa dipendenze di sviluppo
 	pre-commit install
 
 setup-dev: install-dev ## Setup completo ambiente di sviluppo
-	@echo "🔧 Setup ambiente di sviluppo completato"
-	@echo "💡 Ricorda di copiare .env.example in .env e configurare le API keys"
+	@echo "Setup ambiente di sviluppo completato"
+	@echo "Ricorda di copiare .env.example in .env e configurare le API keys"
 
-test: ## Esegue tutti i test
-	$(PYTEST) tests/ -v
-
-test-unit: ## Esegue solo i test unitari
-	$(PYTEST) tests/unit/ -v
-
-test-integration: ## Esegue solo i test di integrazione
-	$(PYTEST) tests/integration/ -v
-
-test-structure: ## Testa la struttura del progetto
-	$(PYTEST) tests/unit/test_project_structure.py -v
-
-test-coverage: ## Esegue i test con coverage
-	$(PYTEST) tests/ --cov=src --cov-report=html --cov-report=term
 
 lint: ## Esegue linting del codice
 	$(FLAKE8) src/ streamlit_app/ tests/ --max-line-length=88 --extend-ignore=E203,W503
@@ -124,16 +105,6 @@ update-deps: ## Aggiorna requirements.txt con le dipendenze attuali
 security-check: ## Controlla vulnerabilità di sicurezza
 	$(PIP) install safety
 	safety check
-
-pre-commit: format lint test-structure ## Esegue check pre-commit
-	@echo "✅ Pre-commit checks completati"
-
-ci: clean install test lint ## Pipeline CI completa
-	@echo "🚀 Pipeline CI completata con successo"
-	$(PYTEST) tests/integration/ -v
-
-test-cov: ## Esegue test con coverage
-	$(PYTEST) tests/ --cov=src --cov-report=html --cov-report=term
 
 lint: ## Controlla stile del codice
 	$(FLAKE8) src/ tests/

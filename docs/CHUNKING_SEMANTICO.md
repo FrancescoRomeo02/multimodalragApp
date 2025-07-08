@@ -1,10 +1,10 @@
 # Chunking Semantico - Guida Completa
 
-## 🎯 Panoramica
+## Panoramica
 
 Il sistema di **chunking semantico** è stato integrato nel multimodal RAG per migliorare la qualità della segmentazione dei documenti. A differenza del chunking classico che divide il testo in base alla lunghezza, il chunking semantico analizza il contenuto e crea segmenti basati sulla coerenza semantica.
 
-## 🔧 Caratteristiche Principali
+## Caratteristiche Principali
 
 ### Chunking Semantico Avanzato
 - **Analisi semantica**: Utilizza embeddings per comprendere il significato del testo
@@ -23,7 +23,7 @@ Il sistema di **chunking semantico** è stato integrato nel multimodal RAG per m
 - **Grafici di analisi**: Visualizzazioni delle performance
 - **Export dati**: Esportazione in CSV per analisi esterne
 
-## 📦 Configurazione
+## Configurazione
 
 ### Parametri Chunking Semantico
 
@@ -31,10 +31,10 @@ Aggiunti in `src/config.py`:
 
 ```python
 # SEMANTIC CHUNKING SETTINGS
-SEMANTIC_CHUNK_SIZE = 1000          # Dimensione target dei chunk
-SEMANTIC_CHUNK_OVERLAP = 200        # Sovrapposizione tra chunk
-SEMANTIC_THRESHOLD = 0.75            # Soglia similarità semantica
-MIN_CHUNK_SIZE = 100                 # Dimensione minima chunk
+SEMANTIC_CHUNK_SIZE = 1000              # Dimensione target dei chunk
+SEMANTIC_CHUNK_OVERLAP = 200            # Sovrapposizione tra chunk
+SEMANTIC_THRESHOLD = 0.75               # Soglia similarità semantica
+MIN_CHUNK_SIZE = 100                    # Dimensione minima chunk
 CHUNKING_EMBEDDING_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 ```
 
@@ -45,29 +45,8 @@ pip install langchain-text-splitters langchain-experimental tiktoken
 pip install matplotlib seaborn pandas  # Per monitoraggio
 ```
 
-## 🚀 Utilizzo
+## Utilizzo
 
-### 1. Indicizzazione con Chunking Semantico
-
-```bash
-# Chunking semantico (default)
-python scripts/reindex_with_context.py
-
-# Chunking classico
-python scripts/reindex_with_context.py --classic
-```
-
-### 2. Test e Confronto
-
-```bash
-# Test base chunking semantico
-python test_semantic_chunking.py
-
-# Confronto semantico vs classico
-python test_chunking_comparison.py
-```
-
-### 3. Utilizzo Programmatico
 
 ```python
 from src.utils.semantic_chunker import MultimodalSemanticChunker
@@ -94,32 +73,8 @@ enriched_texts, enriched_images, enriched_tables = \
 stats = chunker.get_chunking_stats(enriched_texts)
 ```
 
-## 📊 Analisi Performance
 
-### Metriche Disponibili
-
-Il sistema traccia automaticamente:
-
-- **Tempo di processing**: Durata del chunking
-- **Numero di chunk**: Totali e per tipo (semantico/fallback)
-- **Dimensioni chunk**: Media, min, max, mediana
-- **Compression ratio**: Rapporto elementi originali/chunk finali
-- **Coerenza tematica**: Qualità semantica dei chunk
-
-### Grafici Generati
-
-1. **Tempo vs Numero Chunk**: Correlazione performance
-2. **Distribuzione Dimensioni**: Istogramma lunghezze chunk
-3. **Tipi di Chunk**: Pie chart semantico vs fallback
-4. **Timeline Performance**: Andamento temporale
-
-### File di Output
-
-- `chunking_comparison_metrics.csv`: Metriche dettagliate
-- `chunking_comparison_plots/`: Grafici di analisi
-- `performance_plots/`: Visualizzazioni performance
-
-## 🔄 Integrazione con Indexer
+## Integrazione con Indexer
 
 ### DocumentIndexer Aggiornato
 
@@ -154,7 +109,7 @@ I chunk semantici includono:
 }
 ```
 
-## 🎯 Vantaggi del Chunking Semantico
+## Vantaggi del Chunking Semantico
 
 ### Qualità Migliorata
 - **Coerenza semantica**: Chunk più significativi
@@ -171,7 +126,7 @@ I chunk semantici includono:
 - **Fallback sicuro**: Gestione errori robusta
 - **Multimodale**: Integrazione con immagini e tabelle
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### Problemi Comuni
 
@@ -197,17 +152,7 @@ import logging
 logging.getLogger('src.utils.semantic_chunker').setLevel(logging.DEBUG)
 ```
 
-## 📈 Risultati Benchmark
-
-I test mostrano che il chunking semantico:
-
-- ✅ **Migliora la coerenza tematica** del 12%
-- ✅ **Preserva meglio il contesto** semantico
-- ✅ **Integrazione multimodale** più efficace
-- ⚠️ **Tempo processing** leggermente superiore
-- ⚠️ **Più chunk generati** per documenti complessi
-
-## 🎉 Conclusioni
+## Conclusioni
 
 Il chunking semantico rappresenta un significativo miglioramento per la qualità del RAG multimodale, offrendo:
 

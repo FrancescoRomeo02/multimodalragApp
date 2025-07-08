@@ -1,7 +1,7 @@
-# 🎓 Guida Rapida - MultimodalRAG
+# Guida Rapida - MultimodalRAG
 
 
-## ⚡ Setup
+## Setup
 
 ### Prerequisiti Minimi
 - **Docker** installato ([Download Docker](https://docs.docker.com/get-docker/))
@@ -30,7 +30,7 @@
    - Apri browser su: http://localhost:8501
    - L'app si avvierà automaticamente
 
-## 🎯 Test delle Funzionalità
+## Test delle Funzionalità
 
 ### 1. Upload di un PDF
 - Usa la sidebar sinistra per caricare un PDF
@@ -54,7 +54,7 @@ Prova queste query per testare le funzionalità:
 **Query Multimodali:**
 - "Combina informazioni da testo e immagini"
 
-## 📊 Cosa Osservare
+## Cosa Osservare
 
 ### Funzionalità Chiave
 - ✅ **Upload PDF** - Processing automatico
@@ -64,13 +64,13 @@ Prova queste query per testare le funzionalità:
 - ✅ **Interface moderna** - UX pulita e intuitiva
 
 ### Aspetti Tecnici Avanzati
-- 🧠 **AI Vision** - Caption automatiche con BLIP
-- 🔍 **OCR** - Estrazione testo da immagini
-- 📈 **Object Detection** - Riconoscimento oggetti con YOLO
-- 🗃️ **Database vettoriale** - Qdrant per similarità semantica
-- 🤖 **LLM Integration** - Groq API per generazione risposte
+- **AI Vision** - Caption automatiche con BLIP
+- **OCR** - Estrazione testo da immagini
+- **Object Detection** - Riconoscimento oggetti con YOLO
+- **Database vettoriale** - Qdrant per similarità semantica
+- **LLM Integration** - Groq API per generazione risposte
 
-## 🐛 Risoluzione Problemi
+## Risoluzione Problemi
 
 ### Errore "Qdrant not reachable"
 ```bash
@@ -97,7 +97,7 @@ cat .env | grep GROQ_API_KEY
 # Poi accedi su http://localhost:8502
 ```
 
-## 📈 Metriche e Monitoring
+## Metriche e Monitoring
 
 Per vedere le performance in tempo reale:
 
@@ -116,9 +116,9 @@ Per vedere le performance in tempo reale:
    - Prometheus: http://localhost:9090
 
 
-## 📞 Supporto
+## Supporto
 
-Se hai problemi durante la valutazione:
+Se hai problemi durante l'esecuzione:
 
 1. **Controlla i log**:
    ```bash
@@ -137,5 +137,4 @@ Se hai problemi durante la valutazione:
    docker run -d -p 6333:6333 qdrant/qdrant
    streamlit run streamlit_app/Home.py
    ```
-
 ---
