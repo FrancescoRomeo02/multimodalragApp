@@ -1,7 +1,7 @@
-# Multi-stage build per ridurre dimensioni immagine finale
+# Multi-stage build for a Python application with Tesseract OCR and Poppler utilities
 FROM python:3.11-slim as builder
 
-# Installa dipendenze di sistema necessarie
+# Insstall system dependencies
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     tesseract-ocr-ita \
@@ -11,17 +11,17 @@ RUN apt-get update && apt-get install -y \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Crea directory di lavoro
+# Create working directory
 WORKDIR /app
 
-# Copia requirements e installa dipendenze Python
+# Copy requirements and install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Stage finale
+# Final stage
 FROM python:3.11-slim
 
-# Installa solo le dipendenze runtime necessarie
+# Installs only the necessary runtime dependencies
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     tesseract-ocr-ita \
@@ -29,32 +29,32 @@ RUN apt-get update && apt-get install -y \
     poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Crea utente non-root per sicurezza
+# Create non-root user for security
 RUN useradd --create-home --shell /bin/bash app
 
-# Copia dipendenze Python dal builder
+# Copy Python dependencies from builder
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Crea directory app e imposta permessi
+# Create app directory and set permissions
 WORKDIR /app
 RUN chown -R app:app /app
 
-# Switcha all'utente non-root
+# Switch to non-root user
 USER app
 
-# Copia codice applicazione
+# Copy application code
 COPY --chown=app:app . .
 
-# Crea directory per log e dati
+# Create directories for logs and data
 RUN mkdir -p logs data/raw
 
-# Esponi porta Streamlit
+# Expose Streamlit port
 EXPOSE 8501
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8501/_stcore/health || exit 1
 
-# Comando di avvio
+# Command to run the Streamlit application and set the server address and port
 CMD ["streamlit", "run", "streamlit_app/Home.py", "--server.port=8501", "--server.address=0.0.0.0"]

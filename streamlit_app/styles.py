@@ -1,15 +1,15 @@
 # streamlit_app/styles.py
 
 def get_custom_css():
-    """Restituisce una stringa CSS per uno stile minimalista e professionale."""
+    """Generate custom CSS for Streamlit app."""
     return """
     <style>
-        /* Nasconde header e footer di Streamlit */
-        #MainMenu {visibility: ;}
-        footer {visibility: ;}
-        header {visibility: ;}
+        /* Hide Streamlit header and footer */
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
 
-        /* Stile generale del contenitore */
+        /* General container styling */
         .main .block-container {
             padding-top: 2rem;
             padding-bottom: 2rem;
@@ -17,8 +17,8 @@ def get_custom_css():
             padding-right: 3rem;
         }
 
-        /* Migliora lo stile dei widget */
-        .st-emotion-cache-1y4p8pa { /* Contenitore del file uploader */
+        /* Improve widget styling */
+        .st-emotion-cache-1y4p8pa { /* File uploader container */
             border: 1px dashed #ced4da;
             border-radius: 0.5rem;
         }
@@ -28,7 +28,7 @@ def get_custom_css():
             width: 100%;
         }
 
-        /* Stile per i messaggi della chat */
+        /* Chat message styling */
         .stChatMessage {
             border-radius: 0.75rem;
             border: 1px solid #e9ecef;
