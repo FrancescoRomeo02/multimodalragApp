@@ -1,140 +1,161 @@
-# Guida Rapida - MultimodalRAG
-
+# Quick Start Guide - MultimodalRAG
 
 ## Setup
 
-### Prerequisiti Minimi
-- **Docker** installato ([Download Docker](https://docs.docker.com/get-docker/))
-- **Chiave API Groq** gratuita ([Registrati qui](https://console.groq.com/keys))
+### Minimum Requirements
 
-### Passi per l'Avvio
+* **Docker** installed ([Download Docker](https://docs.docker.com/get-docker/))
+* **Groq API Key** (Free – [Get yours here](https://console.groq.com/keys))
 
-1. **Clona il progetto**
+### Startup Steps
+
+1. **Clone the repository**
+
    ```bash
    git clone <repository-url>
    cd multimodalrag
    ```
 
-2. **Configura API Key**
+2. **Configure API Key**
+
    ```bash
    cp .env.example .env
-   # Apri il file .env e sostituisci "your_groq_api_key_here" con la tua chiave
+   # Edit the .env file and replace "your_groq_api_key_here" with your actual key
    ```
 
-3. **Avvia tutto**
+3. **Launch the stack**
+
    ```bash
    docker-compose up -d
    ```
 
-4. **Accedi all'applicazione**
-   - Apri browser su: http://localhost:8501
-   - L'app si avvierà automaticamente
+4. **Open the application**
 
-## Test delle Funzionalità
+   * Navigate to: [http://localhost:8501](http://localhost:8501)
+   * The app will launch automatically
 
-### 1. Upload di un PDF
-- Usa la sidebar sinistra per caricare un PDF
-- Il sistema processerà automaticamente testo, immagini e tabelle
+## Feature Testing
 
-### 2. Query di Test
-Prova queste query per testare le funzionalità:
+### 1. Upload a PDF
 
-**Query Generali:**
-- "Di cosa parla questo documento?"
-- "Riassumi i punti principali"
+* Use the left sidebar to upload a PDF
+* The system will automatically process text, images, and tables
 
-**Query su Immagini:**
-- "Mostrami le immagini presenti"
-- "Che cosa mostrano le figure?"
+### 2. Test Queries
 
-**Query su Tabelle:**
-- "Quali dati ci sono nelle tabelle?"
-- "Mostrami i risultati numerici"
+Try the following prompts:
 
-**Query Multimodali:**
-- "Combina informazioni da testo e immagini"
+**General Queries:**
 
-## Cosa Osservare
+* "What is this document about?"
+* "Summarize the key points"
 
-### Funzionalità Chiave
-- ✅ **Upload PDF** - Processing automatico
-- ✅ **Estrazione multimodale** - Testo, immagini, tabelle
-- ✅ **Ricerca semantica** - Risposte contestuali
-- ✅ **Riferimenti alle fonti** - Tracciabilità
-- ✅ **Interface moderna** - UX pulita e intuitiva
+**Image-Based Queries:**
 
-### Aspetti Tecnici Avanzati
-- **AI Vision** - Caption automatiche con BLIP
-- **OCR** - Estrazione testo da immagini
-- **Object Detection** - Riconoscimento oggetti con YOLO
-- **Database vettoriale** - Qdrant per similarità semantica
-- **LLM Integration** - Groq API per generazione risposte
+* "Show the images present in the document"
+* "What do the figures show?"
 
-## Risoluzione Problemi
+**Table Queries:**
 
-### Errore "Qdrant not reachable"
+* "What data is in the tables?"
+* "Show me numerical results"
+
+**Multimodal Queries:**
+
+* "Combine insights from text and images"
+
+## Key Features to Observe
+
+### Core Functionality
+
+* **PDF Upload** – Automatic processing pipeline
+* **Multimodal Extraction** – Text, images, tables
+* **Semantic Retrieval** – Context-aware answers
+* **Source References** – Transparent outputs
+* **Modern UI** – Clean and intuitive UX
+
+### Advanced Technical Features
+
+* **AI Vision** – Image captioning with BLIP
+* **OCR Support** – Text extraction from images
+* **Object Detection** – YOLO-based visual tagging
+* **Vector Database** – Semantic similarity via Qdrant
+* **LLM Integration** – Answer generation with Groq API
+
+## Troubleshooting
+
+### "Qdrant not reachable" Error
+
 ```bash
-# Verifica che Qdrant sia attivo
+# Check if Qdrant is running
 docker ps | grep qdrant
 
-# Se non è attivo, riavvia tutto
+# If not running, restart services
 docker-compose down
 docker-compose up -d
 ```
 
-### Errore "Invalid API Key"
+### "Invalid API Key" Error
+
 ```bash
-# Verifica che la chiave sia corretta nel file .env
+# Check if the API key is correct in your .env file
 cat .env | grep GROQ_API_KEY
 
-# La chiave deve iniziare con "gsk_"
+# The key must start with "gsk_"
 ```
 
-### Porta già in uso
+### Port Already in Use
+
 ```bash
-# Cambia porta nel docker-compose.yml
-# Cerca la riga "8501:8501" e cambiala in "8502:8501"
-# Poi accedi su http://localhost:8502
+# Change port in docker-compose.yml
+# Find the line "8501:8501" and update to "8502:8501"
+# Then access the app via http://localhost:8502
 ```
 
-## Metriche e Monitoring
+## Metrics and Monitoring
 
-Per vedere le performance in tempo reale:
+To monitor real-time performance:
 
-1. **Abilita monitoring** nel file `.env`:
+1. **Enable monitoring** in `.env`:
+
    ```bash
    ENABLE_PERFORMANCE_MONITORING=true
    ```
 
-2. **Avvia con Grafana**:
+2. **Start with Grafana**:
+
    ```bash
    docker-compose --profile monitoring up -d
    ```
 
-3. **Accedi ai dashboard**:
-   - Grafana: http://localhost:3000 (admin/admin)
-   - Prometheus: http://localhost:9090
+3. **Access dashboards**:
 
+   * Grafana: [http://localhost:3000](http://localhost:3000) (admin/admin)
+   * Prometheus: [http://localhost:9090](http://localhost:9090)
 
-## Supporto
+## Support
 
-Se hai problemi durante l'esecuzione:
+If you experience issues:
 
-1. **Controlla i log**:
+1. **Check logs**:
+
    ```bash
    docker-compose logs -f multimodal-rag
    ```
 
-2. **Reset completo**:
+2. **Full reset**:
+
    ```bash
    docker-compose down -v
    docker-compose up -d
    ```
 
-3. **Setup locale alternativo**:
+3. **Alternative local setup**:
+
    ```bash
    pip install -r requirements.txt
    docker run -d -p 6333:6333 qdrant/qdrant
    streamlit run streamlit_app/Home.py
    ```
+
 ---
