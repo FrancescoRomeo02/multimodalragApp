@@ -8,7 +8,6 @@ Questo script fornisce diversi modi per avviare l'applicazione:
 - Modalità sviluppo con hot-reload
 """
 
-import os
 import sys
 import subprocess
 import argparse
@@ -34,7 +33,7 @@ def run_streamlit():
 def run_docker_build():
     """Costruisce l'immagine Docker."""
     cmd = ["docker", "build", "-t", "multimodalrag", "."]
-    print(f"🐳 Build Docker: {' '.join(cmd)}")
+    print(f"Build Docker: {' '.join(cmd)}")
     subprocess.run(cmd, cwd=ROOT_DIR, check=True)
 
 
@@ -50,14 +49,14 @@ def run_docker():
         "--name", "multimodalrag_container", 
         "multimodalrag"
     ]
-    print(f"🐳 Avvio Docker: {' '.join(cmd)}")
+    print(f"Avvio Docker: {' '.join(cmd)}")
     subprocess.run(cmd, cwd=ROOT_DIR, check=True)
 
 
 def run_docker_compose():
     """Avvia l'applicazione con Docker Compose."""
     cmd = ["docker-compose", "up", "-d"]
-    print(f"🐳 Avvio Docker Compose: {' '.join(cmd)}")
+    print(f"Avvio Docker Compose: {' '.join(cmd)}")
     subprocess.run(cmd, cwd=ROOT_DIR, check=True)
 
 
@@ -86,8 +85,8 @@ def main():
     
     args = parser.parse_args()
     
-    print(f"🎯 Avvio MultimodalRAG in modalità: {args.mode}")
-    print(f"📁 Directory di lavoro: {ROOT_DIR}")
+    print(f"Avvio MultimodalRAG in modalità: {args.mode}")
+    print(f"Directory di lavoro: {ROOT_DIR}")
     
     try:
         if args.mode == "local":
@@ -99,9 +98,9 @@ def main():
         elif args.mode == "dev":
             run_dev()
     except KeyboardInterrupt:
-        print("\n👋 Arresto dell'applicazione...")
+        print("\nArresto dell'applicazione...")
     except subprocess.CalledProcessError as e:
-        print(f"❌ Errore durante l'esecuzione: {e}")
+        print(f"Errore durante l'esecuzione: {e}")
         sys.exit(1)
 
 
