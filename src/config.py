@@ -88,5 +88,4 @@ def setup_logging() -> None:
     )
     # Set specific levels for external libraries
     logging.getLogger("transformers").setLevel(logging.WARNING)
-    logging.getLogger("torch").setLevel(logging.WARNING)
     logging.getLogger("qdrant_client").setLevel(logging.INFO)

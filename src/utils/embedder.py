@@ -2,7 +2,6 @@
 
 import logging
 from typing import List, Optional
-import torch
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from langchain_core.embeddings import Embeddings
 from src.config import DEFAULT_EMBEDDING_MODEL, DEFAULT_BATCH_SIZE, FALLBACK_TEXT_FOR_EMPTY_DOC
@@ -24,7 +23,7 @@ class AdvancedEmbedder(Embeddings):
         super().__init__(**kwargs)
         self.model_name = model_name
         self.batch_size = batch_size
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = device or "cpu"
         
         try:
             self.model = HuggingFaceEmbedding(
