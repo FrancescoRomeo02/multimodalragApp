@@ -117,10 +117,10 @@ def enhanced_chat_interface_widget(selected_sources: list[str]):
     """
     Enhanced chat interface with precise and clean references.
     """
-    st.header("🤖 Chat with Selected Sources")
+    st.header("Chat with Selected Sources")
 
     if not selected_sources:
-        st.warning("⚠️ Please select at least one source to start the chat.")
+        st.warning("Please select at least one source to start the chat.")
         return
 
     show_sources = True
@@ -146,7 +146,7 @@ def enhanced_chat_interface_widget(selected_sources: list[str]):
                 
                 if compact_sources:
                     # Compact view with precise references
-                    st.markdown("**📚 Source Documents:**")
+                    st.markdown("**Source Documents:**")
 
                     # Group by source and page
                     sources_summary = {}
@@ -222,7 +222,7 @@ def enhanced_chat_interface_widget(selected_sources: list[str]):
                     
                     if compact_sources:
                         # Compact and precise references
-                        st.markdown("**📚 Origin sources:**")
+                        st.markdown("**Origin sources:**")
 
                         sources_summary = {}
                         for doc in source_docs:
@@ -262,12 +262,11 @@ def enhanced_chat_interface_widget(selected_sources: list[str]):
                     
                     else:
                         # Detailed references
-                        st.markdown("**📚 Detailed origin sources:**")
+                        st.markdown("**Detailed origin sources:**")
                         for i, doc in enumerate(source_docs):
                             display_source_document(doc, i)
                 
                 st.rerun()
-
 
 # Legacy functions for compatibility
 def chat_interface_widget(selected_sources: list[str]):

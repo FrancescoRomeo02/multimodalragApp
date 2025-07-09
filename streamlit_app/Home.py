@@ -56,7 +56,7 @@ if chunking_type:
     else:
         st.warning(f"System active with {chunking_type} Chunking - Fallback to classic segmentation")
 
-st.title("Scientific Papers Research Assistant 🔬")
+st.title("Scientific Papers Research Assistant")
 
 
 with st.sidebar:
