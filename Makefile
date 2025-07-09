@@ -50,6 +50,12 @@ run: ## Start the application in local mode
 run-dev: ## Start the application in development mode
 	$(PYTHON) scripts/run.py dev
 
+run-indexer: ## Re-index all documents
+	$(PYTHON) scripts/run.py index
+
+run-test-interface: ## Start the test and evaluation interface
+	$(PYTHON) scripts/run_test_interface.py
+
 # === DOCKER COMMANDS (integrated with scripts/run.py) ===
 docker-build: ## Build the Docker image
 	docker build -t multimodalrag .
@@ -69,6 +75,10 @@ qdrant-start: ## Start Qdrant in Docker
 
 qdrant-stop: ## Stop Qdrant
 	docker stop qdrant && docker rm qdrant
+
+# === METRICS ===
+run-metrics-demo: ## Run metrics demonstration
+	$(PYTHON) metrics/demo_metrics.py
 
 # === UTILITY COMMANDS ===
 clean: ## Clean temporary files and cache

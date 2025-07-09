@@ -16,6 +16,7 @@ from streamlit_app.styles import get_custom_css
 from streamlit_app.components.ui_components import upload_widget, source_selector_widget, enhanced_chat_interface_widget
 from src.pipeline.indexer_service import DocumentIndexer
 from src.utils.embedder import get_embedding_model
+from metrics.main_metrics import global_metrics_collector
 
 # --- Configuration ---
 logging.basicConfig(level=logging.INFO)
@@ -58,11 +59,38 @@ if chunking_type:
 
 st.title("Scientific Papers Research Assistant")
 
-
+# Aggiungi sezione metriche nella sidebar
 with st.sidebar:
     upload_widget(indexer)
     st.markdown("<hr>", unsafe_allow_html=True)
     selected_sources = source_selector_widget()
+    st.markdown("<hr>", unsafe_allow_html=True)
+    
+    # Sezione Metriche
+    with st.expander("📊 Metriche Query", expanded=False):
+        cost_summary = global_metrics_collector.get_cost_efficiency_summary()
+        
+        if cost_summary.get('total_queries', 0) > 0:
+            st.metric("Query Totali", cost_summary['total_queries'])
+            st.metric("Token Totali", cost_summary['total_tokens'])
+            st.metric("Tempo Medio (s)", f"{cost_summary['avg_response_time']:.2f}")
+            st.metric("Token/s", f"{cost_summary['avg_tokens_per_second']:.1f}")
+            
+            # Pulsante per esportare metriche
+            if st.button("💾 Esporta Metriche", key="export_metrics"):
+                try:
+                    export_path = global_metrics_collector.export_metrics()
+                    st.success(f"Metriche esportate in: {export_path}")
+                except Exception as e:
+                    st.error(f"Errore nell'export: {e}")
+            
+            # Pulsante per pulire metriche
+            if st.button("🗑️ Pulisci Metriche", key="clear_metrics"):
+                global_metrics_collector.clear_metrics()
+                st.success("Metriche pulite!")
+                st.rerun()
+        else:
+            st.info("Nessuna metrica disponibile. Inizia facendo delle query!")
 
 
 enhanced_chat_interface_widget(selected_sources=selected_sources)

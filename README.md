@@ -151,42 +151,84 @@ make run             # Launch Streamlit App
 ## Makefile Commands Reference
 
 ```bash
-make help             # List all commands
-make setup-dev        # Full local dev setup
-make run              # Launch the app
-make run-indexer      # Re-index all documents
-make clean            # Clean temporary files
-make docker-build     # Build the Docker image
-make ci               # Run CI pipeline
+make help                  # List all commands
+make setup-dev             # Full local dev setup
+make run                   # Launch the main app
+make run-test-interface    # Launch test & evaluation interface
+make run-indexer           # Re-index all documents
+make run-metrics-demo      # Run metrics demonstration
+make clean                 # Clean temporary files
+make docker-build          # Build the Docker image
+make ci                    # Run CI pipeline
 ```
 
 ---
 
-## Monitoring & Performance
+## Metrics & Evaluation
 
-Enable monitoring by setting the following in your `.env`:
+The system includes a comprehensive metrics framework to evaluate RAG performance:
 
-```bash
-ENABLE_PERFORMANCE_MONITORING=true
-```
+### 🧪 Test Interface
 
-Then launch the monitoring stack:
+Launch the dedicated test and evaluation interface:
 
 ```bash
-docker-compose --profile monitoring up -d
+# Start test interface (port 8503)
+make run-test-interface
+
+# Or directly:
+python scripts/run_test_interface.py
 ```
 
-* **Streamlit App:** [http://localhost:8501](http://localhost:8501)
-* **Grafana Dashboard:** [http://localhost:3000](http://localhost:3000) (admin/admin)
-* **Prometheus:** [http://localhost:9090](http://localhost:9090)
+The test interface allows you to:
+- Input queries with expected answers
+- Specify relevant pages/documents for ground truth
+- Automatically calculate all RAG metrics
+- View detailed performance analysis
+- Export results for further analysis
 
-### Available Metrics
+### Metrics Categories
 
-* Query response time
-* Query type distribution
-* Success rate
-* Memory & CPU usage
-* Document retrieval statistics
+* **Retrieval Metrics**: Recall@k, Precision@k, Mean Reciprocal Rank (MRR)
+* **Generation Metrics**: BERTScore, Exact Match (EM)
+* **Multimodal Metrics**: Image/Text accuracy
+* **Cost & Efficiency Metrics**: Token count, response time, embedding efficiency
+
+### Usage Example
+
+```python
+from metrics.main_metrics import track_retrieval, track_generation
+
+# Track retrieval performance
+track_retrieval(
+    query_id="q1",
+    relevant_docs=["doc1", "doc2"],
+    retrieved_docs=["doc1", "doc3", "doc2"],
+    retrieval_time=0.15
+)
+
+# Track generation quality
+track_generation(
+    query_id="q1", 
+    generated_text="Roma è la capitale d'Italia",
+    reference_text="Roma è la capitale italiana",
+    generation_time=1.2,
+    token_count=15
+)
+```
+
+### Demo & Export
+
+```bash
+# Run metrics demo
+python metrics/demo_metrics.py
+
+# Export metrics to JSON
+from metrics.main_metrics import global_metrics_collector
+global_metrics_collector.export_metrics("my_metrics.json")
+```
+
+See [metrics/README.md](metrics/README.md) for detailed documentation.
 
 ---
 

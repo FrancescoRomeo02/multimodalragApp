@@ -112,26 +112,36 @@ cat .env | grep GROQ_API_KEY
 # Then access the app via http://localhost:8502
 ```
 
-## Metrics and Monitoring
+## Metrics and Evaluation
 
-To monitor real-time performance:
+The system includes a comprehensive metrics framework:
 
-1. **Enable monitoring** in `.env`:
-
-   ```bash
-   ENABLE_PERFORMANCE_MONITORING=true
-   ```
-
-2. **Start with Grafana**:
+1. **Run metrics demo**:
 
    ```bash
-   docker-compose --profile monitoring up -d
+   python metrics/demo_metrics.py
    ```
 
-3. **Access dashboards**:
+2. **Use in your code**:
 
-   * Grafana: [http://localhost:3000](http://localhost:3000) (admin/admin)
-   * Prometheus: [http://localhost:9090](http://localhost:9090)
+   ```python
+   from metrics.main_metrics import track_retrieval, track_generation
+   
+   # Track retrieval performance
+   track_retrieval(query_id, relevant_docs, retrieved_docs, retrieval_time)
+   
+   # Track generation quality  
+   track_generation(query_id, generated_text, reference_text, generation_time, token_count)
+   ```
+
+3. **Export results**:
+
+   ```python
+   from metrics.main_metrics import global_metrics_collector
+   global_metrics_collector.export_metrics("results.json")
+   ```
+
+See [metrics/README.md](../metrics/README.md) for detailed documentation.
 
 ## Support
 

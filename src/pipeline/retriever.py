@@ -2,12 +2,13 @@ from typing import List, Optional
 import logging
 from langchain.schema.messages import HumanMessage
 import time
+import uuid
 
 from src.core.models import RetrievalResult
 from src.core.prompts import create_prompt_template
 from src.utils.qdrant_utils import qdrant_manager
 from src.llm.groq_client import get_groq_llm
-from src.utils.performance_monitor import track_performance
+from metrics.main_metrics import track_cost_efficiency, global_metrics_collector
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -66,7 +67,6 @@ def _filter_table_context(context_text: str) -> str:
     return " | ".join(filtered_parts) if filtered_parts else ""
 
 
-@track_performance(query_type="multimodal_rag")
 def enhanced_rag_query(query: str,
                        selected_files: Optional[List[str]] = None) -> RetrievalResult:
     """
@@ -81,10 +81,24 @@ def enhanced_rag_query(query: str,
     """
     logger.info(f"Esecuzione query RAG unificata: '{query}'")
     start_time = time.time()
+    embedding_start_time = time.time()
+    
+    # Genera un ID univoco per la query per il tracking delle metriche
+    query_id = str(uuid.uuid4())[:8]
+    
+    # Determina il tipo di query per le metriche
+    query_lower = query.lower()
+    if any(word in query_lower for word in ["image", "immagine", "figura", "figure", "diagram"]):
+        query_type = "image"
+    elif any(word in query_lower for word in ["table", "tabella", "data", "dati", "numero"]):
+        query_type = "table"  
+    else:
+        query_type = "text"
     
     try:
         # Invece di usare retriever separati, facciamo una ricerca unificata
         query_embedding = qdrant_manager.embedder.embed_query(query)
+        embedding_time = time.time() - embedding_start_time
         
         # Ricerca unificata su tutti i tipi di contenuto
         all_results = qdrant_manager.search_vectors(
@@ -202,6 +216,35 @@ def enhanced_rag_query(query: str,
         confidence_score = min(1.0, len(source_docs) / 10.0)  # Semplice basato sul numero di risultati
         
         query_time_ms = int((time.time() - start_time) * 1000)
+        response_time = query_time_ms / 1000.0
+        
+        # Calcolo approssimativo dei token (per metriche di costo)
+        try:
+            import tiktoken
+            encoding = tiktoken.get_encoding("cl100k_base")
+            
+            # Token per l'embedding (query)
+            embedding_tokens = len(encoding.encode(query))
+            
+            # Token per la generazione (risposta)
+            generation_tokens = len(encoding.encode(answer))
+            
+            total_tokens = embedding_tokens + generation_tokens
+            
+            # Traccia le metriche di costo ed efficienza
+            track_cost_efficiency(
+                query_id=query_id,
+                total_tokens=total_tokens,
+                embedding_tokens=embedding_tokens,
+                generation_tokens=generation_tokens,
+                response_time=response_time,
+                embedding_time=embedding_time
+            )
+            
+            logger.info(f"Metriche tracciate per query {query_id}: {total_tokens} token totali, {response_time:.2f}s")
+            
+        except Exception as token_error:
+            logger.warning(f"Errore nel calcolo dei token per metriche: {token_error}")
         
         return RetrievalResult(
             answer=answer,
@@ -219,6 +262,7 @@ def enhanced_rag_query(query: str,
     except Exception as e:
         logger.error(f"Errore RAG unificato: {e}")
         query_time_ms = int((time.time() - start_time) * 1000)
+        
         return RetrievalResult(
             answer="Errore durante la ricerca.",
             source_documents=[],

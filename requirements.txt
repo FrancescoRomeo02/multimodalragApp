@@ -42,6 +42,10 @@ pandas>=2.0.0
 matplotlib>=3.5.0
 seaborn>=0.11.0
 
+# Metrics and evaluation
+bert_score>=0.3.13
+nltk>=3.8.0
+
 # Testing e Development (aggiunto)
 pytest>=7.0.0
 pytest-cov>=4.0.0
@@ -55,3 +59,4 @@ pre-commit>=3.0.0
 # Monitoring e Performance
 psutil>=5.9.0
 memory-profiler>=0.61.0
+prometheus-client>=0.20.0

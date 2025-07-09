@@ -1,0 +1,192 @@
+{
+  "export_timestamp": "2025-07-09T11:37:55.709534",
+  "summary": {
+    "timestamp": "2025-07-09T11:37:55.709543",
+    "retrieval_metrics": {
+      "total_queries": 2,
+      "avg_retrieval_time": 2.751,
+      "recall_at_k": {
+        "recall@1": 0.0,
+        "recall@3": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 0.0
+      },
+      "precision_at_k": {
+        "precision@1": 0.0,
+        "precision@3": 0.0,
+        "precision@5": 0.0,
+        "precision@10": 0.0
+      },
+      "mean_reciprocal_rank": 0.027777777777777776
+    },
+    "generation_metrics": {
+      "total_generations": 2,
+      "avg_generation_time": 0.06894855403900146,
+      "avg_token_count": 390.5,
+      "exact_match_rate": 0.0,
+      "bert_score": {
+        "avg_precision": 0.5870203673839569,
+        "avg_recall": 0.7385347783565521,
+        "avg_f1": 0.654059112071991
+      }
+    },
+    "multimodal_metrics": {
+      "total_multimodal_queries": 2,
+      "avg_image_text_accuracy": 0.0,
+      "image_retrieval_rate": 0.0,
+      "text_retrieval_rate": 0.5,
+      "image_relevance_rate": 1.0,
+      "text_relevance_rate": 0.5
+    },
+    "cost_efficiency_metrics": {
+      "total_queries": 4,
+      "total_tokens": 1917,
+      "avg_tokens_per_query": 479.25,
+      "avg_embedding_tokens": 6.0,
+      "avg_generation_tokens": 472.75,
+      "avg_response_time": 2.7854742770195005,
+      "avg_embedding_time": 2.019941723823547,
+      "avg_tokens_per_second": 228.53815084442465,
+      "avg_embedding_tokens_per_second": 41.566066559921246
+    }
+  },
+  "raw_data": {
+    "retrieval": [
+      {
+        "query_id": "fd55a886",
+        "relevant_docs": [
+          "page_3"
+        ],
+        "retrieved_docs": [],
+        "retrieval_time": 3.908,
+        "timestamp": "2025-07-09T11:31:24.949641"
+      },
+      {
+        "query_id": "30ead02f",
+        "relevant_docs": [
+          "page_3"
+        ],
+        "retrieved_docs": [
+          "page_6",
+          "page_9",
+          "page_5",
+          "page_12",
+          "page_6",
+          "page_16",
+          "page_1",
+          "page_14",
+          "page_12",
+          "page_8",
+          "page_6",
+          "page_14",
+          "page_14",
+          "page_4",
+          "page_13",
+          "page_6",
+          "page_7",
+          "page_3",
+          "page_8",
+          "page_10",
+          "page_11",
+          "page_6",
+          "page_17",
+          "page_14",
+          "page_9",
+          "page_10",
+          "page_11",
+          "page_4",
+          "page_15",
+          "page_10",
+          "page_3",
+          "page_10",
+          "page_15",
+          "page_13",
+          "page_16",
+          "page_7",
+          "page_5",
+          "page_1",
+          "page_16",
+          "page_13"
+        ],
+        "retrieval_time": 1.594,
+        "timestamp": "2025-07-09T11:35:59.956538"
+      }
+    ],
+    "generation": [
+      {
+        "query_id": "fd55a886",
+        "generated_text": "Lo shortest-path, o problema del cammino più breve, è un problema classico nella teoria dei grafi e nell'informatica, che consiste nel trovare il cammino con il peso totale minimo (o massimo) tra due vertici in un grafo pesato.\n\nIl problema può essere formulato in vari modi, tra cui:\n\n*   **Single-Source Shortest Paths (SSSP)**: Trovare il cammino più breve da un vertice sorgente a tutti gli altri vertici del grafo.\n*   **Single-Destination Shortest Paths**: Trovare il cammino più breve da tutti i vertici a un vertice destinazione.\n*   **All-Pairs Shortest Paths**: Trovare il cammino più breve tra tutte le coppie di vertici.\n\nNei grafi senza pesi negativi, algoritmi come **Dijkstra's** possono essere utilizzati per risolvere il problema. Tuttavia, quando sono presenti pesi negativi, **Bellman-Ford** diventa necessario.\n\nQuesti algoritmi sfruttano proprietà come:\n\n*   **Sottocammino**: i sottocammini dei cammini più brevi sono anch'essi cammini più brevi.\n*   **Priorità**: i vertici vengono visitati in ordine di distanza crescente dalla sorgente.\n\nLe applicazioni degli algoritmi di shortest-path sono numerose e includono:\n\n*   **Navigazione**: trovare il percorso più breve tra due luoghi in un sistema di navigazione.\n*   **Rete**: ottimizzare la trasmissione dei dati nelle reti.\n*   **Logistica**: pianificare le rotte dei veicoli per ridurre i costi.\n\nTuttavia, la presenza di cicli con peso negativo può rendere il problema insolubile, poiché è possibile ridurre ulteriormente il peso del cammino girando attorno al ciclo.",
+        "reference_text": "Lo shortest path (cammino più breve) è il percorso di lunghezza minima tra due nodi in un grafo, dove la lunghezza è la somma dei pesi degli archi attraversati.",
+        "generation_time": 0.13194107246398934,
+        "token_count": 295,
+        "timestamp": "2025-07-09T11:31:24.949688"
+      },
+      {
+        "query_id": "30ead02f",
+        "generated_text": "Lo shortest-path, o problema del cammino più breve, è un problema fondamentale nella teoria dei grafi e riguarda la ricerca del cammino con il peso totale minimo tra due vertici in un grafo pesato. Questo problema ha numerose applicazioni pratiche, come la navigazione, la pianificazione di percorsi di rete e l'ottimizzazione di processi.\n\n**Definizione e Varianti**\n\nIl problema del cammino più breve può essere definito come segue: dato un grafo pesato \\(G = (V, E)\\) e un vertice sorgente \\(s \\in V\\), trovare il cammino più breve da \\(s\\) a tutti gli altri vertici in \\(V\\). Esistono varianti di questo problema, tra cui:\n\n- **Single-Source Shortest Paths (SSSP)**: trovare il cammino più breve da un vertice sorgente a tutti gli altri vertici.\n- **Single-Destination Shortest Paths**: analogo all'SSSP, ma si cerca il cammino più breve verso un vertice destinazione specifico.\n- **All-Pairs Shortest Paths**: trovare il cammino più breve tra tutte le coppie di vertici.\n\n**Algoritmi Principali**\n\nDue algoritmi fondamentali per risolvere il problema del cammino più breve sono:\n\n1. **Algoritmo di Dijkstra**: funziona bene per grafi con pesi non negativi. L'algoritmo mantiene un insieme \\(X\\) di vertici visitati e un insieme \\(Q\\) di vertici da visitare, prioritizzati in base alla distanza provvisoria dal vertice sorgente. La complessità temporale è \\(O((V + E) \\log V)\\) con un heap binario.\n\n2. **Algoritmo di Bellman-Ford**: può gestire grafi con pesi negativi. L'algoritmo rilassa tutti gli archi \\(|V| - 1\\) volte, dove \\(|V|\\) è il numero di vertici. Se ulteriori rilassamenti sono possibili, significa che esiste un ciclo con peso negativo. La complessità temporale è \\(O(V \\cdot E)\\).\n\n**Proprietà Importanti**\n\n- **Sottocammino di un cammino più breve**: anche i sottocammini di un cammino più breve sono più brevi.\n- **Assenza di cicli negativi**: se esiste un ciclo con peso negativo raggiungibile dalla sorgente, non esiste un cammino più breve.\n\n**Limitazioni e Casi Particolari**\n\n- I pesi negativi possono complicare il problema e richiedere algoritmi specifici come Bellman-Ford.\n- La presenza di cicli con peso negativo può rendere impossibile trovare un cammino più breve.\n\nIn conclusione, il problema del cammino più breve è un aspetto cruciale della teoria dei grafi con molteplici applicazioni. Algoritmi come Dijkstra e Bellman-Ford offrono soluzioni efficienti per varianti del problema in contesti diversi.",
+        "reference_text": "Lo shortest path (cammino più breve) è il percorso di lunghezza minima tra due nodi in un grafo, dove la lunghezza è la somma dei pesi degli archi attraversati.",
+        "generation_time": 0.005956035614013588,
+        "token_count": 486,
+        "timestamp": "2025-07-09T11:35:59.956661"
+      }
+    ],
+    "multimodal": [
+      {
+        "query_id": "fd55a886",
+        "image_retrieved": false,
+        "text_retrieved": false,
+        "image_relevant": true,
+        "text_relevant": false,
+        "multimodal_accuracy": 0.5,
+        "timestamp": "2025-07-09T11:31:26.692991"
+      },
+      {
+        "query_id": "30ead02f",
+        "image_retrieved": false,
+        "text_retrieved": true,
+        "image_relevant": true,
+        "text_relevant": true,
+        "multimodal_accuracy": 1.0,
+        "timestamp": "2025-07-09T11:36:01.215100"
+      }
+    ],
+    "cost_efficiency": [
+      {
+        "query_id": "8f144b29",
+        "total_tokens": 438,
+        "embedding_tokens": 10,
+        "generation_tokens": 428,
+        "response_time": 3.908,
+        "embedding_time": 2.5276598930358887,
+        "timestamp": "2025-07-09T11:31:24.949325"
+      },
+      {
+        "query_id": "fd55a886",
+        "total_tokens": 299,
+        "embedding_tokens": 3,
+        "generation_tokens": 295,
+        "response_time": 4.039941072463989,
+        "embedding_time": 3.908,
+        "timestamp": "2025-07-09T11:31:26.693015"
+      },
+      {
+        "query_id": "0c2013a7",
+        "total_tokens": 690,
+        "embedding_tokens": 8,
+        "generation_tokens": 682,
+        "response_time": 1.594,
+        "embedding_time": 0.05010700225830078,
+        "timestamp": "2025-07-09T11:35:59.952943"
+      },
+      {
+        "query_id": "30ead02f",
+        "total_tokens": 490,
+        "embedding_tokens": 3,
+        "generation_tokens": 486,
+        "response_time": 1.5999560356140137,
+        "embedding_time": 1.594,
+        "timestamp": "2025-07-09T11:36:01.215121"
+      }
+    ]
+  }
+}
