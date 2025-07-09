@@ -40,6 +40,13 @@
 
 ---
 
+## Data Flow
+
+<img width="932" height="584" alt="Image" src="https://github.com/user-attachments/assets/7c0a80fd-6252-4012-96f9-4383873c0418" />
+
+---
+
+
 ## Quick Start
 
 ### 1. Clone the repository

@@ -44,7 +44,7 @@ def is_valid_table(df: pd.DataFrame) -> bool:
                 meaningful_content += 1
     
     meaningful_ratio = meaningful_content / (total_cells - empty_cells) if (total_cells - empty_cells) > 0 else 0
-    if meaningful_ratio < 0.3:
+    if meaningful_ratio < 0.6:
         logger.debug(f"Tabella scartata: contenuto poco significativo ({meaningful_ratio:.2%})")
         return False
     

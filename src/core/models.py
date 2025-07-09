@@ -32,7 +32,7 @@ class TableMetadata(BaseModel):
     table_id: str = Field(..., description="Identificatore univoco della tabella (es. table_1)")
     table_summary: Optional[str] = Field(None, description="Riassunto AI generato della tabella")
 
-class TableData(BaseModel):
+class TableData(BaseModel): 
     """Modello per i dati strutturati della tabella"""
     cells: List[List[Optional[str]]]
     headers: List[str]
