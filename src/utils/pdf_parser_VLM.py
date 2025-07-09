@@ -251,34 +251,3 @@ def extract_pdf_content(pdf_path: str, groq_api_key: Optional[str] = None, dpi: 
     parser = PDFParserCore(groq_api_key)
     return parser.extract_content(pdf_path, dpi)
 
-
-if __name__ == "__main__":
-    import sys
-    
-    if len(sys.argv) < 2:
-        print("Utilizzo: python pdf_parser_core.py <file.pdf>")
-        sys.exit(1)
-    
-    # Test rapido
-    pdf_file = sys.argv[1]
-    
-    try:
-        result = extract_pdf_content(pdf_file)
-        
-        print(f"📄 PDF: {Path(pdf_file).name}")
-        print(f"📑 Pagine: {result.total_pages}")
-        print(f"📊 Tabelle: {result.total_tables}")
-        print(f"🖼️  Immagini: {result.total_images}")
-        print(f"📝 Blocchi testo: {result.total_text_blocks}")
-        print()
-        
-        for page in result.pages[:5]:  # Mostra prime 5 pagine
-            print(f"Pagina {page['page_number']:2d}: "
-                  f"{page['tables']} tab, {page['images']} img, "
-                  f"{page['text_blocks']} testi ({page['source']})")
-        
-        if len(result.pages) > 5:
-            print("...")
-            
-    except Exception as e:
-        print(f"❌ Errore: {e}")

@@ -415,6 +415,15 @@ def parse_pdf_elements_unified(pdf_path: str, use_vlm: bool = True, groq_api_key
                     # Estrai potenziali contenuti tabulari dal testo OCR
                     table_content = extract_table_content_from_text(text, table_idx)
                     
+                    # Genera riassunto dettagliato della tabella usando VLM
+                    table_summary = generate_table_summary_vlm(
+                        table_content["markdown"], 
+                        text, 
+                        page_num, 
+                        vlm_analyzer,
+                        table_id
+                    )
+                    
                     table_element = {
                         "table_data": table_content["data"],
                         "table_markdown": table_content["markdown"],
@@ -423,11 +432,17 @@ def parse_pdf_elements_unified(pdf_path: str, use_vlm: bool = True, groq_api_key
                             "page": page_num,
                             "content_type": "table",
                             "table_id": table_id,
-                            "table_summary": f"Tabella identificata da VLM su pagina {page_num}",
+                            "table_summary": table_summary,
                             "vlm_confidence": page_analysis.confidence,
                             "vlm_detected": True
                         }
                     }
+                    
+                    # Arricchisci la tabella con il riassunto AI (come nel parser originale)
+                    try:
+                        table_element = enhance_table_with_summary(table_element)
+                    except Exception as e:
+                        logger.debug(f"Errore nell'arricchimento tabella {table_id}: {e}")
                     
                     table_elements.append(table_element)
                     logger.info(f"Tabella VLM {table_id} creata per pagina {page_num}")
@@ -443,7 +458,29 @@ def parse_pdf_elements_unified(pdf_path: str, use_vlm: bool = True, groq_api_key
                     image_base64 = base64.b64encode(img_buffer.getvalue()).decode('utf-8')
                     
                     # Crea descrizione basata su testo OCR e analisi VLM
-                    image_description = create_image_description_from_vlm(text, page_analysis, img_idx)
+                    image_description = create_image_description_from_vlm(text, page_analysis, img_idx, image_id)
+                    
+                    # Genera informazioni comprehensive per l'immagine (come nel parser originale)
+                    try:
+                        # Simula il context e usa get_comprehensive_image_info
+                        comprehensive_info = get_comprehensive_image_info(image_base64)
+                        base_caption = comprehensive_info.get("caption", f"Immagine {img_idx + 1} identificata da VLM su pagina {page_num}")
+                        comprehensive_caption = f"[{image_id}] {base_caption}"
+                        
+                        # Arricchisci con il context extractor (simulato per VLM)
+                        context_extractor = ContextExtractor()
+                        context_info: Dict[str, Optional[str]] = {
+                            "caption": comprehensive_caption,
+                            "context_text": f"Contesto pagina {page_num}: {text[:500]}..." if text else None
+                        }
+                        enhanced_description = context_extractor.enhance_text_with_context(
+                            comprehensive_caption,
+                            context_info
+                        )
+                    except Exception as e:
+                        logger.debug(f"Errore nell'elaborazione comprehensiva immagine {image_id}: {e}")
+                        comprehensive_caption = f"[{image_id}] Immagine {img_idx + 1} identificata da VLM su pagina {page_num}"
+                        enhanced_description = image_description
                     
                     image_element = {
                         "image_base64": image_base64,
@@ -452,11 +489,11 @@ def parse_pdf_elements_unified(pdf_path: str, use_vlm: bool = True, groq_api_key
                             "page": page_num,
                             "content_type": "image",
                             "image_id": image_id,
-                            "image_caption": f"Immagine {img_idx + 1} identificata da VLM su pagina {page_num}",
+                            "image_caption": comprehensive_caption,
                             "vlm_confidence": page_analysis.confidence,
                             "vlm_detected": True
                         },
-                        "page_content": image_description
+                        "page_content": enhanced_description  # Descrizione arricchita per la ricerca
                     }
                     
                     image_elements.append(image_element)
@@ -549,7 +586,7 @@ def extract_table_content_from_text(text: str, table_index: int) -> Dict[str, An
     }
 
 
-def create_image_description_from_vlm(text: str, page_analysis: PageAnalysis, image_index: int) -> str:
+def create_image_description_from_vlm(text: str, page_analysis: PageAnalysis, image_index: int, image_id: str = "") -> str:
     """
     Crea una descrizione dell'immagine basata sul testo OCR e l'analisi VLM.
     """
@@ -567,21 +604,95 @@ def create_image_description_from_vlm(text: str, page_analysis: PageAnalysis, im
                     image_refs.append(line.strip())
                     break
     
-    # Crea descrizione
+    # Crea descrizione base
     if image_refs:
-        description = f"Immagine {image_index + 1}: {image_refs[0]}"
+        base_description = f"Immagine {image_index + 1}: {image_refs[0]}"
     else:
-        description = f"Contenuto visivo identificato da VLM su pagina {page_analysis.page_number}"
+        base_description = f"Contenuto visivo identificato da VLM su pagina {page_analysis.page_number}"
     
     # Aggiungi contesto dal tipo di pagina
     if page_analysis.page_type == 'mixed_content':
-        description += " (pagina con contenuto misto: testo, immagini e tabelle)"
+        base_description += " (pagina con contenuto misto: testo, immagini e tabelle)"
     elif page_analysis.page_type == 'table_heavy':
-        description += " (pagina ricca di tabelle con elementi grafici)"
+        base_description += " (pagina ricca di tabelle con elementi grafici)"
     
-    description += f" - Confidence VLM: {page_analysis.confidence}%"
+    base_description += f" - Confidence VLM: {page_analysis.confidence}%"
     
-    return description
+    # Aggiungi il riferimento all'immagine all'inizio
+    image_ref = f"[{image_id}] " if image_id else ""
+    return f"{image_ref}{base_description}"
+
+
+def generate_table_summary_vlm(table_markdown: str, page_text: str, page_num: int, vlm_analyzer: Optional[VLMAnalyzer], table_id: str = "") -> str:
+    """
+    Genera un riassunto dettagliato della tabella usando VLM/LLM.
+    """
+    if not vlm_analyzer or not vlm_analyzer.groq_client or not table_markdown.strip():
+        table_ref = f"[{table_id}] " if table_id else ""
+        return f"{table_ref}Tabella su pagina {page_num} - contenuto non disponibile per l'analisi"
+    
+    # Limita il contenuto per evitare token limits
+    table_content = table_markdown[:1500]
+    context_text = page_text[:1000] if page_text else ""
+    
+    prompt = f"""Analizza questa tabella e fornisci un riassunto dettagliato e informativo in italiano.
+
+TABELLA (formato Markdown):
+{table_content}
+
+CONTESTO DELLA PAGINA:
+{context_text}
+
+Crea un riassunto che includa:
+1. Scopo/obiettivo della tabella
+2. Struttura e organizzazione dei dati
+3. Informazioni chiave o pattern interessanti
+4. Tipo di dati contenuti
+
+Fornisci un riassunto di 2-4 frasi, chiaro e specifico:"""
+
+    try:
+        response = vlm_analyzer.groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",  # Modello più veloce per riassunti
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=400,
+        )
+        
+        content = response.choices[0].message.content
+        if content and len(content.strip()) > 20:
+            # Pulisci il riassunto
+            summary = content.strip()
+            # Rimuovi eventuali prefissi comuni
+            prefixes_to_remove = [
+                "La tabella", "Questa tabella", "Il riassunto:", "Riassunto:", 
+                "Summary:", "Analisi:"
+            ]
+            for prefix in prefixes_to_remove:
+                if summary.startswith(prefix):
+                    summary = summary[len(prefix):].strip()
+                    if summary.startswith(":"):
+                        summary = summary[1:].strip()
+            
+            # Assicurati che inizi con maiuscola
+            if summary and not summary[0].isupper():
+                summary = summary[0].upper() + summary[1:]
+            
+            # Aggiungi il riferimento alla tabella all'inizio
+            table_ref = f"[{table_id}] " if table_id else ""
+            return f"{table_ref}{summary}"
+            
+    except Exception as e:
+        logger.debug(f"Errore nella generazione del riassunto tabella: {e}")
+    
+    # Fallback: crea riassunto basico
+    lines = table_markdown.split('\n')
+    num_rows = len([l for l in lines if l.strip() and not l.startswith('|---')])
+    num_cols = len(lines[0].split('|')) - 2 if lines else 0
+    
+    table_ref = f"[{table_id}] " if table_id else ""
+    return f"{table_ref}Tabella {num_rows}x{num_cols} su pagina {page_num} contenente dati strutturati. " \
+           f"Include informazioni organizzate in formato tabulare per analisi e consultazione."
 
 
 def parse_pdf_elements_fallback(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]], ParsingStats]:
