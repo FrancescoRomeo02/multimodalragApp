@@ -66,7 +66,7 @@ def source_selector_widget():
     return selected_now
 
 
-def display_source_document(doc_info: dict, index: int):
+def display_source_document(doc_info: dict):
     """
     Display the information of a source document in a more precise and clean way.
 
