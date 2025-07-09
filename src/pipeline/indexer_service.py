@@ -2,7 +2,7 @@ import os
 import logging
 from typing import List, Dict, Any, Optional
 
-from src.utils.pdf_parser import parse_pdf_elements
+from src.utils.pdf_parser_unified import parse_pdf_elements, parse_pdf_elements_unified
 from src.utils.qdrant_utils import qdrant_manager
 from src.utils.embedder import AdvancedEmbedder
 from src.utils.semantic_chunker import MultimodalSemanticChunker
@@ -176,3 +176,158 @@ class DocumentIndexer:
         except Exception as e:
             logger.error(f"Errore controllo stato indice: {e}")
             return {"error": str(e)}
+
+    def index_documents_enhanced(self, pdf_paths: List[str], use_vlm: bool = True, groq_api_key: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Indicizza documenti PDF con parser unificato e statistiche avanzate.
+        
+        Args:
+            pdf_paths: Lista dei percorsi ai file PDF
+            use_vlm: Se utilizzare l'analisi VLM (default: True)
+            groq_api_key: Chiave API Groq (opzionale)
+            
+        Returns:
+            Dict con risultati dell'indicizzazione e statistiche dettagliate
+        """
+        logger.info(f"Avvio indicizzazione avanzata di {len(pdf_paths)} file PDF")
+
+        all_text_elements: List[TextElement] = []
+        all_image_elements: List[ImageElement] = []
+        all_table_elements: List[TableElement] = []
+        all_stats = []
+        processed_files = 0
+
+        for pdf_path in pdf_paths:
+            try:
+                # Usa il parser unificato per ottenere anche le statistiche
+                texts_dicts, images_dicts, tables_dicts, stats = parse_pdf_elements_unified(
+                    pdf_path, use_vlm=use_vlm, groq_api_key=groq_api_key
+                )
+                all_stats.append({
+                    'file': os.path.basename(pdf_path),
+                    'stats': stats
+                })
+                
+                tables_dicts = sanitize_table_cells(tables_dicts)
+
+                if self.semantic_chunker:
+                    logger.info(f"Applicando chunking semantico per {os.path.basename(pdf_path)}")
+                    chunked_texts = self.semantic_chunker.chunk_text_elements(texts_dicts)
+                    enriched_texts, enriched_images, enriched_tables = \
+                        self.semantic_chunker.associate_media_to_chunks(chunked_texts, images_dicts, tables_dicts)
+
+                    chunking_stats = self.semantic_chunker.get_chunking_stats(enriched_texts)
+                    if chunking_stats['total_chunks'] > 0:
+                        logger.info(f"Chunking semantico - Stats: {len(enriched_texts)} chunk totali, "
+                                    f"avg: {chunking_stats['avg_chunk_length']:.0f} caratteri, "
+                                    f"semantici: {chunking_stats['semantic_chunks']}, fallback: {chunking_stats['fallback_chunks']}")
+                    else:
+                        logger.info(f"Chunking semantico - Nessun chunk di testo, "
+                                    f"ma trovati {len(enriched_images)} immagini e {len(enriched_tables)} tabelle")
+
+                    all_text_elements.extend([TextElement(text=txt["text"], metadata=txt["metadata"]) 
+                                              for txt in enriched_texts])
+                    all_image_elements.extend([ImageElement(image_base64=img["image_base64"], 
+                                                            page_content=img["page_content"], 
+                                                            metadata=img["metadata"]) 
+                                               for img in enriched_images])
+                    all_table_elements.extend([TableElement(table_data=tbl["table_data"], 
+                                                            table_markdown=tbl["table_markdown"], 
+                                                            metadata=tbl["metadata"]) 
+                                               for tbl in enriched_tables])
+                else:
+                    all_text_elements.extend([TextElement(text=txt["text"], metadata=txt["metadata"]) 
+                                              for txt in texts_dicts])
+                    all_image_elements.extend([ImageElement(image_base64=img["image_base64"], 
+                                                            page_content=img["page_content"], 
+                                                            metadata=img["metadata"]) 
+                                               for img in images_dicts])
+                    all_table_elements.extend([TableElement(table_data=tbl["table_data"], 
+                                                            table_markdown=tbl["table_markdown"], 
+                                                            metadata=tbl["metadata"]) 
+                                               for tbl in tables_dicts])
+
+                processed_files += 1
+                logger.info(f"File {processed_files}/{len(pdf_paths)} processato: {os.path.basename(pdf_path)} "
+                          f"(VLM: {'✓' if stats.vlm_analysis_used else '✗'})")
+
+            except Exception as e:
+                logger.error(f"Errore nel processamento di {pdf_path}: {str(e)}")
+                continue
+
+        if processed_files == 0:
+            raise ValueError("Nessun file è stato processato con successo")
+
+        # Salva nel vector store usando la stessa logica dell'index_files esistente
+        success = True
+        
+        if all_text_elements:
+            try:
+                text_vectors = [self.embedder.embed_query(el.text) for el in all_text_elements]
+                text_points = self.qdrant_manager.convert_elements_to_points(all_text_elements, text_vectors)
+                if self.qdrant_manager.upsert_points(text_points):
+                    logger.info(f"Indicizzati {len(text_points)} elementi di testo")
+                else:
+                    logger.error("Fallito inserimento punti testo")
+                    success = False
+            except Exception as e:
+                logger.error(f"Errore indicizzazione testi: {e}")
+                success = False
+
+        if all_image_elements:
+            try:
+                image_vectors = [self.embedder.embed_query(el.image_base64) for el in all_image_elements]
+                image_points = self.qdrant_manager.convert_elements_to_points(all_image_elements, image_vectors)
+                if self.qdrant_manager.upsert_points(image_points):
+                    logger.info(f"Indicizzate {len(image_points)} immagini")
+                else:
+                    logger.error("Fallito inserimento punti immagini")
+                    success = False
+            except Exception as e:
+                logger.error(f"Errore indicizzazione immagini: {e}")
+                success = False
+
+        if all_table_elements:
+            try:
+                table_texts = [el.table_markdown for el in all_table_elements]
+                table_vectors = [self.embedder.embed_query(txt) for txt in table_texts]
+                table_points = self.qdrant_manager.convert_elements_to_points(all_table_elements, table_vectors)
+                if self.qdrant_manager.upsert_points(table_points):
+                    logger.info(f"Indicizzate {len(table_points)} tabelle")
+                else:
+                    logger.error("Fallito inserimento punti tabelle")
+                    success = False
+            except Exception as e:
+                logger.error(f"Errore indicizzazione tabelle: {e}")
+                success = False
+
+        # Calcola statistiche aggregate
+        total_parsing_time = sum(stat['stats'].total_time for stat in all_stats)
+        total_pages = sum(stat['stats'].total_pages for stat in all_stats)
+        total_vlm_pages = sum(stat['stats'].vlm_pages_analyzed for stat in all_stats)
+        total_fallback_pages = sum(stat['stats'].fallback_pages for stat in all_stats)
+
+        result = {
+            'files_processed': processed_files,
+            'total_files': len(pdf_paths),
+            'indexing_success': success,
+            'elements': {
+                'texts': len(all_text_elements),
+                'images': len(all_image_elements),
+                'tables': len(all_table_elements)
+            },
+            'statistics': {
+                'total_parsing_time': total_parsing_time,
+                'total_pages': total_pages,
+                'vlm_analysis_used': any(stat['stats'].vlm_analysis_used for stat in all_stats),
+                'vlm_pages_analyzed': total_vlm_pages,
+                'fallback_pages': total_fallback_pages,
+                'files_stats': all_stats
+            }
+        }
+
+        logger.info(f"Indicizzazione completata: {processed_files} file, {len(all_text_elements)} testi, "
+                   f"{len(all_image_elements)} immagini, {len(all_table_elements)} tabelle")
+        logger.info(f"Analisi VLM: {total_vlm_pages} pagine LLM, {total_fallback_pages} fallback")
+
+        return result

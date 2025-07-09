@@ -58,3 +58,48 @@ def delete_source(filename: str) -> tuple[bool, str]:
     except Exception as e:
         logger.error(f"Error deleting '{filename}': {e}", exc_info=True)
         return False, f"Error deleting: {e}"
+
+def process_uploaded_file_enhanced(uploaded_file, indexer: DocumentIndexer, use_vlm: bool = False, groq_api_key: str | None = None) -> tuple[bool, str, dict]:
+    """
+    Save and index an uploaded file with enhanced VLM parsing.
+    
+    Returns:
+        tuple: (success, message, stats_dict)
+    """
+    try:
+        file_name = uploaded_file.name
+        save_path = os.path.join(RAW_DATA_PATH, file_name)
+
+        # Save the file
+        os.makedirs(RAW_DATA_PATH, exist_ok=True)
+        with open(save_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+
+        # Index the file with enhanced method
+        if uploaded_file.type == "application/pdf":
+            if hasattr(indexer, 'index_documents_enhanced'):
+                result = indexer.index_documents_enhanced([save_path], use_vlm=use_vlm, groq_api_key=groq_api_key)
+                
+                if result['indexing_success']:
+                    stats = result['statistics']
+                    msg = (f"File '{file_name}' indicizzato con successo! "
+                          f"Elementi: {result['elements']['texts']} testi, "
+                          f"{result['elements']['images']} immagini, "
+                          f"{result['elements']['tables']} tabelle. "
+                          f"VLM: {'✓' if stats['vlm_analysis_used'] else '✗'}")
+                    logger.info(msg)
+                    return True, msg, result
+                else:
+                    return False, f"Errore durante l'indicizzazione di '{file_name}'", {}
+            else:
+                # Fallback al metodo normale
+                indexer.index_files([save_path], force_recreate=False)
+                msg = f"File '{file_name}' indicizzato con metodo standard."
+                logger.info(msg)
+                return True, msg, {}
+        else:
+            raise NotImplementedError("Attualmente è supportato solo il formato PDF.")
+
+    except Exception as e:
+        logger.error(f"Errore nel processamento di '{uploaded_file.name}': {e}", exc_info=True)
+        return False, f"Errore nell'indicizzazione: {e}", {}

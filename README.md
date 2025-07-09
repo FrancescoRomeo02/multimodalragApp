@@ -239,5 +239,33 @@ This project is licensed under the **MIT License**. See the `LICENSE` file for m
 * [Quick Start Guide](docs/GUIDA_AVVIO.md)
 * [Semantic Chunking](docs/CHUNKING_SEMANTICO.md)
 * [Makefile Command Reference](#makefile-commands-reference)
+* [VLM Parser Guide](docs/VLM_PARSER_GUIDE.md)
 
 ---
+
+## 🧠 New: VLM Parser Enhancement
+
+**MultimodalRAG** now includes an advanced **VLM (Vision Language Model) parser** that combines the existing robust PDF parsing with intelligent content analysis:
+
+### Key Features:
+- 🤖 **Intelligent Content Analysis**: LLM-powered identification of tables, images, and text blocks
+- 📊 **Detailed Statistics**: Comprehensive parsing metrics and performance data
+- 🔄 **Full Backward Compatibility**: Existing code works without changes
+- 💪 **Robust Fallback**: Works even without VLM dependencies
+- ⚡ **Enhanced Upload Interface**: Optional VLM analysis in the UI
+
+### Quick Start with VLM:
+```python
+from src.utils.pdf_parser_unified import parse_pdf_elements_unified
+
+# Enhanced parsing with statistics
+texts, images, tables, stats = parse_pdf_elements_unified(
+    "document.pdf", 
+    use_vlm=True
+)
+
+print(f"Analyzed {stats.total_pages} pages in {stats.total_time:.2f}s")
+print(f"VLM used: {'✓' if stats.vlm_analysis_used else '✗'}")
+```
+
+📖 **[Complete VLM Documentation](docs/VLM_PARSER_GUIDE.md)**

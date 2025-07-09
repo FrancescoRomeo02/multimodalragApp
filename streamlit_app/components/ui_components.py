@@ -2,11 +2,33 @@ import streamlit as st
 import os
 from src.config import RAW_DATA_PATH
 from src.pipeline.retriever import enhanced_rag_query
-from streamlit_app.backend_logic import process_uploaded_file, delete_source
+from streamlit_app.backend_logic import process_uploaded_file, process_uploaded_file_enhanced, delete_source
 
 def upload_widget(indexer):
-    """Upload widget for new document."""
+    """Upload widget for new document with optional VLM analysis."""
     st.header("Upload a New Document")
+    
+    # Advanced options in an expander
+    with st.expander("⚙️ Advanced Parsing Options", expanded=False):
+        use_vlm = st.checkbox(
+            "🧠 Use VLM (Vision Language Model) Analysis", 
+            value=True,  # Default to True since our unified parser uses VLM by default
+            help="Utilizza analisi AI avanzata per identificare meglio tabelle, immagini e contenuti. Attivo di default con il nuovo parser unificato."
+        )
+        
+        groq_api_key = None
+        if use_vlm:
+            groq_api_key = st.text_input(
+                "Groq API Key", 
+                type="password",
+                placeholder="Usa chiave da .env se vuoto",
+                help="Lascia vuoto per usare la chiave configurata nelle variabili d'ambiente"
+            )
+            if groq_api_key.strip() == "":
+                groq_api_key = None
+            
+            st.info("💡 Il nuovo parser unificato usa analisi VLM di default per risultati migliori!")
+    
     uploaded_file = st.file_uploader(
         "Choose a PDF file", type="pdf", label_visibility="collapsed"
     )
@@ -17,16 +39,55 @@ def upload_widget(indexer):
 
         # We only perform indexing IF we haven't already processed this file
         if upload_key not in st.session_state:
-            with st.spinner(f"Indexing '{uploaded_file.name}'..."):
-                success, message = process_uploaded_file(uploaded_file, indexer)
+            with st.spinner(f"Indexing '{uploaded_file.name}' with {('VLM' if use_vlm else 'standard')} parser..."):
+                # Always use enhanced method to get statistics
+                if hasattr(indexer, 'index_documents_enhanced'):
+                    success, message, stats = process_uploaded_file_enhanced(
+                        uploaded_file, indexer, use_vlm=use_vlm, groq_api_key=groq_api_key
+                    )
+                    
+                    if success:
+                        st.success(message)
+                        
+                        # Show detailed statistics if available
+                        if stats and 'statistics' in stats:
+                            with st.expander("📊 Parsing Statistics", expanded=True):
+                                col1, col2, col3 = st.columns(3)
+                                
+                                with col1:
+                                    st.metric("Pages", stats['statistics']['total_pages'])
+                                    st.metric("Parse Time", f"{stats['statistics']['total_parsing_time']:.2f}s")
+                                
+                                with col2:
+                                    st.metric("Text Elements", stats['elements']['texts'])
+                                    st.metric("Images", stats['elements']['images'])
+                                    st.metric("Tables", stats['elements']['tables'])
+                                
+                                with col3:
+                                    vlm_used = stats['statistics']['vlm_analysis_used']
+                                    st.metric("VLM Analysis", "✓ Used" if vlm_used else "✗ Not used")
+                                    if vlm_used:
+                                        st.metric("VLM Pages", stats['statistics']['vlm_pages_analyzed'])
+                                        st.metric("Fallback Pages", stats['statistics']['fallback_pages'])
+                                    
+                                # Show VLM effectiveness
+                                if vlm_used and stats['statistics']['vlm_pages_analyzed'] > 0:
+                                    vlm_ratio = stats['statistics']['vlm_pages_analyzed'] / stats['statistics']['total_pages']
+                                    st.info(f"🧠 VLM Analysis: {vlm_ratio:.1%} of pages analyzed with AI")
+                    else:
+                        st.error(message)
+                else:
+                    # Fallback to standard processing
+                    success, message = process_uploaded_file(uploaded_file, indexer)
+                    if success:
+                        st.success(message)
+                        st.info("ℹ️ Used standard parser (enhanced method not available)")
+                    else:
+                        st.error(message)
             
+            st.session_state[upload_key] = True
             if success:
-                st.success(message)
-                st.session_state[upload_key] = True
                 st.rerun()
-            else:
-                st.error(message)
-                st.session_state[upload_key] = True
 
 
 def source_selector_widget():
@@ -264,7 +325,7 @@ def enhanced_chat_interface_widget(selected_sources: list[str]):
                         # Detailed references
                         st.markdown("**Detailed origin sources:**")
                         for i, doc in enumerate(source_docs):
-                            display_source_document(doc, i)
+                            display_source_document(doc)
                 
                 st.rerun()
 

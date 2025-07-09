@@ -95,6 +95,14 @@ security-check: ## Check for security vulnerabilities
 	safety check
 	bandit -r src/ streamlit_app/ scripts/ -f json
 
+# === VLM PARSER TESTING ===
+test-parser: ## Test the unified VLM parser
+	$(PYTHON) test_unified_parser.py
+
+test-vlm: ## Test VLM functionality specifically
+	@echo "Testing VLM parser functionality..."
+	$(PYTHON) -c "from src.utils.pdf_parser_unified import parse_pdf_elements_unified; print('VLM parser import successful')"
+
 # === COMPOUND COMMANDS ===
 ci: install-dev check-all ## Complete CI pipeline
 	@echo "CI pipeline completed successfully!"
