@@ -733,39 +733,3 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
     """
     text_elements, image_elements, table_elements, _ = parse_pdf_elements_unified(pdf_path)
     return text_elements, image_elements, table_elements
-
-
-if __name__ == "__main__":
-    import sys
-    
-    if len(sys.argv) < 2:
-        print("Utilizzo: python pdf_parser_unified.py <file.pdf>")
-        sys.exit(1)
-    
-    pdf_file = sys.argv[1]
-    
-    try:
-        text_elements, image_elements, table_elements, stats = parse_pdf_elements_unified(pdf_file)
-        
-        print(f"📄 PDF: {Path(pdf_file).name}")
-        print(f"⏱️  Tempo: {stats.total_time:.2f}s")
-        print(f"📑 Pagine: {stats.total_pages}")
-        print(f"📝 Testi: {stats.total_texts}")
-        print(f"📊 Tabelle: {stats.total_tables}")
-        print(f"🖼️  Immagini: {stats.total_images}")
-        print(f"🧠 VLM: {'✓' if stats.vlm_analysis_used else '✗'} ({stats.vlm_pages_analyzed} LLM, {stats.fallback_pages} fallback)")
-        print()
-        
-        # Mostra dettagli prime pagine
-        for i, (text, image, table) in enumerate(zip(text_elements[:3], 
-                                                   image_elements[:3] if image_elements else [None]*3,
-                                                   table_elements[:3] if table_elements else [None]*3)):
-            page = text['metadata']['page']
-            print(f"Pagina {page}: testo={'✓' if text else '✗'}, "
-                  f"img={'✓' if image else '✗'}, tab={'✓' if table else '✗'}")
-        
-        if stats.total_pages > 3:
-            print("...")
-            
-    except Exception as e:
-        print(f"❌ Errore: {e}")
