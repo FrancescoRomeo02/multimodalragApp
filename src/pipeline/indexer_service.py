@@ -2,20 +2,9 @@ import os
 import logging
 from typing import List, Dict, Any, Optional
 
-from src.utils.pdf_parser import parse_pdf_elements
+from src.utils.pdf_parser import parse_pdf_elements, TextChunk
 from src.utils.qdrant_utils import qdrant_manager
 from src.utils.embedder import AdvancedEmbedder
-from src.utils.semantic_chunker import MultimodalSemanticChunker
-from src.core.models import TextElement, ImageElement, TableElement
-from src.config import (
-    SEMANTIC_CHUNK_SIZE, 
-    SEMANTIC_CHUNK_OVERLAP, 
-    SEMANTIC_THRESHOLD, 
-    MIN_CHUNK_SIZE,
-    CHUNKING_EMBEDDING_MODEL,
-    SEMANTIC_CHUNKING_ENABLED
-)
-from src.utils.table_info import sanitize_table_cells
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -25,25 +14,6 @@ class DocumentIndexer:
     def __init__(self, embedder: AdvancedEmbedder, use_semantic_chunking: Optional[bool] = None):
         self.embedder = embedder
         self.qdrant_manager = qdrant_manager
-        self.use_semantic_chunking = SEMANTIC_CHUNKING_ENABLED if use_semantic_chunking is None else use_semantic_chunking
-
-        if self.use_semantic_chunking:
-            try:
-                self.semantic_chunker = MultimodalSemanticChunker(
-                    embedding_model=CHUNKING_EMBEDDING_MODEL,
-                    chunk_size=SEMANTIC_CHUNK_SIZE,
-                    chunk_overlap=SEMANTIC_CHUNK_OVERLAP,
-                    semantic_threshold=SEMANTIC_THRESHOLD,
-                    min_chunk_size=MIN_CHUNK_SIZE
-                )
-                logger.info("Chunker semantico inizializzato con successo")
-            except Exception as e:
-                logger.warning(f"Errore inizializzazione chunker semantico: {e}")
-                self.semantic_chunker = None
-                self.use_semantic_chunking = False
-        else:
-            self.semantic_chunker = None
-            logger.info("Chunking semantico disabilitato, uso metodo classico")
 
     def index_files(self, pdf_paths: List[str], force_recreate: bool = False) -> bool:
         if not pdf_paths:
@@ -73,47 +43,19 @@ class DocumentIndexer:
             logger.error(f"Errore gestione collezione: {e}")
             return False
 
-        all_text_elements: List[TextElement] = []
-        all_image_elements: List[ImageElement] = []
-        all_table_elements: List[TableElement] = []
+  
         processed_files = 0
+        all_text_chunks = []
 
         for pdf_path in pdf_paths:
             try:
-                texts_dicts, images_dicts, tables_dicts = parse_pdf_elements(pdf_path)
-                tables_dicts = sanitize_table_cells(tables_dicts)
-
-                if self.semantic_chunker:
-                    logger.info(f"Applicando chunking semantico per {os.path.basename(pdf_path)}")
-                    chunked_texts = self.semantic_chunker.chunk_text_elements(texts_dicts)
-                    enriched_texts, enriched_images, enriched_tables = \
-                        self.semantic_chunker.associate_media_to_chunks(chunked_texts, images_dicts, tables_dicts)
-
-                    stats = self.semantic_chunker.get_chunking_stats(enriched_texts)
-                    if stats['total_chunks'] > 0:
-                        logger.info(f"Chunking semantico - Stats: {len(enriched_texts)} chunk totali, "
-                                    f"avg: {stats['avg_chunk_length']:.0f} caratteri, "
-                                    f"semantici: {stats['semantic_chunks']}, fallback: {stats['fallback_chunks']}")
-                    else:
-                        logger.info(f"Chunking semantico - Nessun chunk di testo, "
-                                    f"ma trovati {len(enriched_images)} immagini e {len(enriched_tables)} tabelle")
-
-                    text_elements = [TextElement(**d) for d in enriched_texts]
-                    image_elements = [ImageElement(**d) for d in enriched_images]
-                    table_elements = [TableElement(**d) for d in enriched_tables]
-                else:
-                    logger.info(f"Chunking semantico non disponibile per {os.path.basename(pdf_path)}, uso metodo classico")
-                    text_elements = [TextElement(**d) for d in texts_dicts]
-                    image_elements = [ImageElement(**d) for d in images_dicts]
-                    table_elements = [TableElement(**d) for d in tables_dicts]
-
-                all_text_elements.extend(text_elements)
-                all_image_elements.extend(image_elements)
-                all_table_elements.extend(table_elements)
-
+                # Ora parse_pdf_elements restituisce direttamente una lista di TextChunk
+                text_chunks = parse_pdf_elements(pdf_path)
+                all_text_chunks.extend(text_chunks)
+                
                 processed_files += 1
                 logger.info(f"Processato {processed_files}/{len(pdf_paths)}: {os.path.basename(pdf_path)} "
-                            f"(testi: {len(text_elements)}, immagini: {len(image_elements)}, tabelle: {len(table_elements)})")
+                           f"(chunks di testo: {len(text_chunks)})")
             except Exception as e:
                 logger.error(f"Errore processamento file {pdf_path}: {e}")
 
@@ -123,44 +65,23 @@ class DocumentIndexer:
 
         success = True
 
-        if all_text_elements:
+        # Ora gestiamo tutti i chunk di testo in modo unificato
+        if all_text_chunks:
             try:
-                text_vectors = self.embedder.embed_documents([el.text for el in all_text_elements])
-                text_points = self.qdrant_manager.convert_elements_to_points(all_text_elements, text_vectors)
+                # Creiamo embedding per tutti i TextChunk
+                texts_for_embedding = [chunk.text for chunk in all_text_chunks]
+                text_vectors = self.embedder.embed_documents(texts_for_embedding)
+                
+                # Convertire i TextChunk in punti Qdrant
+                text_points = self.qdrant_manager.convert_text_chunks_to_points(all_text_chunks, text_vectors)
+                
                 if self.qdrant_manager.upsert_points(text_points):
-                    logger.info(f"Indicizzati {len(text_points)} elementi testuali")
+                    logger.info(f"Indicizzati {len(text_points)} chunk testuali")
                 else:
-                    logger.error("Fallito inserimento punti testuali")
+                    logger.error("Fallito inserimento punti")
                     success = False
             except Exception as e:
                 logger.error(f"Errore indicizzazione testi: {e}")
-                success = False
-
-        if all_image_elements:
-            try:
-                image_vectors = [self.embedder.embed_query(el.image_base64) for el in all_image_elements]
-                image_points = self.qdrant_manager.convert_elements_to_points(all_image_elements, image_vectors)
-                if self.qdrant_manager.upsert_points(image_points):
-                    logger.info(f"Indicizzate {len(image_points)} immagini")
-                else:
-                    logger.error("Fallito inserimento punti immagini")
-                    success = False
-            except Exception as e:
-                logger.error(f"Errore indicizzazione immagini: {e}")
-                success = False
-
-        if all_table_elements:
-            try:
-                table_texts = [el.table_markdown for el in all_table_elements]
-                table_vectors = [self.embedder.embed_query(txt) for txt in table_texts]
-                table_points = self.qdrant_manager.convert_elements_to_points(all_table_elements, table_vectors)
-                if self.qdrant_manager.upsert_points(table_points):
-                    logger.info(f"Indicizzate {len(table_points)} tabelle")
-                else:
-                    logger.error("Fallito inserimento punti tabelle")
-                    success = False
-            except Exception as e:
-                logger.error(f"Errore indicizzazione tabelle: {e}")
                 success = False
 
         if success:

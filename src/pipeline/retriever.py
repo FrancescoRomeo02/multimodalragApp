@@ -95,58 +95,21 @@ def enhanced_rag_query(query: str,
         logger.info(f"Trovati {len(all_results)} risultati unificati per query: '{query}'")
 
         def build_doc_info(result):
-            """Costruisce le informazioni del documento da un risultato Qdrant"""
+            """Costruisce le informazioni del documento da un risultato Qdrant (versione standardizzata)."""
             payload = result.payload or {}
             meta = payload.get("metadata", {})
-            content_type = meta.get("content_type", "text")
+            
+            # Estrae il contenuto principale dal page_content, che ora è il campo standard
+            content = payload.get("page_content", "Contenuto non disponibile")
 
-            base_info = {
+            return {
                 "metadata": meta,
                 "source": meta.get("source", "Sconosciuto"),
                 "page": meta.get("page", "N/A"),
-                "content_type": content_type,
-                "score": result.score  # Aggiungiamo il punteggio per ordinamento
+                "content_type": "text",  # Tutto è ora di tipo text
+                "score": result.score,
+                "content": content
             }
-
-            if content_type == "table":
-                table_content = payload.get("page_content", meta.get("table_markdown", "Contenuto tabella non disponibile"))
-                
-                # Gestione intelligente del contesto per tabelle
-                context_text = meta.get("context_text", "")
-                meaningful_context = ""
-                
-                if context_text:
-                    meaningful_context = _filter_table_context(context_text)
-                
-            if content_type == "table":
-                table_content = payload.get("page_content", meta.get("table_markdown", "Contenuto tabella non disponibile"))
-                
-                # Gestione intelligente del contesto per tabelle
-                context_text = meta.get("context_text", "")
-                meaningful_context = ""
-                
-                if context_text:
-                    meaningful_context = _filter_table_context(context_text)
-                
-                base_info.update({
-                    "content": table_content,
-                    "table_data": payload.get("table_data", {}),
-                    "caption": meta.get("caption"),
-                    "context_text": meaningful_context,  # Solo contesto significativo
-                    "table_markdown_raw": meta.get("table_markdown")
-                })
-            elif content_type == "image":
-                base_info.update({
-                    "content": payload.get("page_content", ""),
-                    "image_base64": payload.get("image_base64", None),
-                    "image_caption": meta.get("image_caption")
-                })
-            else:
-                # Contenuto testuale
-                content = payload.get("page_content", "")
-                base_info["content"] = content[:500] + "..." if len(content) > 500 else content
-
-            return base_info
         
         # Costruisci tutti i documenti recuperati
         source_docs = [build_doc_info(result) for result in all_results]
@@ -166,21 +129,10 @@ def enhanced_rag_query(query: str,
         # Costruiamo un contesto unificato con tutti i tipi di contenuto
         context_texts = []
         for doc in source_docs[:len(source_docs)]:
-            doc_type = doc.get("content_type", "text")
             source = doc.get("source", "Sconosciuto")
             page = doc.get("page", "N/A")
             content = doc.get("content", "")
-            
-            if doc_type == "table":
-                table_id = doc.get("metadata", {}).get("table_id", "")
-                identifier = f"[{table_id}] " if table_id else ""
-                context_texts.append(f"[TABELLA {identifier}da {source}, pagina {page}]\n{content}\n")
-            elif doc_type == "image":
-                image_id = doc.get("metadata", {}).get("image_id", "")
-                identifier = f"[{image_id}] " if image_id else ""
-                context_texts.append(f"[IMMAGINE {identifier}da {source}, pagina {page}]\n{content}\n")
-            else:
-                context_texts.append(f"[TESTO da {source}, pagina {page}]\n{content}\n")
+            context_texts.append(f"[TESTO da {source}, pagina {page}]\n{content}\n")
         
         unified_context = "\n".join(context_texts)
         

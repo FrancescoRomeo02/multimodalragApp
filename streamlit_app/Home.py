@@ -35,7 +35,7 @@ def load_main_services():
         indexer = DocumentIndexer(embedder=embedder)
         
         # Check if semantic chunking is active
-        chunking_type = "Semantic" if indexer.semantic_chunker else "Classic"
+        chunking_type = "By_Title"
         logger.info(f"Services initialized successfully. Chunking: {chunking_type}")
         return indexer, chunking_type
     except Exception as e:

@@ -71,8 +71,7 @@ def get_caption(base64_str: str) -> str:
         client = Groq(api_key=GROQ_API_KEY)
 
         # Prova prima con il modello configurato per immagini
-        try:
-            chat_completion = client.chat.completions.create(
+        chat_completion = client.chat.completions.create(
                 messages=[
                     {
                         "role": "user",
@@ -95,45 +94,10 @@ def get_caption(base64_str: str) -> str:
                 temperature=0.1,
             )
             
-            caption = chat_completion.choices[0].message.content
-            logger.info(f"Caption generata con successo usando {IMG_DESC_MODEL_SM}")
-            return caption if caption else "Immagine non descrivibile"
+        caption = chat_completion.choices[0].message.content
+        logger.info(f"Caption generata con successo usando {IMG_DESC_MODEL_SM}")
+        return caption if caption else "Immagine non descrivibile"
             
-        except Exception as vision_error:
-            logger.warning(f"Modello {IMG_DESC_MODEL_SM} non supporta immagini: {vision_error}")
-            
-            # Fallback: prova con modello vision specifico se disponibile
-            try:
-                chat_completion = client.chat.completions.create(
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "text", 
-                                    "text": "Descrivi dettagliatamente cosa vedi in questa immagine. Fornisci una descrizione accurata e completa degli oggetti, delle persone, del contesto e di qualsiasi testo visibile."
-                                },
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:image/jpeg;base64,{base64_str}",
-                                    },
-                                },
-                            ],
-                        }
-                    ],
-                    model="llama-3.2-11b-vision-preview",  # Modello vision specifico
-                    max_tokens=300,
-                    temperature=0.1,
-                )
-                
-                caption = chat_completion.choices[0].message.content
-                logger.info(f"Caption generata con fallback usando llama-3.2-11b-vision-preview")
-                return caption if caption else "Immagine non descrivibile"
-                
-            except Exception as fallback_error:
-                logger.warning(f"Anche il modello vision fallback è fallito: {fallback_error}")
-                raise fallback_error
 
     except Exception as e:
         logger.error(f"Errore generazione caption con modelli vision: {e}")

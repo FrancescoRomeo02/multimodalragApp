@@ -1,373 +1,297 @@
-import fitz  
-import base64
-import logging
-from typing import Tuple, List, Dict, Any
-from io import BytesIO
-from PIL import Image as PILImage
 import os
-import pandas as pd
-import numpy as np
-from src.utils.context_extractor import ContextExtractor
-from src.utils.image_info import get_comprehensive_image_info
-from src.utils.table_info import enhance_table_with_summary
+import time
+import groq
+from typing import List, Any, Dict
+from dotenv import load_dotenv
+import logging
+import json
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Configura un logging di base per vedere meglio gli errori
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# Carica variabili ambiente (GROQ_API_KEY)
+load_dotenv()
 
-def is_valid_table(df: pd.DataFrame) -> bool:
-    """
-    Filtro avanzato per validazione tabelle con criteri migliorati:
-    - Dimensioni minime: almeno 2 righe e 2 colonne
-    - Qualità dei dati: meno del 70% di celle vuote
-    - Contenuto significativo: almeno il 30% delle celle con testo valido
-    - Struttura coerente: varianza nella lunghezza del contenuto
-    - Header detection: prima riga con caratteristiche di intestazione
-    """
-    rows, cols = df.shape
-    
-    
-    total_cells = rows * cols
-    empty_cells = df.isna().values.sum()
-    empty_ratio = empty_cells / total_cells
-    
-    # Soglia più rigorosa per celle vuote
-    if empty_ratio > 0.7:
-        logger.debug(f"Tabella scartata: troppe celle vuote ({empty_ratio:.2%})")
-        return False
-    
-    # Conta celle con contenuto significativo (non solo spazi o caratteri singoli)
-    meaningful_content = 0
-    for col in df.columns:
-        for value in df[col].dropna():
-            if isinstance(value, str) and len(str(value).strip()) > 1:
-                meaningful_content += 1
-    
-    meaningful_ratio = meaningful_content / (total_cells - empty_cells) if (total_cells - empty_cells) > 0 else 0
-    if meaningful_ratio < 0.6:
-        logger.debug(f"Tabella scartata: contenuto poco significativo ({meaningful_ratio:.2%})")
-        return False
-    
-    # Verifica presenza di header (prima riga diversa dalle altre)
-    if rows >= 3:
-        first_row = df.iloc[0].astype(str)
-        second_row = df.iloc[1].astype(str)
-        
-        # Header spesso contiene testo più breve e descrittivo
-        first_row_lengths = [len(str(x).strip()) for x in first_row if pd.notna(x)]
-        second_row_lengths = [len(str(x).strip()) for x in second_row if pd.notna(x)]
-        
-        avg_first = np.mean(first_row_lengths) if first_row_lengths else 0
-        avg_second = np.mean(second_row_lengths) if second_row_lengths else 0
-        
-        # Se la prima riga ha contenuto troppo simile alle altre, potrebbe non essere una tabella
-        if abs(avg_first - avg_second) < 2 and avg_first < 3:
-            logger.debug("Tabella scartata: struttura header non chiara")
-            return False
-    
-    # Verifica varianza nel contenuto (tabelle reali hanno dati diversificati)
-    content_variance_score = 0
-    text_only = True
-    for col in df.columns:
-        col_values = df[col].dropna().astype(str)
-        # Verifica se ci sono valori numerici nella colonna
-        if any(col_values.str.replace('.', '', 1).str.isdigit()):
-            text_only = False
-        if len(col_values) > 1:
-            unique_values = col_values.nunique()
-            variance_ratio = unique_values / len(col_values)
-            content_variance_score += variance_ratio
+# === 1. Partizionamento PDF con Unstructured ===
+from unstructured.partition.pdf import partition_pdf
+from dataclasses import dataclass, field, asdict
 
-    avg_variance = content_variance_score / cols if cols > 0 else 0
-    # Se la tabella contiene solo testo, salta il controllo di varianza
-    if not text_only and avg_variance < 0.1:  # Troppo poco variabile
-        logger.debug(f"Tabella scartata: contenuto troppo uniforme (variance: {avg_variance:.2f})")
-        return False
-    
-    
-    logger.debug(f"Tabella valida: {rows}x{cols}, vuote: {empty_ratio:.2%}, significative: {meaningful_ratio:.2%}")
+@dataclass
+class TextChunk:
+    text: str
+    metadata: dict = field(default_factory=dict)
+    content_type: str = "text"
 
-    return True
+def parse_pdf_elements(pdf_path: str) -> List[TextChunk]:
 
-def is_valid_image(width: int, height: int, image_data: bytes) -> bool:
-    """
-    Filtro per immagini valide basato su dimensioni e qualità:
-    - Dimensioni minime: 100x100 pixel
-    - Area minima: 15.000 pixel
-    - Dimensioni massime ragionevoli: 5000x5000 pixel
-    - Dimensione file minima: 1KB per evitare placeholder/icone
-    - Rapporto di aspetto ragionevole (non troppo allungate)
-    """
-    # Controlli dimensioni di base
-    if width < 120 or height < 120:
-        logger.debug(f"Immagine scartata: dimensioni troppo piccole ({width}x{height})")
-        return False
-    
-    # Controllo area minima
-    area = width * height
-    if area < 14400:  # ~120x120 pixel
-        logger.debug(f"Immagine scartata: area troppo piccola ({area} pixel)")
-        return False
-    
-    # Controllo dimensioni massime
-    if width > 5000 or height > 5000:
-        logger.debug(f"Immagine scartata: dimensioni troppo grandi ({width}x{height})")
-        return False
-    
-    # Controllo dimensione file
-    if len(image_data) < 1024:  # 1KB minimo
-        logger.debug(f"Immagine scartata: file troppo piccolo ({len(image_data)} bytes)")
-        return False
-    
-    # Controllo rapporto di aspetto (evita immagini troppo allungate)
-    aspect_ratio = max(width, height) / min(width, height)
-    if aspect_ratio > 10:  # Rapporto massimo 10:1
-        logger.debug(f"Immagine scartata: rapporto di aspetto troppo estremo ({aspect_ratio:.2f})")
-        return False
-    
-    return True
+    # --- CONFIGURAZIONE ---
+    file_path = pdf_path
+    source_filename = os.path.basename(pdf_path)  # Estrae il nome del file per usarlo come source
 
+    if not os.path.exists(file_path):
+        logging.error(f"ERRORE: Il file {file_path} non è stato trovato.")
+        exit()
 
-def extract_tables_from_page(page: fitz.Page) -> List[Dict[str, Any]]:
-    """
-    Estrae tabelle da una pagina PDF usando PyMuPDF
-    
-    Args:
-        page: La pagina PDF da analizzare
-        
-    Returns:
-        Lista di dizionari contenenti i dati delle tabelle
-    """
+    logging.info("Avvio del partizionamento del PDF...")
+    chunks = partition_pdf(
+        filename=file_path,
+        infer_table_structure=True,            # extract tables
+        strategy="hi_res",                     # mandatory to infer tables
+
+        extract_image_block_types=["Image"],   # Add 'Table' to list to extract image of tables
+        extract_image_block_to_payload=True,   # if true, will extract base64 for API usage
+
+        chunking_strategy="by_title",          # or 'basic'
+        max_characters=10000,                  # defaults to 500
+        combine_text_under_n_chars=2000,       # defaults to 0
+        new_after_n_chars=6000,
+    )
+    logging.info("Partizionamento completato.")
+
+    # === 2. Separazione elementi e preparazione per riassunti ===
     tables = []
-    try:
-        # Metodo principale: Rilevamento tabelle di PyMuPDF
-        tabs = page.find_tables() # type: ignore
-        if not tabs or len(tabs.tables) == 0:
-            return tables
-            
-        for i, table in enumerate(tabs.tables):
-            try:
-                # Verifica preliminare del bounding box
-                if not hasattr(table, 'bbox') or not table.bbox:
-                    continue
-                    
-                df = table.to_pandas()
-                
-                # Converti tutti i valori a stringa e pulisci
-                df = df.map(lambda x: str(x).strip() if pd.notna(x) else x)
-                df = df.replace(r'^\s*$', np.nan, regex=True)
-                df = df.dropna(how='all').dropna(how='all', axis=1)
-                
-                # Validazione tabella con informazioni dettagliate
-                if not is_valid_table(df):
-                    rows, cols = df.shape
-                    empty_ratio = df.isna().values.sum() / (rows * cols) if rows * cols > 0 else 1
-                    logger.info(f"Tabella {i+1} pagina {page.number if page.number is not None else 0 + 1} scartata")
-                    logger.debug(df)
-                    continue
+    texts = []
+    images = []
 
-                
-                # Converti la tabella in formato markdown
-                table_md = df.to_markdown(index=False)
-                
-                # Crea una rappresentazione strutturata della tabella
-                table_data = {
-                    "cells": df.values.tolist(),
-                    "headers": df.columns.tolist(),
-                    "shape": df.shape
+    seen_texts = set()
+    seen_tables = set()
+
+    for chunk in chunks:
+        orig_elements = getattr(chunk.metadata, "orig_elements", None)
+        if orig_elements is not None:
+            for el in orig_elements:
+                el_type = type(el).__name__
+
+                # Prepara i metadati di base
+                metadata = {
+                    "source": source_filename,
+                    "page": getattr(chunk.metadata, "page_number", None)
                 }
                 
-                tables.append({
-                    "table_data": table_data,
-                    "table_markdown": table_md,
-                    "bbox": table.bbox  # Rettangolo che contiene la tabella
-                })
-                
-                # Log informativo per tabelle accettate
-                rows, cols = df.shape
-                empty_ratio = df.isna().values.sum() / (rows * cols)
-                logger.info(f"Tabella {i+1} pagina {page.number if page.number is not None else 0 + 1} accettata: {rows}x{cols} celle, {empty_ratio:.1%} vuote")
+                if el_type == "Table":
+                    if chunk.text not in seen_tables:
+                        tables.append(TextChunk(
+                            text=chunk.text,
+                            metadata=metadata,
+                            content_type="table"
+                        ))
+                        seen_tables.add(chunk.text)
 
-            except Exception as table_e:
-                logger.warning(f"Errore nell'estrazione della tabella {i+1}: {str(table_e)}")
-                continue
-                
-    except Exception as e:
-        logger.error(f"Errore generale nell'estrazione delle tabelle: {str(e)}")
-    
-    return tables
+                elif el_type == "Image":
+                    base64_img = el.metadata.image_base64
+                    if base64_img:
+                        image_metadata = metadata.copy()
+                        image_metadata["image_present"] = True
+                        images.append({
+                            "image_base64": base64_img,
+                            "metadata": image_metadata
+                        })
 
-def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
+                else:
+                    if chunk.text not in seen_texts:
+                        texts.append(TextChunk(
+                            text=chunk.text,
+                            metadata=metadata,
+                            content_type="text"
+                        ))
+                        seen_texts.add(chunk.text)
+
+    logging.info(f"Elementi estratti: {len(texts)} testi, {len(tables)} tabelle, {len(images)} immagini.")
+
+    # === 3. Setup LangChain ===
+    from langchain_core.prompts import ChatPromptTemplate
+    from langchain_core.output_parsers import StrOutputParser
+    from langchain_groq import ChatGroq
+    from langchain_core.runnables import RunnableLambda, RunnableConfig
+
+    # === 3A. Riassunto testi e tabelle ===
+    prompt_text_template = """
+    Sei un assistente incaricato di riassumere tabelle e testi in modo conciso.
+    Fornisci solo il riassunto, senza commenti aggiuntivi.
+
+    Elemento da riassumere:
+    {element}
     """
-    Parser PDF unificato con funzionalità avanzate complete.
-    
-    FUNZIONALITÀ INTEGRATE:
-    - Estrazione testo, immagini e tabelle standardizzata per Qdrant
-    - Analisi AI delle immagini: caption BLIP, OCR Tesseract, object detection YOLO
-    - Estrazione contesto manuale per tabelle e immagini
-    - Combinazione contesto AI + manuale per ricerca semantica potenziata
-    - Metadati completi e strutturati per ogni elemento
-    
-    Args:
-        pdf_path: Percorso al file PDF da processare
-        
-    Returns:
-        Tuple di tre liste:
-        - text_elements: Lista di elementi testuali con metadati
-        - image_elements: Lista di immagini con analisi AI e contesto
-        - table_elements: Lista di tabelle con contesto e markup
-        
-    Note:
-        Questo parser sostituisce e unifica le funzionalità precedentemente
-        distribuite tra pdf_parser.py e pdf_utils.py, fornendo il meglio
-        di entrambe le implementazioni in un'unica soluzione.
+    prompt_groq = ChatPromptTemplate.from_template(prompt_text_template)
+    model_groq = ChatGroq(temperature=0.1, model="llama-3.1-8b-instant")
+    summarize_chain = {"element": lambda x: x.text} | prompt_groq | model_groq | StrOutputParser()
+
+    # === 3B. Riassunto immagini (via Groq multimodale) ===
+    client = groq.Client()
+    prompt_image_text = """
+    Descrivi l'immagine in dettaglio. Concentrati sul suo contenuto, come grafici, diagrammi o elementi visivi chiave.
+    Se è un grafico o una tabella, spiega cosa rappresenta.
+    Rispondi solo con la descrizione, senza commenti aggiuntivi.
     """
-    logger.info(f"Avvio parsing avanzato del PDF: {os.path.basename(pdf_path)}")
 
-    text_elements = []
-    image_elements = []
-    table_elements = []
-    
-    # Inizializza l'estrattore di contesto con parametri più ampi
-    context_extractor = ContextExtractor(context_window=500, max_distance=300)
-    
-    try:
-        doc = fitz.open(pdf_path)
-        filename = os.path.basename(pdf_path)
+    def summarize_image_with_groq(image_obj: dict) -> str:
+        """
+        Funzione per riassumere un singolo elemento Immagine usando il client Groq.
+        Accetta un oggetto contenente l'immagine base64 e i metadati.
+        """
+        try:
+            # Estraiamo la stringa base64 e i metadati dall'oggetto
+            image_b64 = image_obj["image_base64"]
+            
+            response = client.chat.completions.create(
+                model="meta-llama/llama-4-maverick-17b-128e-instruct",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt_image_text},
+                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}},
+                        ],
+                    }
+                ],
+                temperature=0.1,
+                max_tokens=400,
+            )
+            return response.choices[0].message.content or ""
+        except Exception as e:
+            return f"Errore durante il riassunto dell'immagine: {str(e)}"
+            
+    # Funzione che trasforma un riassunto di immagine in un TextChunk
+    def image_summary_to_textchunk(image_obj: dict, summary: str) -> TextChunk:
+        metadata = image_obj.get("metadata", {})
+        return TextChunk(
+            text=summary,
+            metadata=metadata,
+            content_type="image_description"
+        )
         
-        # Contatori globali per identificatori univoci
-        table_counter = 0
-        image_counter = 0
+    image_summarize_chain = RunnableLambda(summarize_image_with_groq)
+
+    # === 4. Esecuzione con Batching e Retry Dinamico ===
+    def process_in_batch(
+        chain: Any, 
+        items: List[Any], 
+        max_concurrency: int = 5, 
+        max_retries: int = 3, 
+        initial_delay: float = 5.0
+    ) -> List[str]:
+        """
+        Processa una lista di elementi usando chain.batch() con una logica di retry
+        per gestire i RateLimitError in modo dinamico (backoff esponenziale).
+        """
+        if not items:
+            return []
+
+        # Mappa per tenere traccia degli indici originali degli elementi da processare
+        items_to_process = list(enumerate(items))
+        final_results = [""] * len(items)
+        config = RunnableConfig(max_concurrency=max_concurrency)
         
-        for page_num in range(len(doc)):
-            page = doc.load_page(page_num)
-            page_bbox = page.rect
+        for attempt in range(max_retries + 1):
+            if not items_to_process:
+                break # Tutti gli elementi sono stati processati con successo
+
+            logging.info(f"Tentativo {attempt + 1}/{max_retries + 1}. Elementi da processare: {len(items_to_process)}")
             
-            # Estrazione testo con metadati essenziali
-            text = page.get_text().strip() # type: ignore
-            if text:
-                text_elements.append({
-                    "text": text,
-                    "metadata": {
-                        "source": filename,
-                        "page": page_num + 1,
-                        "content_type": "text"
-                    }
-                })
+            # Estrai gli indici e gli oggetti per il batch corrente
+            indices, batch_items = zip(*items_to_process)
             
-            # Estrazione tabelle con contesto
-            tables = extract_tables_from_page(page)
-            for table in tables:
-                try:
-                    table_counter += 1
-                    table_id = f"table_{table_counter}"
-                    
-                    # Estrai contesto per la tabella
-                    table_context = context_extractor.extract_table_context(table["bbox"], page)
-                    
-                    # Combina il markdown della tabella con il contesto per la ricerca
-                    enhanced_table_content = context_extractor.enhance_text_with_context(
-                        table["table_markdown"], 
-                        table_context
-                    )
-                    
-                    table_element = {
-                        "table_data": table["table_data"],
-                        "table_markdown": table["table_markdown"],
-                        "metadata": {
-                            "source": filename,
-                            "page": page_num + 1,
-                            "content_type": "table",
-                            "table_id": table_id,
-                            "table_summary": None  # Placeholder per il riassunto AI
-                        }
-                    }
-                    # Arricchisci la tabella con il riassunto AI
-                    table_element = enhance_table_with_summary(table_element)
-                    table_elements.append(table_element)
+            # Esegui il batch
+            results = chain.batch(batch_items, config=config, return_exceptions=True)
+            
+            failed_items_for_next_round = []
+            rate_limit_hit = False
+
+            for i, res in enumerate(results):
+                original_index = indices[i]
+                if isinstance(res, groq.RateLimitError):
+                    # Se è un errore di rate limit, aggiungilo alla lista per il prossimo tentativo
+                    failed_items_for_next_round.append(items_to_process[i])
+                    rate_limit_hit = True
+                elif isinstance(res, Exception):
+                    # Se è un altro tipo di errore, consideralo un fallimento permanente
+                    logging.error(f"Errore non recuperabile sull'elemento {original_index}: {res}")
+                    final_results[original_index] = f"Errore permanente: {res}"
+                else:
+                    # Successo! Salva il risultato
+                    logging.info(f"  ✓ Elaborato elemento con indice originale {original_index}")
+                    final_results[original_index] = res
+            
+            # Prepara per il prossimo tentativo
+            items_to_process = failed_items_for_next_round
+            
+            if items_to_process and rate_limit_hit and attempt < max_retries:
+                delay = initial_delay * (2 ** attempt)
+                logging.warning(f"Rate limit raggiunto. Attendo {delay:.1f} secondi prima di riprovare con {len(items_to_process)} elementi.")
+                time.sleep(delay)
+
+        # Dopo tutti i tentativi, segna come falliti gli elementi rimasti
+        if items_to_process:
+            for original_index, _ in items_to_process:
+                logging.error(f"Fallimento finale per l'elemento {original_index} dopo {max_retries + 1} tentativi.")
+                final_results[original_index] = f"Errore: Fallito dopo {max_retries + 1} tentativi di rate limit."
+
+        return final_results
 
 
-                except Exception as e:
-                    logger.warning(f"Errore nell'elaborazione della tabella: {str(e)}")
-            
-            # Estrazione immagini con metadati standardizzati, contesto manuale e analisi AI
-            for img_index, img_info in enumerate(page.get_images(full=True)):
-                try:
-                    xref = img_info[0]
-                    base_image = doc.extract_image(xref)
-                    
-                    # Controllo validità dell'immagine con criteri migliorati
-                    if not base_image["image"]:
-                        logger.debug(f"Immagine {img_index+1} pagina {page_num+1}: dati immagine mancanti")
-                        continue
-                        
-                    if not is_valid_image(base_image["width"], base_image["height"], base_image["image"]):
-                        logger.debug(f"Immagine {img_index+1} pagina {page_num+1} scartata per dimensioni/qualità")
-                        continue
-                    
-                    image_counter += 1
-                    image_id = f"image_{image_counter}"
-                    
-                    # Log informativo per immagini accettate
-                    logger.info(f"Immagine {img_index+1} pagina {page_num+1} accettata ({image_id}): {base_image['width']}x{base_image['height']} pixel, {len(base_image['image'])/1024:.1f}KB")
-                    
-                    # Ottieni il rettangolo dell'immagine per estrarre il contesto
-                    img_rects = [rect for rect in page.get_image_rects(xref)] # type: ignore
-                    image_rect = img_rects[0] if img_rects else page.rect
-                    
-                    # Estrai contesto manuale per l'immagine
-                    image_context = context_extractor.extract_image_context(image_rect, page)
-                    
-                    with BytesIO(base_image["image"]) as img_buffer:
-                        img = PILImage.open(img_buffer)
-                        img_format = img.format or "PNG"
-                        
-                        with BytesIO() as output_buffer:
-                            img.save(output_buffer, format=img_format, optimize=True, quality=85)
-                            optimized_image = output_buffer.getvalue()
-                    
-                    # Ottieni informazioni complete dall'immagine usando AI
-                    image_base64 = base64.b64encode(optimized_image).decode("utf-8")
-                    image_info_ai = get_comprehensive_image_info(image_base64)
-                    
-                    # Combina caption AI, OCR, e contesto manuale in una descrizione unificata
-                    caption_parts = [
-                        f"[{image_id}] Descrizione: {image_info_ai['caption']}",
-                        f"Testo rilevato: {image_info_ai['ocr_text']}" if image_info_ai["ocr_text"].strip() else None,
-                        f"Oggetti rilevati: {', '.join(image_info_ai['detected_objects'])}" if image_info_ai["detected_objects"] else None,
-                        f"Caption manuale: {image_context.get('caption')}" if image_context.get('caption') else None
-                    ]
-                    comprehensive_caption = " | ".join([p for p in caption_parts if p])
-                    
-                    # Combina caption AI con contesto manuale per la ricerca
-                    enhanced_description = context_extractor.enhance_text_with_context(
-                        comprehensive_caption,
-                        image_context
-                    )
-                    
-                    logger.debug(f"Immagine {img_index+1} pagina {page_num+1} ({image_id}) - Caption: {comprehensive_caption}")
-                    
-                    image_metadata = {
-                        "source": filename,
-                        "page": page_num + 1,
-                        "content_type": "image",
-                        "image_id": image_id,
-                        "image_caption": comprehensive_caption
-                    }
-                    
-                    image_elements.append({
-                        "image_base64": image_base64,
-                        "metadata": image_metadata,
-                        "page_content": enhanced_description  # Descrizione arricchita per la ricerca
-                    })
-                        
-                except Exception as img_e:
-                    logger.error(f"Errore processamento immagine {img_index} pagina {page_num+1}: {str(img_e)}")
-                    continue
-                    
-    except Exception as e:
-        logger.error(f"Errore durante il parsing del PDF: {str(e)}")
-        raise RuntimeError(f"PDF parsing failed: {str(e)}") from e
+
+    # === 6. Esecuzione e creazione dei chunk di testo finale ===
+    final_text_chunks = []
     
-    logger.info(f"Estrazione completata: {len(text_elements)} testi, {len(image_elements)} immagini, {len(table_elements)} tabelle")
-    return text_elements, image_elements, table_elements
+    # --- Processa il testo ---
+    if texts:
+        logging.info("\n--- Inizio riassunto testi ---")
+        text_summaries = process_in_batch(summarize_chain, texts, max_concurrency=5)
+        
+        # Crea TextChunk per ogni riassunto di testo
+        for i, summary in enumerate(text_summaries):
+            if summary and not summary.startswith("Errore"):
+                # Assicurati che i metadati contengano almeno source e page
+                metadata = {
+                    "source": texts[i].metadata.get("source", source_filename),
+                    "page": texts[i].metadata.get("page", None)
+                }
+                chunk = TextChunk(
+                    text=summary,
+                    metadata=metadata,
+                    content_type="text"  # Usa sempre "text" per uniformità
+                )
+                final_text_chunks.append(chunk)
+    
+    # --- Processa le tabelle ---
+    if tables:
+        logging.info("\n--- Inizio riassunto tabelle ---")
+        table_summaries = process_in_batch(summarize_chain, tables, max_concurrency=5)
+        
+        # Crea TextChunk per ogni riassunto di tabella
+        for i, summary in enumerate(table_summaries):
+            if summary and not summary.startswith("Errore"):
+                # Assicurati che i metadati contengano almeno source e page
+                metadata = {
+                    "source": tables[i].metadata.get("source", source_filename),
+                    "page": tables[i].metadata.get("page", None)
+                }
+                chunk = TextChunk(
+                    text=summary,
+                    metadata=metadata,
+                    content_type="text"  # Usa sempre "text" per uniformità
+                )
+                final_text_chunks.append(chunk)
+    
+    # --- Processa le immagini ---
+    if images:
+        logging.info("\n--- Inizio riassunto immagini ---")
+        image_summaries = process_in_batch(image_summarize_chain, images, max_concurrency=3)
+        
+        # Crea TextChunk per ogni riassunto di immagine
+        for i, summary in enumerate(image_summaries):
+            if summary and not summary.startswith("Errore"):
+                # Assicurati che i metadati contengano almeno source e page
+                metadata = {
+                    "source": images[i]["metadata"].get("source", source_filename),
+                    "page": images[i]["metadata"].get("page", None)
+                }
+                chunk = TextChunk(
+                    text=summary,
+                    metadata=metadata,
+                    content_type="text"  # Usa sempre "text" per uniformità
+                )
+                final_text_chunks.append(chunk)
+    
+    logging.info(f"Creati {len(final_text_chunks)} chunk di testo finali")
+    return final_text_chunks

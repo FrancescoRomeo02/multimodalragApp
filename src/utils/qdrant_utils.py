@@ -40,102 +40,36 @@ class QdrantManager:
     
     # === Funzioni helper per convertire i modelli in punti Qdrant ===
     
-    def _text_element_to_point(self, element: TextElement, vector: List[float]) -> models.PointStruct:
-        return models.PointStruct(
-            id=str(uuid.uuid4()),
-            vector=vector,
-            payload={
-                "page_content": element.text,
-                "metadata": element.metadata.model_dump(),
-            }
-        )
-    
-    def _image_element_to_point(self, element: Union[ImageElement, Dict[str, Any]], vector: List[float], image_caption: str = "") -> models.PointStruct:
-        # Gestisce sia oggetti Pydantic che dizionari dal parser
-        if isinstance(element, dict):
-            # Caso dizionario dal parser legacy
-            metadata = element.get("metadata", {})
-            # Rimuovi image_base64 dai metadati se presente per evitare duplicazione pesante
-            if "image_base64" in metadata:
-                metadata = metadata.copy()
-                del metadata["image_base64"]
-            
-            return models.PointStruct(
-                id=str(uuid.uuid4()),
-                vector=vector,
-                payload={
-                    "page_content": element.get("page_content", ""),
-                    # image_base64 rimosso dal database - troppo pesante e inutile per la ricerca
-                    "content_type": "image",
-                    "metadata": metadata
-                }
-            )
-        else:
-            # Caso oggetto Pydantic
-            return models.PointStruct(
-                id=str(uuid.uuid4()),
-                vector=vector,
-                payload={
-                    "page": element.metadata.page,
-                    "page_content": element.page_content,
-                    # image_base64 rimosso dal database - troppo pesante e inutile per la ricerca
-                    "content_type": "image",
-                    "metadata": element.metadata.model_dump()
-                }
-            )
-    
-    def _table_element_to_point(self, element: Union[TableElement, Dict[str, Any]], vector: List[float]) -> models.PointStruct:
-        # Gestisce sia oggetti Pydantic che dizionari dal parser
-        if isinstance(element, dict):
-            # Caso dizionario dal parser legacy
-            return models.PointStruct(
-                id=str(uuid.uuid4()),
-                vector=vector,
-                payload={
-                    "page_content": element.get("table_markdown", ""),
-                    "metadata": element.get("metadata", {}),
-                    "content_type": "table",
-                    "table_data": element.get("table_data", {})
-                }
-            )
-        else:
-            # Caso oggetto Pydantic
-            return models.PointStruct(
-                id=str(uuid.uuid4()),
-                vector=vector,
-                payload={
-                    "page_content": element.table_markdown,
-                    "metadata": element.metadata.model_dump(),
-                    "content_type": "table",
-                    "table_data": element.table_data.model_dump()
-                }
-            )
-    
-    def convert_elements_to_points(
+    def convert_text_chunks_to_points(
         self,
-        elements: List[Any],
+        text_chunks: List[Any],
         vectors: List[List[float]]
     ) -> List[models.PointStruct]:
         """
-        Converte una lista di elementi e vettori in punti Qdrant da inserire.
-        Assumiamo che elements[i] corrisponda a vectors[i].
+        Converte una lista di TextChunk e i loro vettori in punti Qdrant.
+        Tutti i tipi di contenuto sono gestiti in modo standardizzato.
         """
         points = []
-        for element, vector in zip(elements, vectors):
-            if isinstance(element, TextElement):
-                points.append(self._text_element_to_point(element, vector))
-            elif isinstance(element, (ImageElement, dict)) and (
-                hasattr(element, 'image_base64') or 
-                (isinstance(element, dict) and 'image_base64' in element)
-            ):
-                points.append(self._image_element_to_point(element, vector))
-            elif isinstance(element, (TableElement, dict)) and (
-                hasattr(element, 'table_markdown') or 
-                (isinstance(element, dict) and 'table_markdown' in element)
-            ):
-                points.append(self._table_element_to_point(element, vector))
-            else:
-                logger.warning(f"Elemento non riconosciuto per indicizzazione: {element}")
+        for chunk, vector in zip(text_chunks, vectors):
+            # Estrai metadati dal chunk e assicurati che siano in formato corretto
+            metadata = chunk.metadata.copy() if chunk.metadata else {}
+            
+            # Assicurati che almeno source e page siano presenti nei metadati
+            if "source" not in metadata:
+                metadata["source"] = "Sconosciuto"
+                
+            # Crea payload completamente standardizzato
+            payload = {
+                "page_content": chunk.text,  # Contenuto testuale
+                "metadata": metadata         # Solo metadati standardizzati
+            }
+            
+            points.append(models.PointStruct(
+                id=str(uuid.uuid4()),
+                vector=vector,
+                payload=payload
+            ))
+        
         return points
     
     # === GESTIONE COLLEZIONE E CONNESSIONE ===
@@ -197,6 +131,13 @@ class QdrantManager:
     
     def upsert_points(self, points: List[models.PointStruct], batch_size: int = 64) -> bool:
         try:
+            # Assicura che la collezione esista prima dell'inserimento
+            if not self.collection_exists():
+                embedding_dim = 1024  # Fallback
+                if points and points[0].vector and isinstance(points[0].vector, list):
+                    embedding_dim = len(points[0].vector)
+                self.create_collection(embedding_dim)
+
             for i in range(0, len(points), batch_size):
                 batch = points[i:i + batch_size]
                 self.client.upsert(
@@ -238,80 +179,25 @@ class QdrantManager:
             return False, error_message
     
     # === FILTRI ===
-    
-    def create_content_filter(self, query_type: Optional[str] = None) -> Optional[models.Filter]:
-        if query_type == "image":
-            return models.Filter(
-                must=[
-                    models.FieldCondition(
-                        key="content_type",
-                        match=models.MatchValue(value="image"),
-                    )
-                ]
-            )
-        elif query_type == "text":
-            return models.Filter(
-                must=[
-                    models.FieldCondition(
-                        key="content_type",
-                        match=models.MatchValue(value="text"),
-                    )
-                ]
-            )
-        elif query_type == "table":
-            return models.Filter(
-                must=[
-                    models.FieldCondition(
-                        key="content_type",
-                        match=models.MatchValue(value="table"),
-                    )
-                ]
-            )
-        return None
-    
+
     def create_file_filter(self, selected_files: List[str]) -> Optional[models.Filter]:
         if not selected_files:
             return None
         
-        # Supporta sia metadata.source che source per compatibilità
+        # Ora il campo source è sempre in metadata.source
         file_conditions = []
         for filename in selected_files:
-            file_conditions.extend([
+            file_conditions.append(
                 models.FieldCondition(
                     key="metadata.source",
                     match=models.MatchValue(value=filename),
-                ),
-                models.FieldCondition(
-                    key="source",
-                    match=models.MatchValue(value=filename),
                 )
-            ])
+            )
         
         return models.Filter(should=file_conditions)
-    
-    def create_page_filter(self, pages: List[int]) -> Optional[models.Filter]:
-        if not pages:
-            return None
-        
-        # Supporta sia metadata.page che page per compatibilità
-        page_conditions = []
-        for page in pages:
-            page_conditions.extend([
-                models.FieldCondition(
-                    key="metadata.page",
-                    match=models.MatchValue(value=page),
-                ),
-                models.FieldCondition(
-                    key="page",
-                    match=models.MatchValue(value=page),
-                )
-            ])
-        
-        return models.Filter(should=page_conditions)
-    
+  
     def build_combined_filter(self, 
                             selected_files: List[str] = [],
-                            query_type: Optional[str] = None,
                             pages: List[int] = []) -> Optional[models.Filter]:
         filters = []
         
@@ -319,16 +205,7 @@ class QdrantManager:
             file_filter = self.create_file_filter(selected_files)
             if file_filter:
                 filters.append(file_filter)
-        
-        if query_type:
-            content_filter = self.create_content_filter(query_type)
-            if content_filter:
-                filters.append(content_filter)
-        
-        if pages:
-            page_filter = self.create_page_filter(pages)
-            if page_filter:
-                filters.append(page_filter)
+                
         
         if not filters:
             return None
@@ -346,7 +223,7 @@ class QdrantManager:
                       pages: List[int] = [],
                       score_threshold: Optional[float] = 0.80) -> List[models.ScoredPoint]:
         try:
-            qdrant_filter = self.build_combined_filter(selected_files, query_type, pages)
+            qdrant_filter = self.build_combined_filter(selected_files, pages)
             
             # Log del filtro per debug
             if qdrant_filter:
@@ -361,198 +238,12 @@ class QdrantManager:
                 with_vectors=False,
                 score_threshold=score_threshold
             )
-            logger.info(f"Ricerca vettoriale: trovati {len(results)} risultati per query_type='{query_type}', files={selected_files}")
+            logger.info(f"Ricerca vettoriale: trovati {len(results)} risultati per query_type='{query_type}', files={selected_files}, score_threshold={score_threshold}")
             return results
         except Exception as e:
             logger.error(f"Errore ricerca vettoriale: {e}")
             return []
-    
-    def query_text(self, 
-                   query: str, 
-                   selected_files: List[str] = [],
-                   top_k: int = 500,
-                   score_threshold: float = 0.80) -> List[Dict[str, Any]]:
-        """
-        Cerca documenti di testo simili alla query.
-        """
-        logger.info(f"Query testo: '{query}' con top_k={top_k}, file: {selected_files}, threshold: {score_threshold}")
-        try:
-            query_embedding = self.embedder.embed_query(query)
-            results = self.search_vectors(
-                query_embedding=query_embedding,
-                top_k=top_k,
-                selected_files=selected_files,
-                query_type="text",
-                score_threshold=score_threshold
-            )
-            
-            text_results = []
-            for result in results:
-                try:
-                    payload = result.payload or {}
-                    metadata = payload.get("metadata", {})
-                    content = payload.get("page_content", "")
-                    
-                    # Verifica che sia effettivamente contenuto testuale
-                    if not content:
-                        logger.debug(f"Saltato risultato senza contenuto testuale: {result.id}")
-                        continue
-                    
-                    text_results.append({
-                        "content": content,
-                        "metadata": metadata,
-                        "score": result.score,
-                        "source": metadata.get("source", "Unknown"),
-                        "page": metadata.get("page", "N/A"),
-                        "content_type": payload.get("content_type", "text")
-                    })
-                except Exception as e:
-                    logger.warning(f"Errore processamento risultato testo: {e}")
-                    continue
-            
-            logger.info(f"Trovati {len(text_results)} documenti di testo per query '{query}'")
-            return text_results
-        except Exception as e:
-            logger.error(f"Errore query testo: {e}")
-            return []
-    
-    def query_images(self, 
-                    query: str, 
-                    selected_files: List[str] = [],
-                    top_k: int = 500) -> List[ImageResult]:
-        logger.info(f"Query immagini: '{query}' con top_k={top_k}, file: {selected_files}")
-        try:
-            query_embedding = self.embedder.embed_query(query)
-            results = self.search_vectors(
-                query_embedding=query_embedding,
-                top_k=top_k,
-                selected_files=selected_files,
-                query_type="image"
-            )
-            
-            image_results = []
-            for result in results:
-                try:
-                    payload = result.payload or {}
-                    metadata = payload.get("metadata", {})
-                    image_base64 = payload.get("image_base64", "")
-                    
-                    if not image_base64:
-                        logger.debug(f"Saltato risultato senza immagine base64: {result.id}")
-                        continue
-                    
-                    image_results.append(ImageResult(
-                        image_base64=image_base64,
-                        metadata=metadata,
-                        score=result.score,
-                        page_content=payload.get("page_content", "")
-                    ))
-                except Exception as e:
-                    logger.warning(f"Errore processamento risultato immagine: {e}")
-                    continue
-            
-            logger.info(f"Trovate {len(image_results)} immagini per query '{query}'")
-            return image_results
-        except Exception as e:
-            logger.error(f"Errore query immagini: {e}")
-            return []
-    
-    def query_tables(self, 
-                     query: str, 
-                     selected_files: List[str] = [],
-                     top_k: int = 500) -> List[Dict[str, Any]]:
-        logger.info(f"Query tabelle: '{query}' con top_k={top_k}, file: {selected_files}")
-        try:
-            query_embedding = self.embedder.embed_query(query)
-            results = self.search_vectors(
-                query_embedding=query_embedding,
-                top_k=top_k,
-                selected_files=selected_files,
-                query_type="table"
-            )
-            
-            table_results = []
-            for result in results:
-                try:
-                    payload = result.payload or {}
-                    metadata = payload.get("metadata", {})
-                    table_markdown = payload.get("page_content", "")
-                    
-                    if not table_markdown:
-                        logger.debug(f"Saltato risultato senza contenuto tabella: {result.id}")
-                        continue
-                    
-                    table_results.append({
-                        "table_markdown": table_markdown,
-                        "metadata": metadata,
-                        "score": result.score,
-                        "page_content": table_markdown,
-                        "table_data": payload.get("table_data", {})
-                    })
-                except Exception as e:
-                    logger.warning(f"Errore processamento risultato tabella: {e}")
-                    continue
-            
-            logger.info(f"Trovate {len(table_results)} tabelle per query '{query}'")
-            return table_results
-        except Exception as e:
-            logger.error(f"Errore query tabelle: {e}")
-            return []
-    
-    def query_all_content(self, 
-                         query: str, 
-                         selected_files: List[str] = [],
-                         top_k_per_type: int = 500,
-                         score_threshold: float = 0.80) -> Dict[str, Any]:
-        """
-        Cerca contenuti di tutti i tipi (testo, immagini, tabelle) per una query.
-        """
-        logger.info(f"Query contenuti misti: '{query}' con top_k_per_type={top_k_per_type}, file: {selected_files}")
-        
-        results = {
-            "text": [],
-            "images": [],
-            "tables": []
-        }
-        
-        try:
-            # Cerca testo
-            text_results = self.query_text(query, selected_files, top_k_per_type, score_threshold)
-            results["text"] = text_results
-            
-            # Cerca immagini
-            image_results = self.query_images(query, selected_files, top_k_per_type)
-            results["images"] = image_results
-            
-            # Cerca tabelle
-            table_results = self.query_tables(query, selected_files, top_k_per_type)
-            results["tables"] = table_results
-            
-            total_results = len(text_results) + len(image_results) + len(table_results)
-            logger.info(f"Query completa: trovati {total_results} risultati totali "
-                       f"(testo: {len(text_results)}, immagini: {len(image_results)}, tabelle: {len(table_results)})")
-            
-        except Exception as e:
-            logger.error(f"Errore nella query_all_content: {e}")
-        
-        return results
-    
-    def search_similar_documents(self, 
-                                query: str,
-                                selected_files: List[str] = [],
-                                similarity_threshold: float = 0.80,
-                                max_results: int = 500) -> List[Dict[str, Any]]:
-        """
-        Alias per query_text con parametri diversi per retrocompatibilità.
-        """
-        logger.info(f"search_similar_documents chiamato per query: '{query}'")
-        return self.query_text(
-            query=query,
-            selected_files=selected_files,
-            top_k=max_results,
-            score_threshold=similarity_threshold
-        )
-    
+
     def get_documents_by_source(self, 
                                source_file: str, 
                                page: Optional[int] = None) -> List[Dict[str, Any]]:
@@ -570,13 +261,10 @@ class QdrantManager:
             ]
             
             if page is not None:
+                # Ora il campo page è sempre in metadata.page
                 page_filters = [
                     models.FieldCondition(
                         key="metadata.page",
-                        match=models.MatchValue(value=page)
-                    ),
-                    models.FieldCondition(
-                        key="page",
                         match=models.MatchValue(value=page)
                     )
                 ]
@@ -602,13 +290,15 @@ class QdrantManager:
             for result in results:
                 payload = result.payload or {}
                 metadata = payload.get("metadata", {})
+                # Usa sempre page_content come contenuto principale
+                content = payload.get("page_content", "")
                 doc_info = {
-                    "content": payload.get("page_content", ""),
+                    "content": content,
                     "metadata": metadata,
                     "id": result.id,
-                    "source": metadata.get("source", payload.get("source", "Unknown")),
-                    "page": metadata.get("page", payload.get("page", "N/A")),
-                    "content_type": payload.get("content_type", "unknown")
+                    "source": metadata.get("source", "Unknown"),
+                    "page": metadata.get("page", "N/A"),
+                    "content_type": "text"  # Ora tutto è standardizzato come testo
                 }
                 documents.append(doc_info)
             
@@ -639,7 +329,8 @@ class QdrantManager:
             
             for result in results:
                 payload = result.payload or {}
-                content_type = payload.get("content_type", "unknown")
+                metadata = payload.get("metadata", {})
+                content_type = "text"  # Ora tutto è standardizzato come testo
                 
                 # Conta i tipi di contenuto
                 if content_type not in debug_info["content_types"]:
@@ -647,8 +338,7 @@ class QdrantManager:
                 debug_info["content_types"][content_type] += 1
                 
                 # Raccoglie le fonti
-                metadata = payload.get("metadata", {})
-                source = metadata.get("source", payload.get("source", "unknown"))
+                source = metadata.get("source", "unknown")
                 debug_info["sources"].add(source)
                 
                 # Campione di punti
@@ -657,7 +347,7 @@ class QdrantManager:
                         "id": result.id,
                         "content_type": content_type,
                         "source": source,
-                        "page": metadata.get("page", payload.get("page", "N/A")),
+                        "page": metadata.get("page", "N/A"),
                         "content_preview": payload.get("page_content", "")[:100] + "..." if payload.get("page_content") else "No content"
                     })
             
@@ -682,98 +372,6 @@ class QdrantManager:
         except Exception as e:
             logger.error(f"Errore recupero info collezione: {e}")
             return {}
-    
-    def test_text_query_direct(self, query: str, filename: str) -> Dict[str, Any]:
-        """
-        Test diretto per verificare se il testo viene trovato correttamente
-        """
-        logger.info(f"🧪 Test query testo diretto: '{query}' per file: {filename}")
-        
-        try:
-            # Genera embedding
-            query_embedding = self.embedder.embed_query(query)
-            
-            # Test 1: Query senza filtri
-            results_no_filter = self.client.search(
-                collection_name=self.collection_name,
-                query_vector=query_embedding,
-                limit=5,
-                with_payload=True,
-                with_vectors=False
-            )
-            
-            # Test 2: Query solo con filtro file
-            file_filter = self.create_file_filter([filename])
-            results_file_filter = self.client.search(
-                collection_name=self.collection_name,
-                query_vector=query_embedding,
-                query_filter=file_filter,
-                limit=5,
-                with_payload=True,
-                with_vectors=False
-            )
-            
-            # Test 3: Query con filtro testo
-            text_filter = self.create_content_filter("text")
-            results_text_filter = self.client.search(
-                collection_name=self.collection_name,
-                query_vector=query_embedding,
-                query_filter=text_filter,
-                limit=5,
-                with_payload=True,
-                with_vectors=False
-            )
-            
-            # Test 4: Query con entrambi i filtri
-            combined_filter = self.build_combined_filter([filename], "text")
-            results_combined = self.client.search(
-                collection_name=self.collection_name,
-                query_vector=query_embedding,
-                query_filter=combined_filter,
-                limit=5,
-                with_payload=True,
-                with_vectors=False
-            )
-            
-            def format_results(results, test_name):
-                formatted = []
-                for r in results:
-                    payload = r.payload or {}
-                    formatted.append({
-                        "score": r.score,
-                        "content_type": payload.get("content_type", "unknown"),
-                        "source": payload.get("metadata", {}).get("source", payload.get("source", "unknown")),
-                        "page": payload.get("metadata", {}).get("page", payload.get("page", "N/A")),
-                        "content_preview": payload.get("page_content", "")[:100] + "..." if len(payload.get("page_content", "")) > 100 else payload.get("page_content", "")
-                    })
-                return formatted
-            
-            return {
-                "query": query,
-                "filename": filename,
-                "tests": {
-                    "no_filter": {
-                        "count": len(results_no_filter),
-                        "results": format_results(results_no_filter, "no_filter")
-                    },
-                    "file_filter": {
-                        "count": len(results_file_filter),
-                        "results": format_results(results_file_filter, "file_filter")
-                    },
-                    "text_filter": {
-                        "count": len(results_text_filter),
-                        "results": format_results(results_text_filter, "text_filter")
-                    },
-                    "combined_filter": {
-                        "count": len(results_combined),
-                        "results": format_results(results_combined, "combined_filter")
-                    }
-                }
-            }
-            
-        except Exception as e:
-            logger.error(f"Errore nel test diretto: {e}")
-            return {"error": str(e)}
 
     def health_check(self) -> Dict[str, Any]:
         try:
