@@ -16,11 +16,7 @@ load_dotenv()
 from unstructured.partition.pdf import partition_pdf
 from dataclasses import dataclass, field, asdict
 
-@dataclass
-class TextChunk:
-    text: str
-    metadata: dict = field(default_factory=dict)
-    content_type: str = "text"
+from src.core.models import TextChunk
 
 def parse_pdf_elements(pdf_path: str) -> List[TextChunk]:
 
@@ -70,10 +66,12 @@ def parse_pdf_elements(pdf_path: str) -> List[TextChunk]:
                 
                 if el_type == "Table":
                     if chunk.text not in seen_tables:
+                        # Aggiungi tipo di origine nei metadati per scopi di debug
+                        table_metadata = metadata.copy()
+                        table_metadata["origin_type"] = "table"
                         tables.append(TextChunk(
                             text=chunk.text,
-                            metadata=metadata,
-                            content_type="table"
+                            metadata=table_metadata
                         ))
                         seen_tables.add(chunk.text)
 
@@ -89,10 +87,12 @@ def parse_pdf_elements(pdf_path: str) -> List[TextChunk]:
 
                 else:
                     if chunk.text not in seen_texts:
+                        # Aggiungi tipo di origine nei metadati per scopi di debug
+                        text_metadata = metadata.copy()
+                        text_metadata["origin_type"] = "text"
                         texts.append(TextChunk(
                             text=chunk.text,
-                            metadata=metadata,
-                            content_type="text"
+                            metadata=text_metadata
                         ))
                         seen_texts.add(chunk.text)
 
@@ -150,15 +150,6 @@ def parse_pdf_elements(pdf_path: str) -> List[TextChunk]:
             return response.choices[0].message.content or ""
         except Exception as e:
             return f"Errore durante il riassunto dell'immagine: {str(e)}"
-            
-    # Funzione che trasforma un riassunto di immagine in un TextChunk
-    def image_summary_to_textchunk(image_obj: dict, summary: str) -> TextChunk:
-        metadata = image_obj.get("metadata", {})
-        return TextChunk(
-            text=summary,
-            metadata=metadata,
-            content_type="image_description"
-        )
         
     image_summarize_chain = RunnableLambda(summarize_image_with_groq)
 
@@ -229,8 +220,7 @@ def parse_pdf_elements(pdf_path: str) -> List[TextChunk]:
         return final_results
 
 
-
-    # === 6. Esecuzione e creazione dei chunk di testo finale ===
+    # === 5. Esecuzione e creazione dei chunk di testo finale ===
     final_text_chunks = []
     
     # --- Processa il testo ---
@@ -244,12 +234,12 @@ def parse_pdf_elements(pdf_path: str) -> List[TextChunk]:
                 # Assicurati che i metadati contengano almeno source e page
                 metadata = {
                     "source": texts[i].metadata.get("source", source_filename),
-                    "page": texts[i].metadata.get("page", None)
+                    "page": texts[i].metadata.get("page", None),
+                    "origin_type": "text_summary"
                 }
                 chunk = TextChunk(
                     text=summary,
-                    metadata=metadata,
-                    content_type="text"  # Usa sempre "text" per uniformità
+                    metadata=metadata
                 )
                 final_text_chunks.append(chunk)
     
@@ -264,12 +254,12 @@ def parse_pdf_elements(pdf_path: str) -> List[TextChunk]:
                 # Assicurati che i metadati contengano almeno source e page
                 metadata = {
                     "source": tables[i].metadata.get("source", source_filename),
-                    "page": tables[i].metadata.get("page", None)
+                    "page": tables[i].metadata.get("page", None),
+                    "origin_type": "table_summary"
                 }
                 chunk = TextChunk(
                     text=summary,
-                    metadata=metadata,
-                    content_type="text"  # Usa sempre "text" per uniformità
+                    metadata=metadata
                 )
                 final_text_chunks.append(chunk)
     
@@ -284,12 +274,12 @@ def parse_pdf_elements(pdf_path: str) -> List[TextChunk]:
                 # Assicurati che i metadati contengano almeno source e page
                 metadata = {
                     "source": images[i]["metadata"].get("source", source_filename),
-                    "page": images[i]["metadata"].get("page", None)
+                    "page": images[i]["metadata"].get("page", None),
+                    "origin_type": "image_summary"
                 }
                 chunk = TextChunk(
                     text=summary,
-                    metadata=metadata,
-                    content_type="text"  # Usa sempre "text" per uniformità
+                    metadata=metadata
                 )
                 final_text_chunks.append(chunk)
     

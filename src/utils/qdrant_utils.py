@@ -1,9 +1,8 @@
-from typing import List, Optional, Dict, Any, Tuple, Union
+from typing import List, Optional, Dict, Any, Tuple
 import logging
 import qdrant_client
 from qdrant_client.http import models
 from src.config import QDRANT_URL, COLLECTION_NAME
-from src.core.models import ImageResult, TextElement, ImageElement, TableElement
 from src.utils.embedder import get_embedding_model
 import uuid
 
@@ -155,15 +154,11 @@ class QdrantManager:
         logger.info(f"Eliminazione documenti per source='{filename}'")
         try:
             qdrant_filter = models.Filter(
-                should=[
+                must=[
                     models.FieldCondition(
                         key="metadata.source",
                         match=models.MatchValue(value=filename),
-                    ),
-                    models.FieldCondition(
-                        key="source",
-                        match=models.MatchValue(value=filename),
-                    ),
+                    )
                 ],
             )
             response = self.client.delete(
@@ -181,37 +176,33 @@ class QdrantManager:
     # === FILTRI ===
 
     def create_file_filter(self, selected_files: List[str]) -> Optional[models.Filter]:
+        """
+        Crea un filtro per selezionare documenti in base ai nomi dei file.
+        """
         if not selected_files:
             return None
         
-        # Ora il campo source è sempre in metadata.source
+        # Crea condizioni di filtro per ogni file selezionato
         file_conditions = []
         for filename in selected_files:
             file_conditions.append(
                 models.FieldCondition(
                     key="metadata.source",
-                    match=models.MatchValue(value=filename),
+                    match=models.MatchValue(value=filename)
                 )
             )
         
         return models.Filter(should=file_conditions)
   
     def build_combined_filter(self, 
-                            selected_files: List[str] = [],
-                            pages: List[int] = []) -> Optional[models.Filter]:
-        filters = []
-        
+                            selected_files: List[str] = []) -> Optional[models.Filter]:
+        """
+        Crea un filtro combinato per la ricerca di documenti.
+        Ora supporta solo filtro per file in formato standardizzato.
+        """
         if selected_files:
-            file_filter = self.create_file_filter(selected_files)
-            if file_filter:
-                filters.append(file_filter)
-                
-        
-        if not filters:
-            return None
-        if len(filters) == 1:
-            return filters[0]
-        return models.Filter(must=filters)
+            return self.create_file_filter(selected_files)
+        return None
     
     # === RICERCA ===
     
@@ -219,11 +210,13 @@ class QdrantManager:
                       query_embedding: List[float],
                       top_k: int = 500,
                       selected_files: List[str] = [],
-                      query_type: Optional[str] = None,
-                      pages: List[int] = [],
                       score_threshold: Optional[float] = 0.80) -> List[models.ScoredPoint]:
+        """
+        Ricerca vettoriale nella collezione.
+        Ora supporta solo filtro per file in formato standardizzato.
+        """
         try:
-            qdrant_filter = self.build_combined_filter(selected_files, pages)
+            qdrant_filter = self.build_combined_filter(selected_files)
             
             # Log del filtro per debug
             if qdrant_filter:
@@ -238,7 +231,7 @@ class QdrantManager:
                 with_vectors=False,
                 score_threshold=score_threshold
             )
-            logger.info(f"Ricerca vettoriale: trovati {len(results)} risultati per query_type='{query_type}', files={selected_files}, score_threshold={score_threshold}")
+            logger.info(f"Ricerca vettoriale: trovati {len(results)} risultati, files={selected_files}, score_threshold={score_threshold}")
             return results
         except Exception as e:
             logger.error(f"Errore ricerca vettoriale: {e}")
@@ -247,36 +240,30 @@ class QdrantManager:
     def get_documents_by_source(self, 
                                source_file: str, 
                                page: Optional[int] = None) -> List[Dict[str, Any]]:
+        """
+        Recupera documenti in base al file di origine e opzionalmente alla pagina.
+        Restituisce risultati standardizzati con page_content e metadata.
+        """
         try:
-            # Supporta sia metadata.source che source
-            filters = [
-                models.FieldCondition(
-                    key="metadata.source",
-                    match=models.MatchValue(value=source_file)
-                ),
-                models.FieldCondition(
-                    key="source",
-                    match=models.MatchValue(value=source_file)
-                )
-            ]
+            # Crea il filtro per metadata.source
+            source_filter = models.FieldCondition(
+                key="metadata.source",
+                match=models.MatchValue(value=source_file)
+            )
             
             if page is not None:
-                # Ora il campo page è sempre in metadata.page
-                page_filters = [
-                    models.FieldCondition(
-                        key="metadata.page",
-                        match=models.MatchValue(value=page)
-                    )
-                ]
+                # Crea il filtro per metadata.page
+                page_filter = models.FieldCondition(
+                    key="metadata.page", 
+                    match=models.MatchValue(value=page)
+                )
+                
                 # Combina filtri: (source_filter) AND (page_filter)
                 scroll_filter = models.Filter(
-                    must=[
-                        models.Filter(should=filters),  # type: ignore
-                        models.Filter(should=page_filters)  # type: ignore
-                    ]
+                    must=[source_filter, page_filter]
                 )
             else:
-                scroll_filter = models.Filter(should=filters) # type: ignore
+                scroll_filter = models.Filter(must=[source_filter])
             
             results, _ = self.client.scroll(
                 collection_name=self.collection_name,
@@ -289,16 +276,13 @@ class QdrantManager:
             documents = []
             for result in results:
                 payload = result.payload or {}
+                page_content = payload.get("page_content", "")
                 metadata = payload.get("metadata", {})
-                # Usa sempre page_content come contenuto principale
-                content = payload.get("page_content", "")
+                
                 doc_info = {
-                    "content": content,
+                    "content": page_content,
                     "metadata": metadata,
-                    "id": result.id,
-                    "source": metadata.get("source", "Unknown"),
-                    "page": metadata.get("page", "N/A"),
-                    "content_type": "text"  # Ora tutto è standardizzato come testo
+                    "id": result.id
                 }
                 documents.append(doc_info)
             
@@ -311,6 +295,7 @@ class QdrantManager:
     def debug_collection_content(self, limit: int = 10) -> Dict[str, Any]:
         """
         Metodo di debug per vedere il contenuto della collezione.
+        Ora mostra informazioni sulla struttura standardizzata.
         """
         try:
             results, _ = self.client.scroll(
@@ -322,7 +307,6 @@ class QdrantManager:
             
             debug_info = {
                 "total_points_sampled": len(results),
-                "content_types": {},
                 "sources": set(),
                 "sample_points": []
             }
@@ -330,12 +314,7 @@ class QdrantManager:
             for result in results:
                 payload = result.payload or {}
                 metadata = payload.get("metadata", {})
-                content_type = "text"  # Ora tutto è standardizzato come testo
-                
-                # Conta i tipi di contenuto
-                if content_type not in debug_info["content_types"]:
-                    debug_info["content_types"][content_type] = 0
-                debug_info["content_types"][content_type] += 1
+                page_content = payload.get("page_content", "")
                 
                 # Raccoglie le fonti
                 source = metadata.get("source", "unknown")
@@ -345,14 +324,13 @@ class QdrantManager:
                 if len(debug_info["sample_points"]) < 5:
                     debug_info["sample_points"].append({
                         "id": result.id,
-                        "content_type": content_type,
                         "source": source,
                         "page": metadata.get("page", "N/A"),
-                        "content_preview": payload.get("page_content", "")[:100] + "..." if payload.get("page_content") else "No content"
+                        "content_preview": page_content[:100] + "..." if page_content else "No content"
                     })
             
             debug_info["sources"] = list(debug_info["sources"])
-            logger.info(f"Debug collezione: {debug_info['content_types']}")
+            logger.info(f"Debug collezione: trovati {len(results)} punti")
             return debug_info
             
         except Exception as e:
