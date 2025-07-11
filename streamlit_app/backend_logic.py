@@ -4,6 +4,7 @@ import os
 import logging
 from src.pipeline.indexer_service import DocumentIndexer
 from src.utils.qdrant_utils import qdrant_manager
+from src.utils.mongodb_utils import mongodb_manager
 from src.config import RAW_DATA_PATH
 
 logger = logging.getLogger(__name__)
@@ -37,7 +38,7 @@ def process_uploaded_file(uploaded_file, indexer: DocumentIndexer) -> tuple[bool
 
 def delete_source(filename: str) -> tuple[bool, str]:
     """
-    Manage the deletion of a source from Qdrant and the disk. Does not contain UI code.
+    Manage the deletion of a source from both databases (Qdrant and MongoDB) and the disk.
     Returns (success, message).
     """
     try:
@@ -45,13 +46,19 @@ def delete_source(filename: str) -> tuple[bool, str]:
         success_qdrant, msg_qdrant = qdrant_manager.delete_by_source(filename)
         if not success_qdrant:
             raise Exception(f"Qdrant error: {msg_qdrant}")
+            
+        # 2. Delete from MongoDB
+        success_mongodb, msg_mongodb = mongodb_manager.delete_by_source(filename)
+        if not success_mongodb:
+            logger.warning(f"MongoDB error while deleting: {msg_mongodb}")
+            # Continuiamo comunque per eliminare il file dal disco
 
-        # 2. Delete from disk
+        # 3. Delete from disk
         file_path = os.path.join(RAW_DATA_PATH, filename)
         if os.path.exists(file_path):
             os.remove(file_path)
 
-        msg = f"Source '{filename}' deleted successfully."
+        msg = f"Source '{filename}' deleted successfully from all databases."
         logger.info(msg)
         return True, msg
 

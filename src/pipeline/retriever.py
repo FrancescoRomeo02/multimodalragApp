@@ -1,11 +1,13 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import logging
 from langchain.schema.messages import HumanMessage
 import time
+import base64
 
 from src.core.models import RetrievalResult
 from src.core.prompts import create_prompt_template
 from src.utils.qdrant_utils import qdrant_manager
+from src.utils.mongodb_utils import mongodb_manager
 from src.llm.groq_client import get_groq_llm
 from src.utils.performance_monitor import track_performance
 
@@ -94,21 +96,60 @@ def enhanced_rag_query(query: str,
         
         logger.info(f"Trovati {len(all_results)} risultati unificati per query: '{query}'")
 
+        def get_original_document(mongo_id: str) -> Optional[Dict[str, Any]]:
+            """Recupera il documento originale da MongoDB usando il riferimento."""
+            if not mongo_id:
+                return None
+            return mongodb_manager.get_document_by_id(mongo_id)
+        
         def build_doc_info(result):
-            """Costruisce le informazioni del documento da un risultato Qdrant (versione standardizzata)."""
+            """
+            Costruisce le informazioni del documento da un risultato Qdrant,
+            arricchite con i dati originali da MongoDB quando disponibili.
+            """
             payload = result.payload or {}
             meta = payload.get("metadata", {})
             
-            # Estrae il contenuto principale dal page_content, che ora è il campo standard
-            content = payload.get("page_content", "Contenuto non disponibile")
-
+            # Estrae il contenuto principale dal page_content
+            summary_content = payload.get("page_content", "Contenuto non disponibile")
+            
+            # Controlla se c'è un riferimento a MongoDB
+            mongo_id = meta.get("mongo_id")
+            original_doc = get_original_document(mongo_id) if mongo_id else None
+            
+            # Ottieni il tipo di contenuto originale dai metadati
+            original_content_type = "text"  # Valore predefinito
+            content = summary_content  # Valore predefinito
+            
+            # Se c'è il documento MongoDB, usa i dati originali
+            if original_doc:
+                original_content_type = original_doc.get("content_type", "text")
+                
+                # Recupera contenuto specifico per tipo
+                if original_content_type == "image":
+                    content = original_doc.get("caption", summary_content)
+                    # Aggiungi riferimento all'immagine originale
+                    meta["has_original_image"] = True
+                    # Non includiamo l'immagine base64 qui per evitare payload enormi
+                
+                elif original_content_type == "table":
+                    content = original_doc.get("table_markdown", summary_content)
+                    meta["has_original_table"] = True
+                    # Aggiungi dati strutturati se disponibili
+                    if "table_data" in original_doc:
+                        meta["has_table_data"] = True
+                
+                elif original_content_type == "text":
+                    content = original_doc.get("content", summary_content)
+            
             return {
                 "metadata": meta,
                 "source": meta.get("source", "Sconosciuto"),
                 "page": meta.get("page", "N/A"),
-                "content_type": "text",  # Tutto è ora di tipo text
+                "content_type": original_content_type,
                 "score": result.score,
-                "content": content
+                "content": content,
+                "mongo_id": mongo_id
             }
         
         # Costruisci tutti i documenti recuperati
@@ -126,13 +167,27 @@ def enhanced_rag_query(query: str,
         logger.info(f"Contenuti recuperati per tipo: {content_types}")
         
         # Ora passa i documenti al LLM per generare la risposta
-        # Costruiamo un contesto unificato con tutti i tipi di contenuto
+        # Costruiamo un contesto unificato con tutti i tipi di contenuto originali
         context_texts = []
-        for doc in source_docs[:len(source_docs)]:
+        for doc in source_docs[:min(10, len(source_docs))]:  # Limita a 10 documenti per evitare contesti troppo lunghi
             source = doc.get("source", "Sconosciuto")
             page = doc.get("page", "N/A")
             content = doc.get("content", "")
-            context_texts.append(f"[TESTO da {source}, pagina {page}]\n{content}\n")
+            content_type = doc.get("content_type", "text")
+            
+            # Formato diverso in base al tipo di contenuto
+            if content_type == "image":
+                prefix = f"[IMMAGINE da {source}, pagina {page}]\n"
+                if doc.get("metadata", {}).get("has_original_image"):
+                    prefix += "(Contenuto originale dall'immagine)\n"
+            elif content_type == "table":
+                prefix = f"[TABELLA da {source}, pagina {page}]\n"
+                if doc.get("metadata", {}).get("has_original_table"):
+                    prefix += "(Tabella originale con dati completi)\n"
+            else:
+                prefix = f"[TESTO da {source}, pagina {page}]\n"
+                
+            context_texts.append(f"{prefix}{content}\n")
         
         unified_context = "\n".join(context_texts)
         

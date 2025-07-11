@@ -6,9 +6,11 @@ class TextChunk(BaseModel):
     """
     Modello standardizzato per tutti i tipi di contenuto.
     Ora tutto viene convertito in formato testuale con metadati uniformi.
+    Include riferimenti ai dati originali in MongoDB.
     """
     text: str = Field(..., description="Contenuto testuale del chunk")
     metadata: Dict[str, Any] = Field(..., description="Metadati standardizzati (almeno source e page)")
+    mongo_id: Optional[str] = Field(None, description="ID del documento originale in MongoDB")
 
 
 #RISULTATO RETRIEVER

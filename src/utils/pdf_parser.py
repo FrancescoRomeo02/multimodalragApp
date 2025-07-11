@@ -65,25 +65,34 @@ def parse_pdf_elements(pdf_path: str) -> List[TextChunk]:
                 }
                 
                 if el_type == "Table":
-                    if chunk.text not in seen_tables:
-                        # Aggiungi tipo di origine nei metadati per scopi di debug
-                        table_metadata = metadata.copy()
-                        table_metadata["origin_type"] = "table"
+                    table_metadata = metadata.copy()
+                    table_metadata["origin_type"] = "table"
+                    # Aggiungi dati strutturati della tabella se disponibili
+                    table_data = getattr(el, "metadata", {}).get("table_data", {})
+                    if table_data:
+                        table_metadata["table_data"] = table_data
+                        table_metadata["table_markdown"] = el.metadata.text_as_html
+                        
                         tables.append(TextChunk(
                             text=chunk.text,
-                            metadata=table_metadata
+                            metadata=table_metadata,
+                            mongo_id=None  # Sarà impostato durante l'indicizzazione
                         ))
-                        seen_tables.add(chunk.text)
 
                 elif el_type == "Image":
                     base64_img = el.metadata.image_base64
                     if base64_img:
                         image_metadata = metadata.copy()
+                        image_metadata["origin_type"] = "image"
                         image_metadata["image_present"] = True
-                        images.append({
-                            "image_base64": base64_img,
-                            "metadata": image_metadata
-                        })
+                        image_metadata["image_base64"] = base64_img
+                        
+                        # Ora creiamo un TextChunk anche per le immagini (il testo sarà vuoto inizialmente)
+                        images.append(TextChunk(
+                            text="",  # Sarà riempito con la descrizione dopo il processing
+                            metadata=image_metadata,
+                            mongo_id=None  # Sarà impostato durante l'indicizzazione
+                        ))
 
                 else:
                     if chunk.text not in seen_texts:
@@ -92,7 +101,8 @@ def parse_pdf_elements(pdf_path: str) -> List[TextChunk]:
                         text_metadata["origin_type"] = "text"
                         texts.append(TextChunk(
                             text=chunk.text,
-                            metadata=text_metadata
+                            metadata=text_metadata,
+                            mongo_id=None  # Sarà impostato durante l'indicizzazione
                         ))
                         seen_texts.add(chunk.text)
 
@@ -124,14 +134,29 @@ def parse_pdf_elements(pdf_path: str) -> List[TextChunk]:
     Rispondi solo con la descrizione, senza commenti aggiuntivi.
     """
 
-    def summarize_image_with_groq(image_obj: dict) -> str:
+    def summarize_image_with_groq(image_obj: Any) -> str:
         """
         Funzione per riassumere un singolo elemento Immagine usando il client Groq.
-        Accetta un oggetto contenente l'immagine base64 e i metadati.
+        Accetta un oggetto contenente l'immagine base64 nei suoi metadati.
+        Può essere un TextChunk o un dizionario.
         """
         try:
-            # Estraiamo la stringa base64 e i metadati dall'oggetto
-            image_b64 = image_obj["image_base64"]
+            # Estraiamo la stringa base64 dai metadati, supportando sia TextChunk che dict
+            image_b64 = None
+            
+            # Gestione dei vari formati possibili
+            if hasattr(image_obj, 'metadata') and isinstance(image_obj.metadata, dict):  # TextChunk
+                image_b64 = image_obj.metadata.get("image_base64", "")
+            elif isinstance(image_obj, dict) and "metadata" in image_obj:  # Dict con metadata
+                image_b64 = image_obj["metadata"].get("image_base64", "")
+            elif isinstance(image_obj, dict) and "image_base64" in image_obj:  # Dict con image_base64
+                image_b64 = image_obj["image_base64"]
+            else:
+                logging.warning(f"Formato immagine non riconosciuto: {type(image_obj)}")
+                return "Errore: Formato immagine non riconosciuto"
+            
+            if not image_b64:
+                return "Errore: Immagine non disponibile nei metadati"
             
             response = client.chat.completions.create(
                 model="meta-llama/llama-4-maverick-17b-128e-instruct",
@@ -239,7 +264,8 @@ def parse_pdf_elements(pdf_path: str) -> List[TextChunk]:
                 }
                 chunk = TextChunk(
                     text=summary,
-                    metadata=metadata
+                    metadata=metadata,
+                    mongo_id=None  # Sarà impostato durante l'indicizzazione
                 )
                 final_text_chunks.append(chunk)
     
@@ -257,9 +283,17 @@ def parse_pdf_elements(pdf_path: str) -> List[TextChunk]:
                     "page": tables[i].metadata.get("page", None),
                     "origin_type": "table_summary"
                 }
+                
+                # Preserva i dati della tabella se disponibili
+                if "table_data" in tables[i].metadata:
+                    metadata["table_data"] = tables[i].metadata["table_data"]
+                if "table_markdown" in tables[i].metadata:
+                    metadata["table_markdown"] = tables[i].metadata["table_markdown"]
+                
                 chunk = TextChunk(
                     text=summary,
-                    metadata=metadata
+                    metadata=metadata,
+                    mongo_id=None  # Sarà impostato durante l'indicizzazione
                 )
                 final_text_chunks.append(chunk)
     
@@ -271,15 +305,43 @@ def parse_pdf_elements(pdf_path: str) -> List[TextChunk]:
         # Crea TextChunk per ogni riassunto di immagine
         for i, summary in enumerate(image_summaries):
             if summary and not summary.startswith("Errore"):
+                # Ottieni l'oggetto TextChunk o dict originale
+                image_obj = images[i]
+                
                 # Assicurati che i metadati contengano almeno source e page
-                metadata = {
-                    "source": images[i]["metadata"].get("source", source_filename),
-                    "page": images[i]["metadata"].get("page", None),
-                    "origin_type": "image_summary"
-                }
+                metadata = {}
+                
+                if hasattr(image_obj, 'metadata'):  # TextChunk
+                    metadata = {
+                        "source": image_obj.metadata.get("source", source_filename),
+                        "page": image_obj.metadata.get("page", None),
+                        "origin_type": "image_summary",
+                        "image_present": True
+                    }
+                    
+                    # Preserva il base64 dell'immagine per il salvataggio in MongoDB
+                    if "image_base64" in image_obj.metadata:
+                        metadata["image_base64"] = image_obj.metadata["image_base64"]
+                elif isinstance(image_obj, dict):  # Dict
+                    source = image_obj.get("metadata", {}).get("source", source_filename)
+                    page = image_obj.get("metadata", {}).get("page", None)
+                    metadata = {
+                        "source": source,
+                        "page": page,
+                        "origin_type": "image_summary",
+                        "image_present": True
+                    }
+                    
+                    # Gestisci diversi possibili percorsi per il base64
+                    if "metadata" in image_obj and "image_base64" in image_obj["metadata"]:
+                        metadata["image_base64"] = image_obj["metadata"]["image_base64"]
+                    elif "image_base64" in image_obj:
+                        metadata["image_base64"] = image_obj["image_base64"]
+                
                 chunk = TextChunk(
                     text=summary,
-                    metadata=metadata
+                    metadata=metadata,
+                    mongo_id=None  # Sarà impostato durante l'indicizzazione
                 )
                 final_text_chunks.append(chunk)
     

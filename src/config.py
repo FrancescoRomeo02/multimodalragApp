@@ -14,6 +14,11 @@ RAW_DATA_PATH = os.path.join(PROJECT_ROOT, "data", "raw")
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 COLLECTION_NAME = "collection_multimodal_rag"
 
+# MongoDB
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://admin:password@localhost:27017/")
+MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "multimodalrag")
+MONGO_COLLECTION = "original_documents"
+
 
 # Groq API and LLM Models
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")

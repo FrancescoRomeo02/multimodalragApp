@@ -55,7 +55,7 @@ def source_selector_widget():
             if st.button(f"Delete '{file}'", key=f"del_{file}"):
                 if file in st.session_state.selected_files:
                     st.session_state.selected_files.remove(file)
-                with st.spinner(f"Deleting '{file}'..."):
+                with st.spinner(f"Deleting '{file}' from all databases..."):
                     success, message = delete_source(file)
                 if success:
                     st.success(message)
@@ -263,8 +263,8 @@ def enhanced_chat_interface_widget(selected_sources: list[str]):
                     else:
                         # Detailed references
                         st.markdown("**Detailed origin sources:**")
-                        for i, doc in enumerate(source_docs):
-                            display_source_document(doc, i)
+                        for doc in source_docs:
+                            display_source_document(doc)
                 
                 st.rerun()
 

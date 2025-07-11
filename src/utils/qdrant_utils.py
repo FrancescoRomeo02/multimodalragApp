@@ -47,6 +47,7 @@ class QdrantManager:
         """
         Converte una lista di TextChunk e i loro vettori in punti Qdrant.
         Tutti i tipi di contenuto sono gestiti in modo standardizzato.
+        Ora include riferimenti a MongoDB per i dati originali.
         """
         points = []
         for chunk, vector in zip(text_chunks, vectors):
@@ -57,10 +58,14 @@ class QdrantManager:
             if "source" not in metadata:
                 metadata["source"] = "Sconosciuto"
                 
+            # Aggiungi l'ID MongoDB ai metadati se presente
+            if hasattr(chunk, 'mongo_id') and chunk.mongo_id:
+                metadata["mongo_id"] = chunk.mongo_id
+                
             # Crea payload completamente standardizzato
             payload = {
                 "page_content": chunk.text,  # Contenuto testuale
-                "metadata": metadata         # Solo metadati standardizzati
+                "metadata": metadata         # Metadati standardizzati con riferimento a MongoDB
             }
             
             points.append(models.PointStruct(

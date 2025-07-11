@@ -28,6 +28,8 @@ services:
       - "8501:8501"
     environment:
       - QDRANT_URL=http://qdrant:6333
+      - MONGO_URI=mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD:-password}@mongodb:27017/
+      - MONGO_DB_NAME=multimodalrag
       - GROQ_API_KEY=${GROQ_API_KEY}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - ENABLE_PERFORMANCE_MONITORING=${ENABLE_PERFORMANCE_MONITORING:-false}
@@ -37,6 +39,7 @@ services:
       - ./uploads:/app/uploads  # Directory for file uploads
     depends_on:
       - qdrant
+      - mongodb
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
@@ -93,11 +96,30 @@ services:
     restart: unless-stopped
     profiles: ["monitoring"]
 
+  # MongoDB per i contenuti originali
+  mongodb:
+    image: mongo:6
+    container_name: multimodal-rag-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_USERNAME:-admin}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD:-password}
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "'db.adminCommand(\"ping\")'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 volumes:
   qdrant_data:
   redis_data:
   prometheus_data:
   grafana_data:
+  mongodb_data:
 
 networks:
   default:
