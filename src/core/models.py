@@ -10,7 +10,7 @@ class ImageResult(BaseModel):
     page_content: str
 
 class TableResult(BaseModel):
-    table_markdown: str
+    table_html: str
     metadata: dict
     score: float
 
@@ -40,8 +40,7 @@ class TableData(BaseModel):
 
 class TableElement(BaseModel):
     """Modello per gli elementi tabella estratti dai PDF"""
-    table_data: TableData = Field(..., description="Dati strutturati della tabella")
-    table_markdown: str = Field(..., description="Rappresentazione markdown della tabella")
+    table_html: str = Field(..., description="Rappresentazione html della tabella")
     metadata: TableMetadata = Field(..., description="Metadati standardizzati della tabella")
 
 #TESTO
@@ -60,7 +59,6 @@ class ImageMetadata(ElementMetadata):
     image_caption: Optional[str] = Field(None, description="Caption generata dall'AI combinata con contesto")
 
 class ImageElement(BaseModel):
-    page_content: str  # Può contenere didascalia o testo associato all'immagine
     image_base64: str  # Contenuto immagine codificato base64
     metadata: ImageMetadata
 

@@ -1,201 +1,16 @@
-import fitz  
-import base64
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 import logging
 from typing import Tuple, List, Dict, Any
-from io import BytesIO
-from PIL import Image as PILImage
-import os
-import pandas as pd
-import numpy as np
 from src.utils.context_extractor import ContextExtractor
 from src.utils.image_info import get_comprehensive_image_info
 from src.utils.table_info import enhance_table_with_summary
+from unstructured.partition.pdf import partition_pdf
+from src.utils.pdf_validate_elemets import is_valid_image, is_valid_table
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-def is_valid_table(df: pd.DataFrame) -> bool:
-    """
-    Filtro avanzato per validazione tabelle con criteri migliorati:
-    - Dimensioni minime: almeno 2 righe e 2 colonne
-    - Qualità dei dati: meno del 70% di celle vuote
-    - Contenuto significativo: almeno il 30% delle celle con testo valido
-    - Struttura coerente: varianza nella lunghezza del contenuto
-    - Header detection: prima riga con caratteristiche di intestazione
-    """
-    rows, cols = df.shape
-    
-    
-    total_cells = rows * cols
-    empty_cells = df.isna().values.sum()
-    empty_ratio = empty_cells / total_cells
-    
-    # Soglia più rigorosa per celle vuote
-    if empty_ratio > 0.7:
-        logger.debug(f"Tabella scartata: troppe celle vuote ({empty_ratio:.2%})")
-        return False
-    
-    # Conta celle con contenuto significativo (non solo spazi o caratteri singoli)
-    meaningful_content = 0
-    for col in df.columns:
-        for value in df[col].dropna():
-            if isinstance(value, str) and len(str(value).strip()) > 1:
-                meaningful_content += 1
-    
-    meaningful_ratio = meaningful_content / (total_cells - empty_cells) if (total_cells - empty_cells) > 0 else 0
-    if meaningful_ratio < 0.6:
-        logger.debug(f"Tabella scartata: contenuto poco significativo ({meaningful_ratio:.2%})")
-        return False
-    
-    # Verifica presenza di header (prima riga diversa dalle altre)
-    if rows >= 3:
-        first_row = df.iloc[0].astype(str)
-        second_row = df.iloc[1].astype(str)
-        
-        # Header spesso contiene testo più breve e descrittivo
-        first_row_lengths = [len(str(x).strip()) for x in first_row if pd.notna(x)]
-        second_row_lengths = [len(str(x).strip()) for x in second_row if pd.notna(x)]
-        
-        avg_first = np.mean(first_row_lengths) if first_row_lengths else 0
-        avg_second = np.mean(second_row_lengths) if second_row_lengths else 0
-        
-        # Se la prima riga ha contenuto troppo simile alle altre, potrebbe non essere una tabella
-        if abs(avg_first - avg_second) < 2 and avg_first < 3:
-            logger.debug("Tabella scartata: struttura header non chiara")
-            return False
-    
-    # Verifica varianza nel contenuto (tabelle reali hanno dati diversificati)
-    content_variance_score = 0
-    text_only = True
-    for col in df.columns:
-        col_values = df[col].dropna().astype(str)
-        # Verifica se ci sono valori numerici nella colonna
-        if any(col_values.str.replace('.', '', 1).str.isdigit()):
-            text_only = False
-        if len(col_values) > 1:
-            unique_values = col_values.nunique()
-            variance_ratio = unique_values / len(col_values)
-            content_variance_score += variance_ratio
-
-    avg_variance = content_variance_score / cols if cols > 0 else 0
-    # Se la tabella contiene solo testo, salta il controllo di varianza
-    if not text_only and avg_variance < 0.1:  # Troppo poco variabile
-        logger.debug(f"Tabella scartata: contenuto troppo uniforme (variance: {avg_variance:.2f})")
-        return False
-    
-    
-    logger.debug(f"Tabella valida: {rows}x{cols}, vuote: {empty_ratio:.2%}, significative: {meaningful_ratio:.2%}")
-
-    return True
-
-def is_valid_image(width: int, height: int, image_data: bytes) -> bool:
-    """
-    Filtro per immagini valide basato su dimensioni e qualità:
-    - Dimensioni minime: 100x100 pixel
-    - Area minima: 15.000 pixel
-    - Dimensioni massime ragionevoli: 5000x5000 pixel
-    - Dimensione file minima: 1KB per evitare placeholder/icone
-    - Rapporto di aspetto ragionevole (non troppo allungate)
-    """
-    # Controlli dimensioni di base
-    if width < 120 or height < 120:
-        logger.debug(f"Immagine scartata: dimensioni troppo piccole ({width}x{height})")
-        return False
-    
-    # Controllo area minima
-    area = width * height
-    if area < 14400:  # ~120x120 pixel
-        logger.debug(f"Immagine scartata: area troppo piccola ({area} pixel)")
-        return False
-    
-    # Controllo dimensioni massime
-    if width > 5000 or height > 5000:
-        logger.debug(f"Immagine scartata: dimensioni troppo grandi ({width}x{height})")
-        return False
-    
-    # Controllo dimensione file
-    if len(image_data) < 1024:  # 1KB minimo
-        logger.debug(f"Immagine scartata: file troppo piccolo ({len(image_data)} bytes)")
-        return False
-    
-    # Controllo rapporto di aspetto (evita immagini troppo allungate)
-    aspect_ratio = max(width, height) / min(width, height)
-    if aspect_ratio > 10:  # Rapporto massimo 10:1
-        logger.debug(f"Immagine scartata: rapporto di aspetto troppo estremo ({aspect_ratio:.2f})")
-        return False
-    
-    return True
-
-
-def extract_tables_from_page(page: fitz.Page) -> List[Dict[str, Any]]:
-    """
-    Estrae tabelle da una pagina PDF usando PyMuPDF
-    
-    Args:
-        page: La pagina PDF da analizzare
-        
-    Returns:
-        Lista di dizionari contenenti i dati delle tabelle
-    """
-    tables = []
-    try:
-        # Metodo principale: Rilevamento tabelle di PyMuPDF
-        tabs = page.find_tables() # type: ignore
-        if not tabs or len(tabs.tables) == 0:
-            return tables
-            
-        for i, table in enumerate(tabs.tables):
-            try:
-                # Verifica preliminare del bounding box
-                if not hasattr(table, 'bbox') or not table.bbox:
-                    continue
-                    
-                df = table.to_pandas()
-                
-                # Converti tutti i valori a stringa e pulisci
-                df = df.map(lambda x: str(x).strip() if pd.notna(x) else x)
-                df = df.replace(r'^\s*$', np.nan, regex=True)
-                df = df.dropna(how='all').dropna(how='all', axis=1)
-                
-                # Validazione tabella con informazioni dettagliate
-                if not is_valid_table(df):
-                    rows, cols = df.shape
-                    empty_ratio = df.isna().values.sum() / (rows * cols) if rows * cols > 0 else 1
-                    logger.info(f"Tabella {i+1} pagina {page.number if page.number is not None else 0 + 1} scartata")
-                    logger.debug(df)
-                    continue
-
-                
-                # Converti la tabella in formato markdown
-                table_md = df.to_markdown(index=False)
-                
-                # Crea una rappresentazione strutturata della tabella
-                table_data = {
-                    "cells": df.values.tolist(),
-                    "headers": df.columns.tolist(),
-                    "shape": df.shape
-                }
-                
-                tables.append({
-                    "table_data": table_data,
-                    "table_markdown": table_md,
-                    "bbox": table.bbox  # Rettangolo che contiene la tabella
-                })
-                
-                # Log informativo per tabelle accettate
-                rows, cols = df.shape
-                empty_ratio = df.isna().values.sum() / (rows * cols)
-                logger.info(f"Tabella {i+1} pagina {page.number if page.number is not None else 0 + 1} accettata: {rows}x{cols} celle, {empty_ratio:.1%} vuote")
-
-            except Exception as table_e:
-                logger.warning(f"Errore nell'estrazione della tabella {i+1}: {str(table_e)}")
-                continue
-                
-    except Exception as e:
-        logger.error(f"Errore generale nell'estrazione delle tabelle: {str(e)}")
-    
-    return tables
 
 def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
@@ -223,132 +38,203 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
         di entrambe le implementazioni in un'unica soluzione.
     """
     logger.info(f"Avvio parsing avanzato del PDF: {os.path.basename(pdf_path)}")
-
-    text_elements = []
-    image_elements = []
-    table_elements = []
-    
-    # Inizializza l'estrattore di contesto con parametri più ampi
-    context_extractor = ContextExtractor(context_window=500, max_distance=300)
     
     try:
-        doc = fitz.open(pdf_path)
-        filename = os.path.basename(pdf_path)
-        
+        chunks = partition_pdf(
+            filename=pdf_path,
+            infer_table_structure=True,            # extract tables
+            strategy="hi_res",                     # mandatory to infer tables
+
+            extract_image_block_types=["Image"],   # Add 'Table' to list to extract image of tables
+            # image_output_dir_path=output_path,   # if None, images and tables will saved in base64
+
+            extract_image_block_to_payload=True,   # if true, will extract base64 for API usage
+
+            chunking_strategy="by_title",          # or 'basic'
+            max_characters=10000,                  # defaults to 500
+            combine_text_under_n_chars=2000,       # defaults to 0
+            new_after_n_chars=6000,
+        )
+
         # Contatori globali per identificatori univoci
         table_counter = 0
         image_counter = 0
+        page_num = 0
+
+        tables = []
+        texts = []
+        images = []
+
+        # Dictionaries to track unique elements
+        unique_tables = {}
+        unique_images = {}
+        unique_texts = {}
         
-        for page_num in range(len(doc)):
-            page = doc.load_page(page_num)
-            page_bbox = page.rect
-            
-            # Estrazione testo con metadati essenziali
-            text = page.get_text().strip() # type: ignore
-            if text:
+        text_elements = []
+        image_elements = []
+        table_elements = []
+
+        for chunk in chunks:
+            # Ensure orig_elements exists and is not None
+            if hasattr(chunk.metadata, 'orig_elements') and chunk.metadata.orig_elements:
+                for el in chunk.metadata.orig_elements:
+                    element_type = str(type(el))
+                    
+                    # Create a unique identifier for the element
+                    if hasattr(el, 'text'):
+                        element_content = el.text
+                    elif hasattr(el, 'to_dict'):
+                        element_content = str(el.to_dict())
+                    else:
+                        element_content = str(el)
+                    
+                    # Use content hash as unique identifier
+                    element_id = hash(element_content)
+                    
+                    if "Table" in element_type:
+                        if element_id not in unique_tables:
+                            # Get text_as_html and page_number from the element's metadata
+                            text_as_html = ''
+                            page_number = None
+                            if hasattr(el, 'metadata'):
+                                if hasattr(el.metadata, 'text_as_html'):
+                                    text_as_html = el.metadata.text_as_html
+                                if hasattr(el.metadata, 'page_number'):
+                                    page_number = el.metadata.page_number
+                            
+                            # Create a new chunk-like object for this table
+                            table_chunk = type('TableChunk', (), {
+                                'text': element_content,
+                                'metadata': type('Metadata', (), {
+                                    'text_as_html': text_as_html,
+                                    'page_number': page_number,
+                                    'orig_elements': [el]
+                                })()
+                            })()
+                            unique_tables[element_id] = table_chunk
+                            tables.append(table_chunk)
+                            
+                    elif "Image" in element_type:
+                        if element_id not in unique_images:
+                            # Get metadata from the original element
+                            page_number = None
+                            image_base64 = None
+                            coordinates = None
+                            if hasattr(el, 'metadata'):
+                                if hasattr(el.metadata, 'page_number'):
+                                    page_number = el.metadata.page_number
+                                if hasattr(el.metadata, 'image_base64'):
+                                    image_base64 = el.metadata.image_base64
+                                if hasattr(el.metadata, 'coordinates'):
+                                    coordinates = el.metadata.coordinates
+                            
+                            # Create a new chunk-like object for this image
+                            image_chunk = type('ImageChunk', (), {
+                                'text': element_content,
+                                'metadata': type('Metadata', (), {
+                                    'page_number': page_number,
+                                    'image_base64': image_base64,
+                                    'coordinates': coordinates,
+                                    'orig_elements': [el]
+                                })()
+                            })()
+                            unique_images[element_id] = image_chunk
+                            images.append(image_chunk)
+                    else:
+                        if element_id not in unique_texts:
+                            # Get page_number from the original element
+                            page_number = None
+                            if hasattr(el, 'metadata') and hasattr(el.metadata, 'page_number'):
+                                page_number = el.metadata.page_number
+                            
+                            # Create a new chunk-like object for this text
+                            text_chunk = type('TextChunk', (), {
+                                'text': element_content,
+                                'metadata': type('Metadata', (), {
+                                    'text': element_content,  # Also store in metadata for compatibility
+                                    'page_number': page_number,
+                                    'orig_elements': [el]
+                                })()
+                            })()
+                            unique_texts[element_id] = text_chunk
+                            texts.append(text_chunk)
+            else:
+                # Fallback: if no orig_elements, treat the whole chunk as text
+                chunk_content = str(chunk)
+                chunk_id = hash(chunk_content)
+                if chunk_id not in unique_texts:
+                    unique_texts[chunk_id] = chunk
+                    texts.append(chunk)
+
+        print("="*50)
+        print(f"Totale elementi estratti: {len(texts)} testi, {len(images)} immagini, {len(tables)} tabelle")
+        print("="*50)
+
+        for text in texts:
                 text_elements.append({
                     "text": text,
                     "metadata": {
-                        "source": filename,
-                        "page": page_num + 1,
+                        "source": os.path.basename(pdf_path),
+                        "page": text.metadata.page_number if text.metadata.page_number is not None else 0,
                         "content_type": "text"
                     }
                 })
             
-            # Estrazione tabelle con contesto
-            tables = extract_tables_from_page(page)
-            for table in tables:
-                try:
-                    table_counter += 1
-                    table_id = f"table_{table_counter}"
+
+        for table in tables:
+            try:
+                table_counter += 1
+                table_id = f"table_{table_counter}"
+                page_num = table.metadata.page_number if table.metadata.page_number is not None else 0
                     
-                    # Estrai contesto per la tabella
-                    table_context = context_extractor.extract_table_context(table["bbox"], page)
-                    
-                    # Combina il markdown della tabella con il contesto per la ricerca
-                    enhanced_table_content = context_extractor.enhance_text_with_context(
-                        table["table_markdown"], 
-                        table_context
-                    )
-                    
-                    table_element = {
-                        "table_data": table["table_data"],
-                        "table_markdown": table["table_markdown"],
-                        "metadata": {
-                            "source": filename,
-                            "page": page_num + 1,
-                            "content_type": "table",
-                            "table_id": table_id,
-                            "table_summary": None  # Placeholder per il riassunto AI
+                table_element = {
+                    "table_html": table.metadata.text_as_html,
+                    "metadata": {
+                        "source": os.path.basename(pdf_path),
+                        "page": page_num,
+                        "content_type": "table",
+                        "table_id": table_id,
+                        "table_summary": None  # Placeholder per il riassunto AI
                         }
-                    }
-                    # Arricchisci la tabella con il riassunto AI
-                    table_element = enhance_table_with_summary(table_element)
-                    table_elements.append(table_element)
+                }
+                # Arricchisci la tabella con il riassunto AI
+                table_element = enhance_table_with_summary(table_element)
+                table_elements.append(table_element)
 
+            except Exception as e:
+                logger.warning(f"Errore nell'elaborazione della tabella: {str(e)}")
 
-                except Exception as e:
-                    logger.warning(f"Errore nell'elaborazione della tabella: {str(e)}")
-            
-            # Estrazione immagini con metadati standardizzati, contesto manuale e analisi AI
-            for img_index, img_info in enumerate(page.get_images(full=True)):
+        for img_index, img_info in enumerate(images):
                 try:
-                    xref = img_info[0]
-                    base_image = doc.extract_image(xref)
-                    
-                    # Controllo validità dell'immagine con criteri migliorati
-                    if not base_image["image"]:
-                        logger.debug(f"Immagine {img_index+1} pagina {page_num+1}: dati immagine mancanti")
-                        continue
-                        
-                    if not is_valid_image(base_image["width"], base_image["height"], base_image["image"]):
-                        logger.debug(f"Immagine {img_index+1} pagina {page_num+1} scartata per dimensioni/qualità")
+                    page_num = img_info.metadata.page_number if img_info.metadata.page_number is not None else 0
+                    width = int(img_info.metadata.coordinates.system.width) if img_info.metadata.coordinates.system.width else 0
+                    height = int(img_info.metadata.coordinates.system.height) if img_info.metadata.coordinates.system.height else 0
+                    if not is_valid_image(width, height):
+                        logger.debug(f"Immagine {img_index+1} pagina {page_num} scartata per dimensioni/qualità")
                         continue
                     
                     image_counter += 1
                     image_id = f"image_{image_counter}"
                     
                     # Log informativo per immagini accettate
-                    logger.info(f"Immagine {img_index+1} pagina {page_num+1} accettata ({image_id}): {base_image['width']}x{base_image['height']} pixel, {len(base_image['image'])/1024:.1f}KB")
-                    
-                    # Ottieni il rettangolo dell'immagine per estrarre il contesto
-                    img_rects = [rect for rect in page.get_image_rects(xref)] # type: ignore
-                    image_rect = img_rects[0] if img_rects else page.rect
-                    
-                    # Estrai contesto manuale per l'immagine
-                    image_context = context_extractor.extract_image_context(image_rect, page)
-                    
-                    with BytesIO(base_image["image"]) as img_buffer:
-                        img = PILImage.open(img_buffer)
-                        img_format = img.format or "PNG"
-                        
-                        with BytesIO() as output_buffer:
-                            img.save(output_buffer, format=img_format, optimize=True, quality=85)
-                            optimized_image = output_buffer.getvalue()
-                    
-                    # Ottieni informazioni complete dall'immagine usando AI
-                    image_base64 = base64.b64encode(optimized_image).decode("utf-8")
-                    image_info_ai = get_comprehensive_image_info(image_base64)
+                    logger.info(f"Immagine {img_index+1} pagina {page_num} accettata ({image_id})")
+
+                    # Ottinei le informazioni di base sull'immagine
+                    image_info_ai = get_comprehensive_image_info(img_info.metadata.image_base64)
                     
                     # Combina caption AI, OCR, e contesto manuale in una descrizione unificata
                     caption_parts = [
                         f"[{image_id}] Descrizione: {image_info_ai['caption']}",
                         f"Testo rilevato: {image_info_ai['ocr_text']}" if image_info_ai["ocr_text"].strip() else None,
                         f"Oggetti rilevati: {', '.join(image_info_ai['detected_objects'])}" if image_info_ai["detected_objects"] else None,
-                        f"Caption manuale: {image_context.get('caption')}" if image_context.get('caption') else None
                     ]
                     comprehensive_caption = " | ".join([p for p in caption_parts if p])
                     
-                    # Combina caption AI con contesto manuale per la ricerca
-                    enhanced_description = context_extractor.enhance_text_with_context(
-                        comprehensive_caption,
-                        image_context
-                    )
                     
                     logger.debug(f"Immagine {img_index+1} pagina {page_num+1} ({image_id}) - Caption: {comprehensive_caption}")
                     
                     image_metadata = {
-                        "source": filename,
+                        "source": os.path.basename(pdf_path),
                         "page": page_num + 1,
                         "content_type": "image",
                         "image_id": image_id,
@@ -356,13 +242,13 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     }
                     
                     image_elements.append({
-                        "image_base64": image_base64,
+                        "image_base64": img_info.metadata.image_base64,
                         "metadata": image_metadata,
-                        "page_content": enhanced_description  # Descrizione arricchita per la ricerca
+                        "page_content": comprehensive_caption 
                     })
                         
                 except Exception as img_e:
-                    logger.error(f"Errore processamento immagine {img_index} pagina {page_num+1}: {str(img_e)}")
+                    logger.error(f"Errore processamento immagine {img_index} pagina {page_num}: {str(img_e)}")
                     continue
                     
     except Exception as e:

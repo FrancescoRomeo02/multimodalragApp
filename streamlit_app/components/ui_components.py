@@ -263,8 +263,8 @@ def enhanced_chat_interface_widget(selected_sources: list[str]):
                     else:
                         # Detailed references
                         st.markdown("**Detailed origin sources:**")
-                        for i, doc in enumerate(source_docs):
-                            display_source_document(doc, i)
+                        for doc in source_docs:
+                            display_source_document(doc)
                 
                 st.rerun()
 

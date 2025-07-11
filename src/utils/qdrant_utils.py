@@ -77,8 +77,6 @@ class QdrantManager:
                 vector=vector,
                 payload={
                     "page": element.metadata.page,
-                    "page_content": element.page_content,
-                    # image_base64 rimosso dal database - troppo pesante e inutile per la ricerca
                     "content_type": "image",
                     "metadata": element.metadata.model_dump()
                 }
@@ -92,10 +90,9 @@ class QdrantManager:
                 id=str(uuid.uuid4()),
                 vector=vector,
                 payload={
-                    "page_content": element.get("table_markdown", ""),
+                    "page_content": element.get("table_html", ""),
                     "metadata": element.get("metadata", {}),
                     "content_type": "table",
-                    "table_data": element.get("table_data", {})
                 }
             )
         else:
@@ -104,10 +101,9 @@ class QdrantManager:
                 id=str(uuid.uuid4()),
                 vector=vector,
                 payload={
-                    "page_content": element.table_markdown,
+                    "page_content": element.table_html,
                     "metadata": element.metadata.model_dump(),
                     "content_type": "table",
-                    "table_data": element.table_data.model_dump()
                 }
             )
     
@@ -130,8 +126,8 @@ class QdrantManager:
             ):
                 points.append(self._image_element_to_point(element, vector))
             elif isinstance(element, (TableElement, dict)) and (
-                hasattr(element, 'table_markdown') or 
-                (isinstance(element, dict) and 'table_markdown' in element)
+                hasattr(element, 'table_html') or 
+                (isinstance(element, dict) and 'table_html' in element)
             ):
                 points.append(self._table_element_to_point(element, vector))
             else:
@@ -476,18 +472,17 @@ class QdrantManager:
                 try:
                     payload = result.payload or {}
                     metadata = payload.get("metadata", {})
-                    table_markdown = payload.get("page_content", "")
+                    table_html = payload.get("page_content", "")
                     
-                    if not table_markdown:
+                    if not table_html:
                         logger.debug(f"Saltato risultato senza contenuto tabella: {result.id}")
                         continue
                     
                     table_results.append({
-                        "table_markdown": table_markdown,
+                        "table_html": table_html,
                         "metadata": metadata,
                         "score": result.score,
-                        "page_content": table_markdown,
-                        "table_data": payload.get("table_data", {})
+                        "page_content": table_html,
                     })
                 except Exception as e:
                     logger.warning(f"Errore processamento risultato tabella: {e}")

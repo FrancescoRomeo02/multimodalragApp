@@ -109,7 +109,7 @@ def enhanced_rag_query(query: str,
             }
 
             if content_type == "table":
-                table_content = payload.get("page_content", meta.get("table_markdown", "Contenuto tabella non disponibile"))
+                table_content = payload.get("page_content", meta.get("table_html", "Contenuto tabella non disponibile"))
                 
                 # Gestione intelligente del contesto per tabelle
                 context_text = meta.get("context_text", "")
@@ -119,7 +119,7 @@ def enhanced_rag_query(query: str,
                     meaningful_context = _filter_table_context(context_text)
                 
             if content_type == "table":
-                table_content = payload.get("page_content", meta.get("table_markdown", "Contenuto tabella non disponibile"))
+                table_content = payload.get("page_content", meta.get("table_html", "Contenuto tabella non disponibile"))
                 
                 # Gestione intelligente del contesto per tabelle
                 context_text = meta.get("context_text", "")
@@ -130,10 +130,9 @@ def enhanced_rag_query(query: str,
                 
                 base_info.update({
                     "content": table_content,
-                    "table_data": payload.get("table_data", {}),
                     "caption": meta.get("caption"),
                     "context_text": meaningful_context,  # Solo contesto significativo
-                    "table_markdown_raw": meta.get("table_markdown")
+                    "table_html_raw": meta.get("table_html")
                 })
             elif content_type == "image":
                 base_info.update({
