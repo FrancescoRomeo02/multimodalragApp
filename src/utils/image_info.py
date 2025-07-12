@@ -9,7 +9,7 @@ import cv2
 import pytesseract
 import numpy as np
 from ultralytics import YOLO
-from src.config import GROQ_API_KEY, IMG_DESC_MODEL_SM
+from src.config import GROQ_API_KEY, IMG_DESC_MODEL_LG
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -90,17 +90,17 @@ def get_caption(base64_str: str) -> str:
                         ],
                     }
                 ],
-                model=IMG_DESC_MODEL_SM,  # Usa il modello configurato per la descrizione immagini
+                model=IMG_DESC_MODEL_LG,  # Usa il modello configurato per la descrizione immagini
                 max_tokens=300,
                 temperature=0.1,
             )
             
             caption = chat_completion.choices[0].message.content
-            logger.info(f"Caption generata con successo usando {IMG_DESC_MODEL_SM}")
+            logger.info(f"Caption generata con successo usando {IMG_DESC_MODEL_LG}")
             return caption if caption else "Immagine non descrivibile"
             
         except Exception as vision_error:
-            logger.warning(f"Modello {IMG_DESC_MODEL_SM} non supporta immagini: {vision_error}")
+            logger.warning(f"Modello {IMG_DESC_MODEL_LG} non supporta immagini: {vision_error}")
             
             # Fallback: prova con modello vision specifico se disponibile
             try:
