@@ -13,58 +13,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def _filter_table_context(context_text: str) -> str:
-    """
-    Filtra il contesto delle tabelle per rimuovere altre tabelle e mantenere solo testo descrittivo utile
-    """
-    if not context_text:
-        return ""
-    
-    # Dividi il contesto in parti (precedente e successivo)
-    parts = context_text.split(" | ")
-    filtered_parts = []
-    
-    for part in parts:
-        part_clean = part.strip()
-        if not part_clean:
-            continue
-        
-        # Rimuovi etichette come "Contesto precedente:" e "Contesto successivo:"
-        if part_clean.startswith("Contesto precedente:"):
-            part_clean = part_clean.replace("Contesto precedente:", "").strip()
-        elif part_clean.startswith("Contesto successivo:"):
-            part_clean = part_clean.replace("Contesto successivo:", "").strip()
-        
-        # Verifica se il contesto è significativo (non un'altra tabella)
-        part_lower = part_clean.lower()
-        
-        # Indicatori che suggeriscono che il contesto è un'altra tabella
-        table_indicators = [
-            "|", "---|", "table", "tabella", 
-            "row", "column", "cell", "header", "thead", "tbody"
-        ]
-        
-        # Verifica se il contesto contiene principalmente indicatori di tabella
-        table_indicator_count = sum(1 for indicator in table_indicators if indicator in part_lower)
-        
-        # Considera significativo se:
-        # 1. È abbastanza lungo (>50 caratteri)
-        # 2. Non ha troppi indicatori di tabella (<3)
-        # 3. Non è principalmente simboli (|, -, etc.)
-        symbol_ratio = sum(1 for char in part_clean if char in "||-") / len(part_clean) if part_clean else 1
-        
-        if (len(part_clean) > 50 and 
-            table_indicator_count < 3 and 
-            symbol_ratio < 0.3):  # Meno del 30% di simboli tabella
-            
-            # Tronca se troppo lungo
-            if len(part_clean) > 200:
-                part_clean = part_clean[:200] + "..."
-            
-            filtered_parts.append(part_clean)
-    
-    return " | ".join(filtered_parts) if filtered_parts else ""
-
 @track_performance(query_type="multimodal_rag")
 def enhanced_rag_query(query: str,
                        selected_files: Optional[List[str]] = None) -> RetrievalResult:
@@ -106,31 +54,17 @@ def enhanced_rag_query(query: str,
                 "content_type": content_type,
                 "score": result.score  # Aggiungiamo il punteggio per ordinamento
             }
-
-            if content_type == "table":
-                table_content = payload.get("page_content", meta.get("table_html", "Contenuto tabella non disponibile"))
-                
-                # Gestione intelligente del contesto per tabelle
-                context_text = meta.get("context_text", "")
-                meaningful_context = ""
-                
-                if context_text:
-                    meaningful_context = _filter_table_context(context_text)
                 
             if content_type == "table":
                 table_content = payload.get("page_content", meta.get("table_html", "Contenuto tabella non disponibile"))
                 
                 # Gestione intelligente del contesto per tabelle
                 context_text = meta.get("context_text", "")
-                meaningful_context = ""
-                
-                if context_text:
-                    meaningful_context = _filter_table_context(context_text)
                 
                 base_info.update({
                     "content": table_content,
                     "caption": meta.get("caption"),
-                    "context_text": meaningful_context,  # Solo contesto significativo
+                    "context_text": context_text,  # Solo contesto significativo
                     "table_html_raw": meta.get("table_html")
                 })
             elif content_type == "image":
