@@ -74,7 +74,9 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
         table_elements = []
 
         for chunk in chunks:
-            # Ensure orig_elements exists and is not None
+            # Check if this chunk contains tables or images that we need to extract separately
+            has_special_elements = False
+            
             if hasattr(chunk.metadata, 'orig_elements') and chunk.metadata.orig_elements:
                 for el in chunk.metadata.orig_elements:
                     element_type = str(type(el))
@@ -91,6 +93,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     element_id = hash(element_content)
                     
                     if "Table" in element_type:
+                        has_special_elements = True
                         if element_id not in unique_tables:
                             # Get text_as_html and page_number from the element's metadata
                             text_as_html = ''
@@ -114,6 +117,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                             tables.append(table_chunk)
                             
                     elif "Image" in element_type:
+                        has_special_elements = True
                         if element_id not in unique_images:
                             # Get metadata from the original element
                             page_number = None
@@ -139,29 +143,13 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                             })()
                             unique_images[element_id] = image_chunk
                             images.append(image_chunk)
-                    else:
-                        if element_id not in unique_texts:
-                            # Get page_number from the original element
-                            page_number = None
-                            if hasattr(el, 'metadata') and hasattr(el.metadata, 'page_number'):
-                                page_number = el.metadata.page_number
-                            
-                            # Create a new chunk-like object for this text
-                            text_chunk = type('TextChunk', (), {
-                                'text': element_content,
-                                'metadata': type('Metadata', (), {
-                                    'text': element_content, 
-                                    'page_number': page_number,
-                                    'orig_elements': [el]
-                                })()
-                            })()
-                            unique_texts[element_id] = text_chunk
-                            texts.append(text_chunk)
-            else:
-                # Fallback: if no orig_elements, treat the whole chunk as text
-                chunk_content = str(chunk)
+            
+            # For text chunks, preserve the original chunking strategy
+            # Only process as text if it doesn't contain special elements or if it has meaningful text content
+            if not has_special_elements and hasattr(chunk, 'text') and chunk.text.strip():
+                chunk_content = chunk.text
                 chunk_id = hash(chunk_content)
-                if chunk_id not in unique_texts:
+                if chunk_id not in unique_texts and len(chunk_content.strip()) > 5:  # Only meaningful text chunks
                     unique_texts[chunk_id] = chunk
                     texts.append(chunk)
 
@@ -179,7 +167,6 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     }
                 })
             
-
         for table in tables:
             try:
                 table_counter += 1
@@ -249,10 +236,10 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                 except Exception as img_e:
                     logger.error(f"Errore processamento immagine {img_index} pagina {page_num}: {str(img_e)}")
                     continue
-                    
     except Exception as e:
         logger.error(f"Errore durante il parsing del PDF: {str(e)}")
         raise RuntimeError(f"PDF parsing failed: {str(e)}") from e
     
+
     logger.info(f"Estrazione completata: {len(text_elements)} testi, {len(image_elements)} immagini, {len(table_elements)} tabelle")
     return text_elements, image_elements, table_elements
