@@ -3,7 +3,7 @@
 import logging
 from typing import Dict, Any, Optional, List
 from langchain.schema.messages import HumanMessage
-from src.config import GROQ_API_KEY, TABLE_SUMMARY_MODEL_SM
+from src.config import GROQ_API_KEY, TABLE_SUMMARY_MODEL_LG
 from src.llm.groq_client import get_table_summary_llm
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -30,7 +30,7 @@ def create_table_summary(table_html: str, context_info: Optional[Dict[str, str]]
         # Costruisci il prompt per il riassunto
         table_identifier = f"[{table_id}] " if table_id else ""
         prompt_parts = [
-            f"Analizza la seguente tabella {table_identifier}e fornisci un riassunto conciso e informativo che includa:",
+            f"Analizza la seguente tabella {table_identifier} e fornisci un riassunto conciso e informativo che includa:",
             "- Il tipo di dati contenuti",
             "- Le principali tendenze o pattern", 
             "- I valori chiave o interessanti",
@@ -49,7 +49,7 @@ def create_table_summary(table_html: str, context_info: Optional[Dict[str, str]]
         
         prompt_parts.extend([
             "",
-            f"Fornisci un riassunto chiaro e strutturato in italiano per {table_identifier}(massimo 200 parole):",
+            f"Fornisci un riassunto chiaro e strutturato in italiano per {table_identifier}:",
         ])
         
         prompt = "\n".join(prompt_parts)
@@ -62,69 +62,23 @@ def create_table_summary(table_html: str, context_info: Optional[Dict[str, str]]
             summary = str(response.content).strip() if response.content else ""
             
             if summary and len(summary) > 10:
-                logger.info(f"Riassunto tabella generato con successo usando {TABLE_SUMMARY_MODEL_SM}")
+                logger.info(f"Riassunto tabella generato con successo usando {TABLE_SUMMARY_MODEL_LG}")
                 return summary
             else:
                 logger.warning("Riassunto tabella vuoto o troppo breve")
+            
             return "Riassunto non disponibile a causa di contenuto insufficiente."
+        
         except Exception as llm_error:
             logger.error(f"Errore durante la generazione riassunto tabella con LLM: {llm_error}")
+            
             return "Riassunto non disponibile a causa di un errore LLM."
     
     except Exception as e:
         logger.error(f"Errore nel riassunto tabella: {e}")
+        
         return "Riassunto non disponibile a causa di un errore interno."
     
-    # Fallback: always return a string if all other paths fail
-    return "Riassunto non disponibile."
-    
-        
-
-def identify_table_content_type(headers: List[str], cells: List[List]) -> Optional[str]:
-    """
-    Prova a identificare il tipo di contenuto della tabella basandosi su headers e dati.
-    """
-    try:
-        if not headers:
-            return None
-            
-        headers_lower = [h.lower() if h else "" for h in headers]
-        
-        # Pattern comuni
-        if any(word in " ".join(headers_lower) for word in ["name", "nome", "cognome", "person", "persona"]):
-            return "anagrafica/persone"
-        elif any(word in " ".join(headers_lower) for word in ["price", "cost", "prezzo", "costo", "euro", "$"]):
-            return "dati finanziari"
-        elif any(word in " ".join(headers_lower) for word in ["date", "data", "time", "tempo", "anno", "year"]):
-            return "dati temporali"
-        elif any(word in " ".join(headers_lower) for word in ["result", "risultato", "score", "punteggio", "performance"]):
-            return "risultati/performance"
-        elif any(word in " ".join(headers_lower) for word in ["product", "prodotto", "item", "articolo"]):
-            return "catalogo prodotti"
-        
-        # Controlla se prevalentemente numerica
-        if cells and len(cells) > 1:
-            numeric_count = 0
-            total_count = 0
-            
-            for row in cells[1:]:  # Salta header se presente
-                for cell in row:
-                    if cell is not None and str(cell).strip():
-                        total_count += 1
-                        try:
-                            float(str(cell).replace(',', '.'))
-                            numeric_count += 1
-                        except:
-                            pass
-            
-            if total_count > 0 and numeric_count / total_count > 0.7:
-                return "dati numerici"
-        
-        return None
-        
-    except Exception:
-        return None
-
 
 def enhance_table_with_summary(table_element: Dict[str, Any]) -> Dict[str, Any]:
     """
