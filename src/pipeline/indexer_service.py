@@ -6,17 +6,15 @@ from src.utils.pdf_parser import parse_pdf_elements
 from src.utils.qdrant_utils import qdrant_manager
 from src.utils.embedder import AdvancedEmbedder
 from src.core.models import TextElement, ImageElement, TableElement
-from src.config import SEMANTIC_CHUNKING_ENABLED
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
 class DocumentIndexer:
-    def __init__(self, embedder: AdvancedEmbedder, use_semantic_chunking: Optional[bool] = None):
+    def __init__(self, embedder: AdvancedEmbedder):
         self.embedder = embedder
         self.qdrant_manager = qdrant_manager
-        self.use_semantic_chunking = SEMANTIC_CHUNKING_ENABLED if use_semantic_chunking is None else use_semantic_chunking
         self.semantic_chunker = None
 
     def index_files(self, pdf_paths: List[str], force_recreate: bool = False) -> bool:

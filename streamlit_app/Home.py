@@ -33,28 +33,18 @@ def load_main_services():
         embedder = get_embedding_model()
         # Use global configuration for semantic chunking
         indexer = DocumentIndexer(embedder=embedder)
-        
-        # Check if semantic chunking is active
-        chunking_type = "Semantic" if indexer.semantic_chunker else "Classic"
-        logger.info(f"Services initialized successfully. Chunking: {chunking_type}")
-        return indexer, chunking_type
+        logger.info(f"Services initialized successfully.")
+        return indexer
     except Exception as e:
         logger.error(f"Critical error during services loading: {e}", exc_info=True)
         return None, None
 
 # --- Application Startup ---
-indexer, chunking_type = load_main_services()
+indexer = load_main_services()
 
 if not indexer:
     st.error("Critical error: unable to load base services. The application cannot continue. Check logs for details.")
     st.stop()
-
-# Show the type of chunking being used
-if chunking_type:
-    if chunking_type == "Semantic":
-        st.success(f"System active with {chunking_type} Chunking - Intelligent document segmentation")
-    else:
-        st.warning(f"System active with {chunking_type} Chunking - Fallback to classic segmentation")
 
 st.title("Scientific Papers Research Assistant")
 
