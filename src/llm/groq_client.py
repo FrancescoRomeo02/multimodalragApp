@@ -2,7 +2,7 @@
 from langchain_groq import ChatGroq
 from src.config import (
     GROQ_API_KEY, LLM_MODEL_NAME,
-    TABLE_SUMMARY_MODEL_SM, TEXT_SUMMARY_MODEL_SM, TEXT_REWRITE_MODEL_SM
+    TABLE_SUMMARY_MODEL_LG, TEXT_SUMMARY_MODEL_LG, TEXT_SUMMARY_MODEL_LG
 )
 from pydantic import SecretStr
 from typing import Optional
@@ -26,12 +26,12 @@ def get_groq_llm(model_name: Optional[str] = None):
 
 def get_table_summary_llm():
     """Restituisce LLM specifico per riassunto tabelle (versione SM)"""
-    return get_groq_llm(TABLE_SUMMARY_MODEL_SM)
+    return get_groq_llm(TABLE_SUMMARY_MODEL_LG)
 
 def get_text_summary_llm():
     """Restituisce LLM specifico per riassunto testo (versione SM)"""
-    return get_groq_llm(TEXT_SUMMARY_MODEL_SM)
+    return get_groq_llm(TEXT_SUMMARY_MODEL_LG)
 
 def get_text_rewrite_llm():
     """Restituisce LLM specifico per riscrittura testo (versione SM)"""
-    return get_groq_llm(TEXT_REWRITE_MODEL_SM)
+    return get_groq_llm(TEXT_SUMMARY_MODEL_LG)
