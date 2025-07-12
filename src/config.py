@@ -37,7 +37,44 @@ TEXT_REWRITE_MODEL_LG="llama-3.3-70b-versatile"
 DEFAULT_EMBEDDING_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 DEFAULT_BATCH_SIZE = 32
 FALLBACK_TEXT_FOR_EMPTY_DOC = " "
-K_NEAREST_NEIGHBORS = 5
+
+# RAG SEARCH PARAMETERS - Ottimizzati per qualità e rilevanza
+K_NEAREST_NEIGHBORS = 10  # Aumentato da 5 - più risultati candidati
+
+# Score thresholds ottimizzati per tipo di contenuto
+SCORE_THRESHOLD_TEXT = 0.65      # Ridotto da 0.80 - testo ha semantica più flessibile
+SCORE_THRESHOLD_IMAGES = 0.70    # Immagini richiedono match più precisi  
+SCORE_THRESHOLD_TABLES = 0.60    # Tabelle spesso hanno match più difficili
+SCORE_THRESHOLD_MIXED = 0.65     # Per ricerche miste
+
+# Parametri avanzati per ricerca adattiva
+ADAPTIVE_K_MIN = 3               # Minimo risultati da restituire
+ADAPTIVE_K_MAX = 15              # Massimo risultati da considerare
+RERANK_TOP_K = 8                 # Risultati da re-rankare se disponibile
+
+# Parametri per diversi tipi di query
+RAG_PARAMS = {
+    "factual": {
+        "k": 8,
+        "score_threshold": 0.70,
+        "description": "Per domande fattuali precise"
+    },
+    "exploratory": {
+        "k": 12,
+        "score_threshold": 0.60,
+        "description": "Per ricerche esplorative ampie"
+    },
+    "technical": {
+        "k": 6,
+        "score_threshold": 0.75,
+        "description": "Per query tecniche specifiche"
+    },
+    "multimodal": {
+        "k": 10,
+        "score_threshold": 0.65,
+        "description": "Per ricerche che includono testo, immagini e tabelle"
+    }
+}
 
 
 # Logging Configuration

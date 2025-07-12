@@ -2,6 +2,7 @@
 
 import os
 import logging
+from typing import List
 from src.pipeline.indexer_service import DocumentIndexer
 from src.utils.qdrant_utils import qdrant_manager
 from src.config import RAW_DATA_PATH
@@ -58,3 +59,36 @@ def delete_source(filename: str) -> tuple[bool, str]:
     except Exception as e:
         logger.error(f"Error deleting '{filename}': {e}", exc_info=True)
         return False, f"Error deleting: {e}"
+
+def smart_search_query(query: str, selected_files: List[str] = []) -> dict:
+    """
+    Funzione di utilità per testare smart_query direttamente dal backend.
+    
+    Args:
+        query: Query di ricerca
+        selected_files: File specifici da cercare
+    
+    Returns:
+        Risultati della smart_query con metadati
+    """
+    logger.info(f"Esecuzione smart search per: '{query}'")
+    
+    try:
+        results = qdrant_manager.smart_query(
+            query=query,
+            selected_files=selected_files,
+            content_types=["text", "images", "tables"]
+        )
+        
+        # Log dei risultati per debugging
+        if "query_metadata" in results:
+            metadata = results["query_metadata"]
+            logger.info(f"Smart search completata: intent='{metadata.get('intent')}', "
+                       f"totale={metadata.get('total_results')}, "
+                       f"strategia='{metadata.get('search_strategy')}'")
+        
+        return results
+        
+    except Exception as e:
+        logger.error(f"Errore in smart_search_query: {e}")
+        return {"error": str(e)}

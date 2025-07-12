@@ -2,7 +2,11 @@ from typing import List, Optional, Dict, Any, Tuple, Union
 import logging
 import qdrant_client
 from qdrant_client.http import models
-from src.config import K_NEAREST_NEIGHBORS, QDRANT_URL, COLLECTION_NAME
+from src.config import (
+    K_NEAREST_NEIGHBORS, QDRANT_URL, COLLECTION_NAME,
+    SCORE_THRESHOLD_TEXT, SCORE_THRESHOLD_IMAGES, SCORE_THRESHOLD_TABLES, 
+    SCORE_THRESHOLD_MIXED, RAG_PARAMS, ADAPTIVE_K_MIN, ADAPTIVE_K_MAX
+)
 from src.core.models import ImageResult, TextElement, ImageElement, TableElement
 from src.utils.embedder import get_embedding_model
 import uuid
@@ -335,7 +339,75 @@ class QdrantManager:
             return filters[0]
         return models.Filter(must=filters)
     
-    # === RICERCA ===
+    # === RICERCA OTTIMIZZATA ===
+    
+    def get_optimal_search_params(self, 
+                                  query_type: str = "multimodal",
+                                  query_intent: str = "exploratory") -> Dict[str, Any]:
+        """
+        Restituisce parametri ottimizzati basati sul tipo di query e intento.
+        """
+        base_params = RAG_PARAMS.get(query_intent, RAG_PARAMS["multimodal"])
+        
+        # Adatta score threshold per tipo di contenuto
+        if query_type == "text":
+            score_threshold = SCORE_THRESHOLD_TEXT
+        elif query_type == "image":
+            score_threshold = SCORE_THRESHOLD_IMAGES
+        elif query_type == "table":
+            score_threshold = SCORE_THRESHOLD_TABLES
+        else:
+            score_threshold = base_params["score_threshold"]
+        
+        return {
+            "k": base_params["k"],
+            "score_threshold": score_threshold,
+            "description": base_params["description"]
+        }
+    
+    def search_vectors_adaptive(self, 
+                               query_embedding: List[float],
+                               query_type: Optional[str] = None,
+                               query_intent: str = "exploratory",
+                               selected_files: List[str] = [],
+                               custom_k: Optional[int] = None,
+                               custom_threshold: Optional[float] = None) -> List[models.ScoredPoint]:
+        """
+        Ricerca vettoriale con parametri adattivi ottimizzati.
+        """
+        try:
+            # Ottieni parametri ottimali
+            optimal_params = self.get_optimal_search_params(query_type or "multimodal", query_intent)
+            
+            # Usa parametri personalizzati se forniti
+            k = custom_k or optimal_params["k"]
+            score_threshold = custom_threshold or optimal_params["score_threshold"]
+            
+            # Assicura che k sia nei limiti ragionevoli
+            k = max(ADAPTIVE_K_MIN, min(k, ADAPTIVE_K_MAX))
+            
+            qdrant_filter = self.build_combined_filter(selected_files, query_type)
+
+            logger.info(f"Ricerca adattiva: k={k}, threshold={score_threshold:.2f}, "
+                       f"intent='{query_intent}', type='{query_type}'")
+            
+            results = self.client.search(
+                collection_name=self.collection_name,
+                query_vector=query_embedding,
+                query_filter=qdrant_filter,
+                limit=k,
+                with_payload=True,
+                with_vectors=False,
+                score_threshold=score_threshold
+            )
+            
+            logger.info(f"Ricerca adattiva: trovati {len(results)} risultati "
+                       f"(soglia: {score_threshold:.2f}, {optimal_params['description']})")
+            return results
+            
+        except Exception as e:
+            logger.error(f"Errore ricerca vettoriale adattiva: {e}")
+            return []
     
     def search_vectors(self, 
                       query_embedding: List[float],
@@ -368,20 +440,29 @@ class QdrantManager:
     def query_text(self, 
                    query: str, 
                    selected_files: List[str] = [],
-                   top_k: int = K_NEAREST_NEIGHBORS,
-                   score_threshold: float = 0.80) -> List[Dict[str, Any]]:
+                   query_intent: str = "exploratory",
+                   top_k: Optional[int] = None,
+                   score_threshold: Optional[float] = None) -> List[Dict[str, Any]]:
         """
-        Cerca documenti di testo simili alla query.
+        Cerca documenti di testo con parametri ottimizzati.
+        
+        Args:
+            query: Query testuale
+            selected_files: File specifici da cercare
+            query_intent: Tipo di query ("factual", "exploratory", "technical", "multimodal")
+            top_k: Numero di risultati (None per usare ottimale)
+            score_threshold: Soglia di similarità (None per usare ottimale)
         """
-        logger.info(f"Query testo: '{query}' con top_k={top_k}, file: {selected_files}, threshold: {score_threshold}")
+        logger.info(f"Query testo ottimizzata: '{query}' (intent: {query_intent})")
         try:
             query_embedding = self.embedder.embed_query(query)
-            results = self.search_vectors(
+            results = self.search_vectors_adaptive(
                 query_embedding=query_embedding,
-                top_k=top_k,
-                selected_files=selected_files,
                 query_type="text",
-                score_threshold=score_threshold
+                query_intent=query_intent,
+                selected_files=selected_files,
+                custom_k=top_k,
+                custom_threshold=score_threshold
             )
             
             text_results = []
@@ -391,7 +472,6 @@ class QdrantManager:
                     metadata = payload.get("metadata", {})
                     content = payload.get("page_content", "")
                     
-                    # Verifica che sia effettivamente contenuto testuale
                     if not content:
                         logger.debug(f"Saltato risultato senza contenuto testuale: {result.id}")
                         continue
@@ -402,13 +482,15 @@ class QdrantManager:
                         "score": result.score,
                         "source": metadata.get("source", "Unknown"),
                         "page": metadata.get("page", "N/A"),
-                        "content_type": payload.get("content_type", "text")
+                        "content_type": payload.get("content_type", "text"),
+                        "relevance_tier": "high" if result.score > 0.80 else "medium" if result.score > 0.65 else "low"
                     })
                 except Exception as e:
                     logger.warning(f"Errore processamento risultato testo: {e}")
                     continue
             
-            logger.info(f"Trovati {len(text_results)} documenti di testo per query '{query}'")
+            logger.info(f"Trovati {len(text_results)} documenti di testo per query '{query}' "
+                       f"(intent: {query_intent})")
             return text_results
         except Exception as e:
             logger.error(f"Errore query testo: {e}")
@@ -417,15 +499,17 @@ class QdrantManager:
     def query_images(self, 
                     query: str, 
                     selected_files: List[str] = [],
-                    top_k: int = K_NEAREST_NEIGHBORS) -> List[ImageResult]:
-        logger.info(f"Query immagini: '{query}' con top_k={top_k}, file: {selected_files}")
+                    query_intent: str = "exploratory",
+                    top_k: Optional[int] = None) -> List[ImageResult]:
+        logger.info(f"Query immagini ottimizzata: '{query}' (intent: {query_intent})")
         try:
             query_embedding = self.embedder.embed_query(query)
-            results = self.search_vectors(
+            results = self.search_vectors_adaptive(
                 query_embedding=query_embedding,
-                top_k=top_k,
+                query_type="image",
+                query_intent=query_intent,
                 selected_files=selected_files,
-                query_type="image"
+                custom_k=top_k
             )
             
             image_results = []
@@ -449,7 +533,7 @@ class QdrantManager:
                     logger.warning(f"Errore processamento risultato immagine: {e}")
                     continue
             
-            logger.info(f"Trovate {len(image_results)} immagini per query '{query}'")
+            logger.info(f"Trovate {len(image_results)} immagini per query '{query}' (intent: {query_intent})")
             return image_results
         except Exception as e:
             logger.error(f"Errore query immagini: {e}")
@@ -458,15 +542,17 @@ class QdrantManager:
     def query_tables(self, 
                      query: str, 
                      selected_files: List[str] = [],
-                     top_k: int = K_NEAREST_NEIGHBORS) -> List[Dict[str, Any]]:
-        logger.info(f"Query tabelle: '{query}' con top_k={top_k}, file: {selected_files}")
+                     query_intent: str = "exploratory",
+                     top_k: Optional[int] = None) -> List[Dict[str, Any]]:
+        logger.info(f"Query tabelle ottimizzata: '{query}' (intent: {query_intent})")
         try:
             query_embedding = self.embedder.embed_query(query)
-            results = self.search_vectors(
+            results = self.search_vectors_adaptive(
                 query_embedding=query_embedding,
-                top_k=top_k,
+                query_type="table",
+                query_intent=query_intent,
                 selected_files=selected_files,
-                query_type="table"
+                custom_k=top_k
             )
             
             table_results = []
@@ -485,12 +571,13 @@ class QdrantManager:
                         "metadata": metadata,
                         "score": result.score,
                         "page_content": table_html,
+                        "relevance_tier": "high" if result.score > 0.75 else "medium" if result.score > 0.60 else "low"
                     })
                 except Exception as e:
                     logger.warning(f"Errore processamento risultato tabella: {e}")
                     continue
             
-            logger.info(f"Trovate {len(table_results)} tabelle per query '{query}'")
+            logger.info(f"Trovate {len(table_results)} tabelle per query '{query}' (intent: {query_intent})")
             return table_results
         except Exception as e:
             logger.error(f"Errore query tabelle: {e}")
@@ -499,12 +586,20 @@ class QdrantManager:
     def query_all_content(self, 
                          query: str, 
                          selected_files: List[str] = [],
-                         top_k_per_type: int = K_NEAREST_NEIGHBORS,
-                         score_threshold: float = 0.80) -> Dict[str, Any]:
+                         query_intent: str = "multimodal",
+                         top_k_per_type: Optional[int] = None,
+                         score_threshold: Optional[float] = None) -> Dict[str, Any]:
         """
-        Cerca contenuti di tutti i tipi (testo, immagini, tabelle) per una query.
+        Cerca contenuti di tutti i tipi con parametri ottimizzati.
+        
+        Args:
+            query: Query di ricerca
+            selected_files: File specifici da cercare
+            query_intent: Tipo di query ("factual", "exploratory", "technical", "multimodal")
+            top_k_per_type: Numero di risultati per tipo (None per usare ottimale)
+            score_threshold: Soglia di similarità (None per usare ottimale)
         """
-        logger.info(f"Query contenuti misti: '{query}' con top_k_per_type={top_k_per_type}, file: {selected_files}")
+        logger.info(f"Query contenuti misti ottimizzata: '{query}' (intent: {query_intent})")
         
         results = {
             "text": [],
@@ -514,20 +609,37 @@ class QdrantManager:
         
         try:
             # Cerca testo
-            text_results = self.query_text(query, selected_files, top_k_per_type, score_threshold)
+            text_results = self.query_text(
+                query=query, 
+                selected_files=selected_files,
+                query_intent=query_intent,
+                top_k=top_k_per_type,
+                score_threshold=score_threshold
+            )
             results["text"] = text_results
             
             # Cerca immagini
-            image_results = self.query_images(query, selected_files, top_k_per_type)
+            image_results = self.query_images(
+                query=query,
+                selected_files=selected_files,
+                query_intent=query_intent,
+                top_k=top_k_per_type
+            )
             results["images"] = image_results
             
             # Cerca tabelle
-            table_results = self.query_tables(query, selected_files, top_k_per_type)
+            table_results = self.query_tables(
+                query=query,
+                selected_files=selected_files,
+                query_intent=query_intent,
+                top_k=top_k_per_type
+            )
             results["tables"] = table_results
             
             total_results = len(text_results) + len(image_results) + len(table_results)
-            logger.info(f"Query completa: trovati {total_results} risultati totali "
-                       f"(testo: {len(text_results)}, immagini: {len(image_results)}, tabelle: {len(table_results)})")
+            logger.info(f"Query completa ottimizzata: trovati {total_results} risultati totali "
+                       f"(testo: {len(text_results)}, immagini: {len(image_results)}, tabelle: {len(table_results)}) "
+                       f"con intent '{query_intent}'")
             
         except Exception as e:
             logger.error(f"Errore nella query_all_content: {e}")
@@ -618,6 +730,105 @@ class QdrantManager:
         except Exception as e:
             logger.error(f"Errore health check: {e}")
             return {"error": str(e)}
+    
+    # === UTILITY PER QUERY INTELLIGENTE ===
+    
+    def detect_query_intent(self, query: str) -> str:
+        """
+        Determina automaticamente l'intent della query analizzando il testo.
+        
+        Returns:
+            Intent della query: "factual", "exploratory", "technical", o "multimodal"
+        """
+        query_lower = query.lower()
+        
+        # Parole chiave per intent factual (domande specifiche)
+        factual_keywords = [
+            "cosa è", "cos'è", "che cos'è", "definisci", "definizione",
+            "quando", "dove", "chi", "quale", "quanto", "quanti",
+            "data", "numero", "valore", "risultato"
+        ]
+        
+        # Parole chiave per intent technical (contenuti tecnici)
+        technical_keywords = [
+            "algoritmo", "codice", "implementazione", "funzione", "metodo",
+            "classe", "api", "configurazione", "parametri", "variabili",
+            "sistema", "architettura", "design pattern", "framework"
+        ]
+        
+        # Parole chiave per intent multimodal (contenuti misti)
+        multimodal_keywords = [
+            "immagine", "tabella", "grafico", "figura", "diagramma",
+            "chart", "visualizzazione", "schema", "esempio visivo"
+        ]
+        
+        # Conta occorrenze per ogni categoria
+        factual_score = sum(1 for keyword in factual_keywords if keyword in query_lower)
+        technical_score = sum(1 for keyword in technical_keywords if keyword in query_lower)
+        multimodal_score = sum(1 for keyword in multimodal_keywords if keyword in query_lower)
+        
+        # Determina intent basato sui punteggi
+        if multimodal_score > 0:
+            return "multimodal"
+        elif technical_score > factual_score:
+            return "technical"
+        elif factual_score > 0:
+            return "factual"
+        else:
+            return "exploratory"  # Default per query generiche
+    
+    def smart_query(self, 
+                   query: str, 
+                   selected_files: List[str] = [],
+                   content_types: List[str] = ["text", "images", "tables"]) -> Dict[str, Any]:
+        """
+        Esegue una query intelligente con rilevamento automatico dell'intent.
+        
+        Args:
+            query: Query di ricerca
+            selected_files: File specifici da cercare
+            content_types: Tipi di contenuto da includere
+        """
+        intent = self.detect_query_intent(query)
+        logger.info(f"Query intelligente: '{query}' -> intent rilevato: '{intent}'")
+        
+        results = {}
+        
+        try:
+            if "text" in content_types:
+                results["text"] = self.query_text(
+                    query=query,
+                    selected_files=selected_files,
+                    query_intent=intent
+                )
+            
+            if "images" in content_types:
+                results["images"] = self.query_images(
+                    query=query,
+                    selected_files=selected_files,
+                    query_intent=intent
+                )
+            
+            if "tables" in content_types:
+                results["tables"] = self.query_tables(
+                    query=query,
+                    selected_files=selected_files,
+                    query_intent=intent
+                )
+            
+            # Aggiungi metadati sulla query
+            results["query_metadata"] = {
+                "intent": intent,
+                "query": query,
+                "total_results": sum(len(results.get(t, [])) for t in content_types),
+                "search_strategy": RAG_PARAMS[intent]["description"]
+            }
+            
+        except Exception as e:
+            logger.error(f"Errore nella smart_query: {e}")
+            results["error"] = str(e)
+        
+        return results
 
 # Singleton per uso globale
 qdrant_manager = QdrantManager()
