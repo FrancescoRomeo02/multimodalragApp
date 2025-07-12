@@ -53,6 +53,7 @@ class QdrantManager:
             vector=vector,
             payload={
                 "page_content": element.text,
+                "content_type": "text",
                 "metadata": element.metadata.model_dump(),
             }
         )
