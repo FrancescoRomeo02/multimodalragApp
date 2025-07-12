@@ -7,13 +7,11 @@ from src.core.models import RetrievalResult
 from src.core.prompts import create_prompt_template
 from src.utils.qdrant_utils import qdrant_manager
 from src.llm.groq_client import get_groq_llm
-from src.utils.performance_monitor import track_performance
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-@track_performance(query_type="multimodal_rag")
 def enhanced_rag_query(query: str,
                        selected_files: Optional[List[str]] = None) -> RetrievalResult:
     """
