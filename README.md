@@ -162,34 +162,6 @@ make ci               # Run CI pipeline
 
 ---
 
-## Monitoring & Performance
-
-Enable monitoring by setting the following in your `.env`:
-
-```bash
-ENABLE_PERFORMANCE_MONITORING=true
-```
-
-Then launch the monitoring stack:
-
-```bash
-docker-compose --profile monitoring up -d
-```
-
-* **Streamlit App:** [http://localhost:8501](http://localhost:8501)
-* **Grafana Dashboard:** [http://localhost:3000](http://localhost:3000) (admin/admin)
-* **Prometheus:** [http://localhost:9090](http://localhost:9090)
-
-### Available Metrics
-
-* Query response time
-* Query type distribution
-* Success rate
-* Memory & CPU usage
-* Document retrieval statistics
-
----
-
 ## Project Structure
 
 ```

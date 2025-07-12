@@ -112,27 +112,6 @@ cat .env | grep GROQ_API_KEY
 # Then access the app via http://localhost:8502
 ```
 
-## Metrics and Monitoring
-
-To monitor real-time performance:
-
-1. **Enable monitoring** in `.env`:
-
-   ```bash
-   ENABLE_PERFORMANCE_MONITORING=true
-   ```
-
-2. **Start with Grafana**:
-
-   ```bash
-   docker-compose --profile monitoring up -d
-   ```
-
-3. **Access dashboards**:
-
-   * Grafana: [http://localhost:3000](http://localhost:3000) (admin/admin)
-   * Prometheus: [http://localhost:9090](http://localhost:9090)
-
 ## Support
 
 If you experience issues:

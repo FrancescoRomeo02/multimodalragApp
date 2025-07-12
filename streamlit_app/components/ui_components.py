@@ -268,7 +268,3 @@ def enhanced_chat_interface_widget(selected_sources: list[str]):
                 
                 st.rerun()
 
-# Legacy functions for compatibility
-def chat_interface_widget(selected_sources: list[str]):
-    """Wrapper for compatibility with existing code."""
-    return enhanced_chat_interface_widget(selected_sources)

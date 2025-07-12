@@ -58,11 +58,6 @@ class DocumentIndexer:
                 image_elements = [ImageElement(image_base64=d['image_base64'], metadata=d['metadata']) for d in images_dicts]
                 table_elements = [TableElement(table_html=d['table_html'], metadata=d['metadata']) for d in tables_dicts]
 
-                for el in table_elements:
-                    print(f"Tabella trovata: {el.metadata.table_id} in {el.metadata.source}, pagina {el.metadata.page}")
-                    print(f"Contenuto tabella: {el.table_html[:100]}...")  # Stampa i primi 100 caratteri
-                    print("-" * 50)
-
                 all_text_elements.extend(text_elements)
                 all_image_elements.extend(image_elements)
                 all_table_elements.extend(table_elements)
@@ -79,44 +74,28 @@ class DocumentIndexer:
 
         success = True
 
-        if all_text_elements:
-            try:
-                text_vectors = self.embedder.embed_documents([el.text for el in all_text_elements])
-                text_points = self.qdrant_manager.convert_elements_to_points(all_text_elements, text_vectors)
-                if self.qdrant_manager.upsert_points(text_points):
-                    logger.info(f"Indicizzati {len(text_points)} elementi testuali")
-                else:
-                    logger.error("Fallito inserimento punti testuali")
-                    success = False
-            except Exception as e:
-                logger.error(f"Errore indicizzazione testi: {e}")
-                success = False
+        # Indicizza tutti gli elementi in batch per efficienza
+        indexing_tasks = [
+            ("text", all_text_elements, lambda els: self.embedder.embed_documents([el.text for el in els])),
+            ("image", all_image_elements, lambda els: [self.embedder.embed_query(el.image_base64) for el in els]),
+            ("table", all_table_elements, lambda els: [self.embedder.embed_query(el.table_html) for el in els])
+        ]
 
-        if all_image_elements:
+        for element_type, elements, embedding_func in indexing_tasks:
+            if not elements:
+                continue
+            
             try:
-                image_vectors = [self.embedder.embed_query(el.image_base64) for el in all_image_elements]
-                image_points = self.qdrant_manager.convert_elements_to_points(all_image_elements, image_vectors)
-                if self.qdrant_manager.upsert_points(image_points):
-                    logger.info(f"Indicizzate {len(image_points)} immagini")
+                vectors = embedding_func(elements)
+                points = self.qdrant_manager.convert_elements_to_points(elements, vectors)
+                
+                if self.qdrant_manager.upsert_points(points):
+                    logger.info(f"Indicizzati {len(points)} elementi di tipo {element_type}")
                 else:
-                    logger.error("Fallito inserimento punti immagini")
+                    logger.error(f"Fallito inserimento punti {element_type}")
                     success = False
             except Exception as e:
-                logger.error(f"Errore indicizzazione immagini: {e}")
-                success = False
-
-        if all_table_elements:
-            try:
-                table_texts = [el.table_html for el in all_table_elements]
-                table_vectors = [self.embedder.embed_query(txt) for txt in table_texts]
-                table_points = self.qdrant_manager.convert_elements_to_points(all_table_elements, table_vectors)
-                if self.qdrant_manager.upsert_points(table_points):
-                    logger.info(f"Indicizzate {len(table_points)} tabelle")
-                else:
-                    logger.error("Fallito inserimento punti tabelle")
-                    success = False
-            except Exception as e:
-                logger.error(f"Errore indicizzazione tabelle: {e}")
+                logger.error(f"Errore indicizzazione {element_type}: {e}")
                 success = False
 
         if success:

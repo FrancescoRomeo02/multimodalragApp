@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # Qdrrant vector database
+  # Qdrant vector database
   qdrant:
     image: qdrant/qdrant:latest
     container_name: multimodal-rag-qdrant
@@ -30,11 +30,10 @@ services:
       - QDRANT_URL=http://qdrant:6333
       - GROQ_API_KEY=${GROQ_API_KEY}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - ENABLE_PERFORMANCE_MONITORING=${ENABLE_PERFORMANCE_MONITORING:-false}
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
-      - ./uploads:/app/uploads  # Directory for file uploads
+      - ./uploads:/app/uploads
     depends_on:
       - qdrant
     restart: unless-stopped
@@ -44,60 +43,8 @@ services:
       timeout: 10s
       retries: 3
 
-  # Redis for caching (optional, for performance)
-  redis:
-    image: redis:7-alpine
-    container_name: multimodal-rag-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
-    command: redis-server --appendonly yes
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # Monitoring with Prometheus (optional)
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: multimodal-rag-prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--web.enable-lifecycle'
-    restart: unless-stopped
-    profiles: ["monitoring"]
-
-  # Grafana for visualizing metrics (optional)
-  grafana:
-    image: grafana/grafana:latest
-    container_name: multimodal-rag-grafana
-    ports:
-      - "3000:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
-    restart: unless-stopped
-    profiles: ["monitoring"]
-
 volumes:
   qdrant_data:
-  redis_data:
-  prometheus_data:
-  grafana_data:
 
 networks:
   default:
