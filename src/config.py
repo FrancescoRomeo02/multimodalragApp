@@ -22,34 +22,22 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 LLM_MODEL_NAME = "meta-llama/llama-4-scout-17b-16e-instruct"
 
 # Models for image description (multimodal)
-IMG_DESC_MODEL_SM="meta-llama/llama-4-scout-17b-16e-instruct"
 IMG_DESC_MODEL_LG="meta-llama/llama-4-maverick-17b-128e-instruct"
 
 # Models for table summarization
-TABLE_SUMMARY_MODEL_SM="llama-3.1-8b-instant"
 TABLE_SUMMARY_MODEL_LG="llama-3.3-70b-versatile"
 
 # Models for text summarization
-TEXT_SUMMARY_MODEL_SM="llama-3.1-8b-instant"
 TEXT_SUMMARY_MODEL_LG="llama-3.3-70b-versatile"
 
 # Models for text rewriting
-TEXT_REWRITE_MODEL_SM="llama-3.1-8b-instant"
 TEXT_REWRITE_MODEL_LG="llama-3.3-70b-versatile"
 
 #EMBEDDING SETTINGS
 DEFAULT_EMBEDDING_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 DEFAULT_BATCH_SIZE = 32
 FALLBACK_TEXT_FOR_EMPTY_DOC = " "
-FALLBACK_TEXT_FOR_IMAGE_FAILURE = "Immagine non processabile"
 
-# SEMANTIC CHUNKING SETTINGS
-SEMANTIC_CHUNKING_ENABLED = True           # Flag globale per abilitare chunking semantico
-SEMANTIC_CHUNK_SIZE = 1000
-SEMANTIC_CHUNK_OVERLAP = 200
-SEMANTIC_THRESHOLD = 0.75
-MIN_CHUNK_SIZE = 100
-CHUNKING_EMBEDDING_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 
 # Logging Configuration
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
