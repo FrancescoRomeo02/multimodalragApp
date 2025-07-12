@@ -37,6 +37,7 @@ TEXT_REWRITE_MODEL_LG="llama-3.3-70b-versatile"
 DEFAULT_EMBEDDING_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 DEFAULT_BATCH_SIZE = 32
 FALLBACK_TEXT_FOR_EMPTY_DOC = " "
+K_NEAREST_NEIGHBORS = 5
 
 
 # Logging Configuration
