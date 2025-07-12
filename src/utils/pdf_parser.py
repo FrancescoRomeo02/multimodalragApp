@@ -151,7 +151,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                             text_chunk = type('TextChunk', (), {
                                 'text': element_content,
                                 'metadata': type('Metadata', (), {
-                                    'text': element_content,  # Also store in metadata for compatibility
+                                    'text': element_content, 
                                     'page_number': page_number,
                                     'orig_elements': [el]
                                 })()
