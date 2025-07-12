@@ -40,7 +40,9 @@ class QdrantManager:
     
     # === Funzioni helper per convertire i modelli in punti Qdrant ===
     
-    def _text_element_to_point(self, element: TextElement, vector: List[float]) -> models.PointStruct:
+    def _text_element_to_point(self, 
+                               element: TextElement, 
+                               vector: List[float]) -> models.PointStruct:
         return models.PointStruct(
             id=str(uuid.uuid4()),
             vector=vector,
@@ -50,7 +52,9 @@ class QdrantManager:
             }
         )
     
-    def _image_element_to_point(self, element: Union[ImageElement, Dict[str, Any]], vector: List[float], image_caption: str = "") -> models.PointStruct:
+    def _image_element_to_point(self,
+                                element: Union[ImageElement, Dict[str, Any]], 
+                                vector: List[float]) -> models.PointStruct:
         # Gestisce sia oggetti Pydantic che dizionari dal parser
         if isinstance(element, dict):
             # Caso dizionario dal parser legacy
@@ -82,7 +86,9 @@ class QdrantManager:
                 }
             )
     
-    def _table_element_to_point(self, element: Union[TableElement, Dict[str, Any]], vector: List[float]) -> models.PointStruct:
+    def _table_element_to_point(self, 
+                                element: Union[TableElement, Dict[str, Any]], 
+                                vector: List[float]) -> models.PointStruct:
         # Gestisce sia oggetti Pydantic che dizionari dal parser
         if isinstance(element, dict):
             # Caso dizionario dal parser legacy
@@ -235,7 +241,8 @@ class QdrantManager:
     
     # === FILTRI ===
     
-    def create_content_filter(self, query_type: Optional[str] = None) -> Optional[models.Filter]:
+    def create_content_filter(self, 
+                              query_type: Optional[str] = None) -> Optional[models.Filter]:
         if query_type == "image":
             return models.Filter(
                 must=[
@@ -265,7 +272,8 @@ class QdrantManager:
             )
         return None
     
-    def create_file_filter(self, selected_files: List[str]) -> Optional[models.Filter]:
+    def create_file_filter(self, 
+                           selected_files: List[str]) -> Optional[models.Filter]:
         if not selected_files:
             return None
         
@@ -284,8 +292,9 @@ class QdrantManager:
             ])
         
         return models.Filter(should=file_conditions)
-    
-    def create_page_filter(self, pages: List[int]) -> Optional[models.Filter]:
+
+    def create_page_filter(self, 
+                            pages: List[int]) -> Optional[models.Filter]:
         if not pages:
             return None
         
@@ -307,8 +316,7 @@ class QdrantManager:
     
     def build_combined_filter(self, 
                             selected_files: List[str] = [],
-                            query_type: Optional[str] = None,
-                            pages: List[int] = []) -> Optional[models.Filter]:
+                            query_type: Optional[str] = None) -> Optional[models.Filter]:
         filters = []
         
         if selected_files:
@@ -320,11 +328,6 @@ class QdrantManager:
             content_filter = self.create_content_filter(query_type)
             if content_filter:
                 filters.append(content_filter)
-        
-        if pages:
-            page_filter = self.create_page_filter(pages)
-            if page_filter:
-                filters.append(page_filter)
         
         if not filters:
             return None
@@ -339,11 +342,10 @@ class QdrantManager:
                       top_k: int = 500,
                       selected_files: List[str] = [],
                       query_type: Optional[str] = None,
-                      pages: List[int] = [],
                       score_threshold: Optional[float] = 0.80) -> List[models.ScoredPoint]:
         try:
-            qdrant_filter = self.build_combined_filter(selected_files, query_type, pages)
-            
+            qdrant_filter = self.build_combined_filter(selected_files, query_type)
+
             # Log del filtro per debug
             if qdrant_filter:
                 logger.debug(f"Filtro applicato: {qdrant_filter}")
@@ -531,89 +533,9 @@ class QdrantManager:
             logger.error(f"Errore nella query_all_content: {e}")
         
         return results
-    
-    def search_similar_documents(self, 
-                                query: str,
-                                selected_files: List[str] = [],
-                                similarity_threshold: float = 0.80,
-                                max_results: int = 500) -> List[Dict[str, Any]]:
-        """
-        Alias per query_text con parametri diversi per retrocompatibilità.
-        """
-        logger.info(f"search_similar_documents chiamato per query: '{query}'")
-        return self.query_text(
-            query=query,
-            selected_files=selected_files,
-            top_k=max_results,
-            score_threshold=similarity_threshold
-        )
-    
-    def get_documents_by_source(self, 
-                               source_file: str, 
-                               page: Optional[int] = None) -> List[Dict[str, Any]]:
-        try:
-            # Supporta sia metadata.source che source
-            filters = [
-                models.FieldCondition(
-                    key="metadata.source",
-                    match=models.MatchValue(value=source_file)
-                ),
-                models.FieldCondition(
-                    key="source",
-                    match=models.MatchValue(value=source_file)
-                )
-            ]
-            
-            if page is not None:
-                page_filters = [
-                    models.FieldCondition(
-                        key="metadata.page",
-                        match=models.MatchValue(value=page)
-                    ),
-                    models.FieldCondition(
-                        key="page",
-                        match=models.MatchValue(value=page)
-                    )
-                ]
-                # Combina filtri: (source_filter) AND (page_filter)
-                scroll_filter = models.Filter(
-                    must=[
-                        models.Filter(should=filters),  # type: ignore
-                        models.Filter(should=page_filters)  # type: ignore
-                    ]
-                )
-            else:
-                scroll_filter = models.Filter(should=filters) # type: ignore
-            
-            results, _ = self.client.scroll(
-                collection_name=self.collection_name,
-                scroll_filter=scroll_filter,
-                limit=1000,
-                with_payload=True,
-                with_vectors=False
-            )
-            
-            documents = []
-            for result in results:
-                payload = result.payload or {}
-                metadata = payload.get("metadata", {})
-                doc_info = {
-                    "content": payload.get("page_content", ""),
-                    "metadata": metadata,
-                    "id": result.id,
-                    "source": metadata.get("source", payload.get("source", "Unknown")),
-                    "page": metadata.get("page", payload.get("page", "N/A")),
-                    "content_type": payload.get("content_type", "unknown")
-                }
-                documents.append(doc_info)
-            
-            logger.info(f"Trovati {len(documents)} documenti per fonte {source_file}")
-            return documents
-        except Exception as e:
-            logger.error(f"Errore recupero documenti per fonte {source_file}: {e}")
-            return []
-    
-    def debug_collection_content(self, limit: int = 10) -> Dict[str, Any]:
+
+    def debug_collection_content(self, 
+                                 limit: int = 10) -> Dict[str, Any]:
         """
         Metodo di debug per vedere il contenuto della collezione.
         """
@@ -677,99 +599,7 @@ class QdrantManager:
         except Exception as e:
             logger.error(f"Errore recupero info collezione: {e}")
             return {}
-    
-    def test_text_query_direct(self, query: str, filename: str) -> Dict[str, Any]:
-        """
-        Test diretto per verificare se il testo viene trovato correttamente
-        """
-        logger.info(f"🧪 Test query testo diretto: '{query}' per file: {filename}")
-        
-        try:
-            # Genera embedding
-            query_embedding = self.embedder.embed_query(query)
-            
-            # Test 1: Query senza filtri
-            results_no_filter = self.client.search(
-                collection_name=self.collection_name,
-                query_vector=query_embedding,
-                limit=5,
-                with_payload=True,
-                with_vectors=False
-            )
-            
-            # Test 2: Query solo con filtro file
-            file_filter = self.create_file_filter([filename])
-            results_file_filter = self.client.search(
-                collection_name=self.collection_name,
-                query_vector=query_embedding,
-                query_filter=file_filter,
-                limit=5,
-                with_payload=True,
-                with_vectors=False
-            )
-            
-            # Test 3: Query con filtro testo
-            text_filter = self.create_content_filter("text")
-            results_text_filter = self.client.search(
-                collection_name=self.collection_name,
-                query_vector=query_embedding,
-                query_filter=text_filter,
-                limit=5,
-                with_payload=True,
-                with_vectors=False
-            )
-            
-            # Test 4: Query con entrambi i filtri
-            combined_filter = self.build_combined_filter([filename], "text")
-            results_combined = self.client.search(
-                collection_name=self.collection_name,
-                query_vector=query_embedding,
-                query_filter=combined_filter,
-                limit=5,
-                with_payload=True,
-                with_vectors=False
-            )
-            
-            def format_results(results, test_name):
-                formatted = []
-                for r in results:
-                    payload = r.payload or {}
-                    formatted.append({
-                        "score": r.score,
-                        "content_type": payload.get("content_type", "unknown"),
-                        "source": payload.get("metadata", {}).get("source", payload.get("source", "unknown")),
-                        "page": payload.get("metadata", {}).get("page", payload.get("page", "N/A")),
-                        "content_preview": payload.get("page_content", "")[:100] + "..." if len(payload.get("page_content", "")) > 100 else payload.get("page_content", "")
-                    })
-                return formatted
-            
-            return {
-                "query": query,
-                "filename": filename,
-                "tests": {
-                    "no_filter": {
-                        "count": len(results_no_filter),
-                        "results": format_results(results_no_filter, "no_filter")
-                    },
-                    "file_filter": {
-                        "count": len(results_file_filter),
-                        "results": format_results(results_file_filter, "file_filter")
-                    },
-                    "text_filter": {
-                        "count": len(results_text_filter),
-                        "results": format_results(results_text_filter, "text_filter")
-                    },
-                    "combined_filter": {
-                        "count": len(results_combined),
-                        "results": format_results(results_combined, "combined_filter")
-                    }
-                }
-            }
-            
-        except Exception as e:
-            logger.error(f"Errore nel test diretto: {e}")
-            return {"error": str(e)}
-
+  
     def health_check(self) -> Dict[str, Any]:
         try:
             connection_ok = self.verify_connection()
