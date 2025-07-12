@@ -8,7 +8,6 @@ from src.core.prompts import create_prompt_template
 from src.utils.qdrant_utils import qdrant_manager
 from src.llm.groq_client import get_groq_llm
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

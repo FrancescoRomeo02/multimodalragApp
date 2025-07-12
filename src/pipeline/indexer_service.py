@@ -7,7 +7,6 @@ from src.utils.qdrant_utils import qdrant_manager
 from src.utils.embedder import AdvancedEmbedder
 from src.core.models import TextElement, ImageElement, TableElement
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 

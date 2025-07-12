@@ -6,7 +6,6 @@ from langchain.schema.messages import HumanMessage
 from src.config import GROQ_API_KEY, TABLE_SUMMARY_MODEL_LG
 from src.llm.groq_client import get_table_summary_llm
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 

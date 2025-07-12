@@ -6,7 +6,6 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from langchain_core.embeddings import Embeddings
 from src.config import DEFAULT_EMBEDDING_MODEL, DEFAULT_BATCH_SIZE, FALLBACK_TEXT_FOR_EMPTY_DOC
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 class AdvancedEmbedder(Embeddings):

@@ -11,7 +11,6 @@ import numpy as np
 from ultralytics import YOLO
 from src.config import GROQ_API_KEY, IMG_DESC_MODEL_LG
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 

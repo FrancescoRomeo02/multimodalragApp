@@ -11,7 +11,6 @@ from src.core.models import ImageResult, TextElement, ImageElement, TableElement
 from src.utils.embedder import get_embedding_model
 import uuid
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class QdrantManager:
