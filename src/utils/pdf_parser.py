@@ -3,11 +3,10 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 import logging
 from typing import Tuple, List, Dict, Any
-from src.utils.context_extractor import ContextExtractor
 from src.utils.image_info import get_comprehensive_image_info
 from src.utils.table_info import enhance_table_with_summary
 from unstructured.partition.pdf import partition_pdf
-from src.utils.pdf_validate_elemets import is_valid_image, is_valid_table
+from src.utils.pdf_validate_elemets import is_valid_image
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
