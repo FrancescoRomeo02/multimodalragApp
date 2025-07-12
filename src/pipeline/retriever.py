@@ -65,7 +65,6 @@ def _filter_table_context(context_text: str) -> str:
     
     return " | ".join(filtered_parts) if filtered_parts else ""
 
-
 @track_performance(query_type="multimodal_rag")
 def enhanced_rag_query(query: str,
                        selected_files: Optional[List[str]] = None) -> RetrievalResult:
