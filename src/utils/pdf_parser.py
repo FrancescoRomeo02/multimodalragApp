@@ -2,7 +2,7 @@ import os
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 import logging
-from typing import Tuple, List, Dict, Any
+from typing import Tuple, List, Dict, Any, Optional
 from src.utils.image_info import get_comprehensive_image_info
 from src.utils.table_info import enhance_table_with_summary
 from unstructured.partition.pdf import partition_pdf
@@ -11,77 +11,79 @@ from src.utils.pdf_validate_elemets import is_valid_image
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+def _extract_metadata_safely(element, *attributes) -> Dict[str, Any]:
+    """Estrae metadati in modo sicuro da un elemento."""
+    metadata = {}
+    if hasattr(element, 'metadata'):
+        for attr in attributes:
+            if hasattr(element.metadata, attr):
+                metadata[attr] = getattr(element.metadata, attr)
+    return metadata
+
+
+def _create_chunk_object(element_content: str, metadata_dict: Dict[str, Any], chunk_type: str):
+    """Crea un oggetto chunk dinamico con metadati."""
+    return type(f'{chunk_type}Chunk', (), {
+        'text': element_content,
+        'metadata': type('Metadata', (), metadata_dict)()
+    })()
+
+
 def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
     Parser PDF unificato con funzionalità avanzate complete.
     
-    FUNZIONALITÀ INTEGRATE:
+    FUNZIONALITÀ:
     - Estrazione testo, immagini e tabelle standardizzata per Qdrant
-    - Analisi AI delle immagini: caption BLIP, OCR Tesseract, object detection YOLO
-    - Estrazione contesto manuale per tabelle e immagini
-    - Combinazione contesto AI + manuale per ricerca semantica potenziata
+    - Analisi AI delle immagini (caption BLIP, OCR Tesseract, object detection YOLO)
+    - Chunking semantico preservato per il testo
+    - Deduplicazione intelligente per tutti i tipi di contenuto
     - Metadati completi e strutturati per ogni elemento
     
     Args:
         pdf_path: Percorso al file PDF da processare
         
     Returns:
-        Tuple di tre liste:
-        - text_elements: Lista di elementi testuali con metadati
-        - image_elements: Lista di immagini con analisi AI e contesto
-        - table_elements: Lista di tabelle con contesto e markup
-        
-    Note:
-        Questo parser sostituisce e unifica le funzionalità precedentemente
-        distribuite tra pdf_parser.py e pdf_utils.py, fornendo il meglio
-        di entrambe le implementazioni in un'unica soluzione.
+        Tuple[text_elements, image_elements, table_elements]
     """
-    logger.info(f"Avvio parsing avanzato del PDF: {os.path.basename(pdf_path)}")
+    filename = os.path.basename(pdf_path)
+    logger.info(f"Avvio parsing PDF: {filename}")
     
     try:
         chunks = partition_pdf(
             filename=pdf_path,
-            infer_table_structure=True,            # extract tables
-            strategy="hi_res",                     # mandatory to infer tables
-
-            extract_image_block_types=["Image"],   # Add 'Table' to list to extract image of tables
-            # image_output_dir_path=output_path,   # if None, images and tables will saved in base64
-
-            extract_image_block_to_payload=True,   # if true, will extract base64 for API usage
-
-            chunking_strategy="by_title",          # or 'basic'
-            max_characters=10000,                  # defaults to 500
-            combine_text_under_n_chars=2000,       # defaults to 0
+            infer_table_structure=True,
+            strategy="hi_res",
+            extract_image_block_types=["Image"],
+            extract_image_block_to_payload=True,
+            chunking_strategy="by_title",
+            max_characters=10000,
+            combine_text_under_n_chars=2000,
             new_after_n_chars=6000,
         )
 
-        # Contatori globali per identificatori univoci
+        # Contatori per identificatori univoci
         table_counter = 0
         image_counter = 0
-        page_num = 0
-
-        tables = []
-        texts = []
-        images = []
-
-        # Dictionaries to track unique elements
+        
+        # Collections per elementi unici
         unique_tables = {}
         unique_images = {}
         unique_texts = {}
         
-        text_elements = []
-        image_elements = []
-        table_elements = []
+        # Collections finali
+        tables, texts, images = [], [], []
+        text_elements, image_elements, table_elements = [], [], []
 
         for chunk in chunks:
-            # Check if this chunk contains tables or images that we need to extract separately
             has_special_elements = False
             
             if hasattr(chunk.metadata, 'orig_elements') and chunk.metadata.orig_elements:
                 for el in chunk.metadata.orig_elements:
                     element_type = str(type(el))
                     
-                    # Create a unique identifier for the element
+                    # Determina contenuto per ID unico
                     if hasattr(el, 'text'):
                         element_content = el.text
                     elif hasattr(el, 'to_dict'):
@@ -89,67 +91,33 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     else:
                         element_content = str(el)
                     
-                    # Use content hash as unique identifier
                     element_id = hash(element_content)
                     
                     if "Table" in element_type:
                         has_special_elements = True
                         if element_id not in unique_tables:
-                            # Get text_as_html and page_number from the element's metadata
-                            text_as_html = ''
-                            page_number = None
-                            if hasattr(el, 'metadata'):
-                                if hasattr(el.metadata, 'text_as_html'):
-                                    text_as_html = el.metadata.text_as_html
-                                if hasattr(el.metadata, 'page_number'):
-                                    page_number = el.metadata.page_number
+                            metadata = _extract_metadata_safely(el, 'text_as_html', 'page_number')
+                            metadata['orig_elements'] = [el]
                             
-                            # Create a new chunk-like object for this table
-                            table_chunk = type('TableChunk', (), {
-                                'text': element_content,
-                                'metadata': type('Metadata', (), {
-                                    'text_as_html': text_as_html,
-                                    'page_number': page_number,
-                                    'orig_elements': [el]
-                                })()
-                            })()
+                            table_chunk = _create_chunk_object(element_content, metadata, 'Table')
                             unique_tables[element_id] = table_chunk
                             tables.append(table_chunk)
                             
                     elif "Image" in element_type:
                         has_special_elements = True
                         if element_id not in unique_images:
-                            # Get metadata from the original element
-                            page_number = None
-                            image_base64 = None
-                            coordinates = None
-                            if hasattr(el, 'metadata'):
-                                if hasattr(el.metadata, 'page_number'):
-                                    page_number = el.metadata.page_number
-                                if hasattr(el.metadata, 'image_base64'):
-                                    image_base64 = el.metadata.image_base64
-                                if hasattr(el.metadata, 'coordinates'):
-                                    coordinates = el.metadata.coordinates
+                            metadata = _extract_metadata_safely(el, 'page_number', 'image_base64', 'coordinates')
+                            metadata['orig_elements'] = [el]
                             
-                            # Create a new chunk-like object for this image
-                            image_chunk = type('ImageChunk', (), {
-                                'text': element_content,
-                                'metadata': type('Metadata', (), {
-                                    'page_number': page_number,
-                                    'image_base64': image_base64,
-                                    'coordinates': coordinates,
-                                    'orig_elements': [el]
-                                })()
-                            })()
+                            image_chunk = _create_chunk_object(element_content, metadata, 'Image')
                             unique_images[element_id] = image_chunk
                             images.append(image_chunk)
             
-            # For text chunks, preserve the original chunking strategy
-            # Only process as text if it doesn't contain special elements or if it has meaningful text content
+            # Preserva chunking semantico per il testo
             if not has_special_elements and hasattr(chunk, 'text') and chunk.text.strip():
                 chunk_content = chunk.text
                 chunk_id = hash(chunk_content)
-                if chunk_id not in unique_texts and len(chunk_content.strip()) > 5:  # Only meaningful text chunks
+                if chunk_id not in unique_texts and len(chunk_content.strip()) > 5:
                     unique_texts[chunk_id] = chunk
                     texts.append(chunk)
 
@@ -201,14 +169,12 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     
                     image_counter += 1
                     image_id = f"image_{image_counter}"
+                    image_info_ai = get_comprehensive_image_info(img_info.metadata.image_base64)
                     
                     # Log informativo per immagini accettate
                     logger.info(f"Immagine {img_index+1} pagina {page_num} accettata ({image_id})")
 
-                    # Ottinei le informazioni di base sull'immagine
-                    image_info_ai = get_comprehensive_image_info(img_info.metadata.image_base64)
-                    
-                    # Combina caption AI, OCR, e contesto manuale in una descrizione unificata
+                    # Crea caption completa con AI analysis
                     caption_parts = [
                         f"[{image_id}] Descrizione: {image_info_ai['caption']}",
                         f"Testo rilevato: {image_info_ai['ocr_text']}" if image_info_ai["ocr_text"].strip() else None,
@@ -216,11 +182,10 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     ]
                     comprehensive_caption = " | ".join([p for p in caption_parts if p])
                     
-                    
                     logger.debug(f"Immagine {img_index+1} pagina {page_num+1} ({image_id}) - Caption: {comprehensive_caption}")
                     
                     image_metadata = {
-                        "source": os.path.basename(pdf_path),
+                        "source": filename,
                         "page": page_num + 1,
                         "content_type": "image",
                         "image_id": image_id,
@@ -232,14 +197,14 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                         "metadata": image_metadata,
                         "page_content": comprehensive_caption 
                     })
-                        
+                    
                 except Exception as img_e:
-                    logger.error(f"Errore processamento immagine {img_index} pagina {page_num}: {str(img_e)}")
+                    logger.error(f"Errore processamento immagine {img_index}: {str(img_e)}")
                     continue
+                    
     except Exception as e:
         logger.error(f"Errore durante il parsing del PDF: {str(e)}")
         raise RuntimeError(f"PDF parsing failed: {str(e)}") from e
     
-
     logger.info(f"Estrazione completata: {len(text_elements)} testi, {len(image_elements)} immagini, {len(table_elements)} tabelle")
     return text_elements, image_elements, table_elements

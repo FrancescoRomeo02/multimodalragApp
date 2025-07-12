@@ -2,58 +2,50 @@
 import os
 from dotenv import load_dotenv
 import logging
-from typing import Optional
+from typing import Optional, Dict, Any
 
 load_dotenv()
 
-# Root directory of the project
+# ===== DIRECTORY CONFIGURATION =====
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW_DATA_PATH = os.path.join(PROJECT_ROOT, "data", "raw")
 
-# Qdrant
+# ===== QDRANT CONFIGURATION =====
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 COLLECTION_NAME = "collection_multimodal_rag"
 
-
-# Groq API and LLM Models
+# ===== GROQ API AND LLM MODELS =====
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 # General LLM Model (for generic RAG queries)
 LLM_MODEL_NAME = "meta-llama/llama-4-scout-17b-16e-instruct"
 
-# Models for image description (multimodal)
-IMG_DESC_MODEL_LG="meta-llama/llama-4-maverick-17b-128e-instruct"
+# Specialized models
+IMG_DESC_MODEL_LG = "meta-llama/llama-4-maverick-17b-128e-instruct"
+TABLE_SUMMARY_MODEL_LG = "llama-3.3-70b-versatile"
+TEXT_SUMMARY_MODEL_LG = "llama-3.3-70b-versatile"
+TEXT_REWRITE_MODEL_LG = "llama-3.3-70b-versatile"
 
-# Models for table summarization
-TABLE_SUMMARY_MODEL_LG="llama-3.3-70b-versatile"
-
-# Models for text summarization
-TEXT_SUMMARY_MODEL_LG="llama-3.3-70b-versatile"
-
-# Models for text rewriting
-TEXT_REWRITE_MODEL_LG="llama-3.3-70b-versatile"
-
-#EMBEDDING SETTINGS
+# ===== EMBEDDING CONFIGURATION =====
 DEFAULT_EMBEDDING_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 DEFAULT_BATCH_SIZE = 32
 FALLBACK_TEXT_FOR_EMPTY_DOC = " "
 
-# RAG SEARCH PARAMETERS - Ottimizzati per qualità e rilevanza
-K_NEAREST_NEIGHBORS = 10  # Aumentato da 5 - più risultati candidati
+# ===== RAG SEARCH PARAMETERS (Ottimizzati per qualità) =====
+K_NEAREST_NEIGHBORS = 10  # Risultati candidati base
 
 # Score thresholds ottimizzati per tipo di contenuto
-SCORE_THRESHOLD_TEXT = 0.65      # Ridotto da 0.80 - testo ha semantica più flessibile
+SCORE_THRESHOLD_TEXT = 0.65      # Testo ha semantica più flessibile
 SCORE_THRESHOLD_IMAGES = 0.70    # Immagini richiedono match più precisi  
 SCORE_THRESHOLD_TABLES = 0.60    # Tabelle spesso hanno match più difficili
 SCORE_THRESHOLD_MIXED = 0.65     # Per ricerche miste
 
-# Parametri avanzati per ricerca adattiva
+# Parametri adattivi
 ADAPTIVE_K_MIN = 3               # Minimo risultati da restituire
 ADAPTIVE_K_MAX = 15              # Massimo risultati da considerare
-RERANK_TOP_K = 8                 # Risultati da re-rankare se disponibile
 
-# Parametri per diversi tipi di query
-RAG_PARAMS = {
+# Strategie per diversi tipi di query
+RAG_PARAMS: Dict[str, Dict[str, Any]] = {
     "factual": {
         "k": 8,
         "score_threshold": 0.70,

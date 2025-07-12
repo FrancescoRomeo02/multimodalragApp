@@ -5,7 +5,7 @@ from qdrant_client.http import models
 from src.config import (
     K_NEAREST_NEIGHBORS, QDRANT_URL, COLLECTION_NAME,
     SCORE_THRESHOLD_TEXT, SCORE_THRESHOLD_IMAGES, SCORE_THRESHOLD_TABLES, 
-    SCORE_THRESHOLD_MIXED, RAG_PARAMS, ADAPTIVE_K_MIN, ADAPTIVE_K_MAX
+    RAG_PARAMS, ADAPTIVE_K_MIN, ADAPTIVE_K_MAX
 )
 from src.core.models import ImageResult, TextElement, ImageElement, TableElement
 from src.utils.embedder import get_embedding_model
@@ -20,7 +20,9 @@ class QdrantManager:
     Centralizza connessione, creazione collezioni, inserimento e ricerca.
     """
     
-    def __init__(self, url: str = QDRANT_URL, collection_name: str = COLLECTION_NAME):
+    def __init__(self, 
+                 url: str = QDRANT_URL, 
+                 collection_name: str = COLLECTION_NAME):
         self.url = url
         self.collection_name = collection_name
         self._client = None
@@ -161,8 +163,10 @@ class QdrantManager:
         except Exception as e:
             logger.error(f"Errore verifica collezione: {e}")
             return False
-    
-    def create_collection(self, embedding_dim: int, force_recreate: bool = False) -> bool:
+
+    def create_collection(self, 
+                          embedding_dim: int, 
+                          force_recreate: bool = False) -> bool:
         try:
             if force_recreate and self.collection_exists():
                 self.delete_collection()
@@ -194,14 +198,17 @@ class QdrantManager:
             logger.error(f"Errore eliminazione collezione: {e}")
             return False
     
-    def ensure_collection_exists(self, embedding_dim: int) -> bool:
+    def ensure_collection_exists(self, 
+                                 embedding_dim: int) -> bool:
         if not self.collection_exists():
             return self.create_collection(embedding_dim)
         return True
     
     # === OPERAZIONI CRUD ===
     
-    def upsert_points(self, points: List[models.PointStruct], batch_size: int = 64) -> bool:
+    def upsert_points(self, 
+                      points: List[models.PointStruct], 
+                      batch_size: int = 64) -> bool:
         try:
             for i in range(0, len(points), batch_size):
                 batch = points[i:i + batch_size]
@@ -216,7 +223,8 @@ class QdrantManager:
             logger.error(f"Errore inserimento punti: {e}")
             return False
     
-    def delete_by_source(self, filename: str) -> Tuple[bool, str]:
+    def delete_by_source(self, 
+                         filename: str) -> Tuple[bool, str]:
         logger.info(f"Eliminazione documenti per source='{filename}'")
         try:
             qdrant_filter = models.Filter(
@@ -297,27 +305,6 @@ class QdrantManager:
         
         return models.Filter(should=file_conditions)
 
-    def create_page_filter(self, 
-                            pages: List[int]) -> Optional[models.Filter]:
-        if not pages:
-            return None
-        
-        # Supporta sia metadata.page che page per compatibilità
-        page_conditions = []
-        for page in pages:
-            page_conditions.extend([
-                models.FieldCondition(
-                    key="metadata.page",
-                    match=models.MatchValue(value=page),
-                ),
-                models.FieldCondition(
-                    key="page",
-                    match=models.MatchValue(value=page),
-                )
-            ])
-        
-        return models.Filter(should=page_conditions)
-    
     def build_combined_filter(self, 
                             selected_files: List[str] = [],
                             query_type: Optional[str] = None) -> Optional[models.Filter]:
@@ -582,69 +569,6 @@ class QdrantManager:
         except Exception as e:
             logger.error(f"Errore query tabelle: {e}")
             return []
-    
-    def query_all_content(self, 
-                         query: str, 
-                         selected_files: List[str] = [],
-                         query_intent: str = "multimodal",
-                         top_k_per_type: Optional[int] = None,
-                         score_threshold: Optional[float] = None) -> Dict[str, Any]:
-        """
-        Cerca contenuti di tutti i tipi con parametri ottimizzati.
-        
-        Args:
-            query: Query di ricerca
-            selected_files: File specifici da cercare
-            query_intent: Tipo di query ("factual", "exploratory", "technical", "multimodal")
-            top_k_per_type: Numero di risultati per tipo (None per usare ottimale)
-            score_threshold: Soglia di similarità (None per usare ottimale)
-        """
-        logger.info(f"Query contenuti misti ottimizzata: '{query}' (intent: {query_intent})")
-        
-        results = {
-            "text": [],
-            "images": [],
-            "tables": []
-        }
-        
-        try:
-            # Cerca testo
-            text_results = self.query_text(
-                query=query, 
-                selected_files=selected_files,
-                query_intent=query_intent,
-                top_k=top_k_per_type,
-                score_threshold=score_threshold
-            )
-            results["text"] = text_results
-            
-            # Cerca immagini
-            image_results = self.query_images(
-                query=query,
-                selected_files=selected_files,
-                query_intent=query_intent,
-                top_k=top_k_per_type
-            )
-            results["images"] = image_results
-            
-            # Cerca tabelle
-            table_results = self.query_tables(
-                query=query,
-                selected_files=selected_files,
-                query_intent=query_intent,
-                top_k=top_k_per_type
-            )
-            results["tables"] = table_results
-            
-            total_results = len(text_results) + len(image_results) + len(table_results)
-            logger.info(f"Query completa ottimizzata: trovati {total_results} risultati totali "
-                       f"(testo: {len(text_results)}, immagini: {len(image_results)}, tabelle: {len(table_results)}) "
-                       f"con intent '{query_intent}'")
-            
-        except Exception as e:
-            logger.error(f"Errore nella query_all_content: {e}")
-        
-        return results
 
     def debug_collection_content(self, 
                                  limit: int = 10) -> Dict[str, Any]:
@@ -733,7 +657,8 @@ class QdrantManager:
     
     # === UTILITY PER QUERY INTELLIGENTE ===
     
-    def detect_query_intent(self, query: str) -> str:
+    def detect_query_intent(self, 
+                            query: str) -> str:
         """
         Determina automaticamente l'intent della query analizzando il testo.
         
@@ -746,20 +671,36 @@ class QdrantManager:
         factual_keywords = [
             "cosa è", "cos'è", "che cos'è", "definisci", "definizione",
             "quando", "dove", "chi", "quale", "quanto", "quanti",
-            "data", "numero", "valore", "risultato"
+            "data", "numero", "valore", "risultato", "statistica",
+            "informazione", "dettaglio", "specifica", "esempio", "spiegazione",
+            "descrivi", "caratteristica", "funzione", "utilizzo", "scopo", "obiettivo",
+            "what is", "what's", "define", "definition", "when", "where", "who", "which", "how many", "data", "number", "value", "result",
+            "statistic", "information", "detail", "specific", "example", "explanation",
+            "describe", "feature", "function", "usage", "purpose", "goal"
         ]
         
         # Parole chiave per intent technical (contenuti tecnici)
         technical_keywords = [
             "algoritmo", "codice", "implementazione", "funzione", "metodo",
             "classe", "api", "configurazione", "parametri", "variabili",
-            "sistema", "architettura", "design pattern", "framework"
+            "sistema", "architettura", "design pattern", "framework", "libreria",
+            "tecnologia", "protocollo", "rete", "database", "query",
+            "performance", "ottimizzazione", "debug", "errore", "bug",
+            "algorithm", "code", "implementation", "function", "method",
+            "class", "api", "configuration", "parameters", "variables",
+            "system", "architecture", "design pattern", "framework", "library",
+            "technology", "protocol", "network", "database", "query",
+            "performance", "optimization", "debug", "error", "bug"
         ]
         
         # Parole chiave per intent multimodal (contenuti misti)
         multimodal_keywords = [
             "immagine", "tabella", "grafico", "figura", "diagramma",
-            "chart", "visualizzazione", "schema", "esempio visivo"
+            "chart", "visualizzazione", "schema", "esempio visivo", "dati visivi",
+            "image", "table", "graph", "figure", "diagram",
+            "chart", "visualization", "schema", "visual example", "visual data",
+            "multimodal", "mixed content", "text and images", "text and tables",
+            "text and graphs", "text and figures", "text and diagrams"
         ]
         
         # Conta occorrenze per ogni categoria
@@ -830,5 +771,5 @@ class QdrantManager:
         
         return results
 
-# Singleton per uso globale
+# Singleton per uso globale 
 qdrant_manager = QdrantManager()
