@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Script di avvio per MultimodalRAG.
+Launch script for MultimodalRAG.
 
-Questo script fornisce diversi modi per avviare l'applicazione:
-- Modalità locale con Streamlit
-- Modalità Docker
-- Modalità sviluppo con hot-reload
+This script provides several ways to start the application:
+- Local mode with Streamlit
+- Docker mode
+- Development mode with hot-reload
 """
 
 import sys
@@ -13,55 +13,55 @@ import subprocess
 import argparse
 from pathlib import Path
 
-# Aggiungi il root del progetto al Python path
+# Add project root to Python path
 ROOT_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
 
 def run_streamlit():
-    """Avvia l'applicazione Streamlit in modalità locale."""
+    """Launch the Streamlit application in local mode."""
     cmd = [
         "streamlit", "run", 
         str(ROOT_DIR / "streamlit_app" / "Home.py"),
         "--server.port=8501",
         "--server.address=0.0.0.0"
     ]
-    print(f"🚀 Avvio Streamlit: {' '.join(cmd)}")
+    print(f"🚀 Starting Streamlit: {' '.join(cmd)}")
     subprocess.run(cmd, cwd=ROOT_DIR)
 
 
 def run_docker_build():
-    """Costruisce l'immagine Docker."""
+    """Build the Docker image."""
     cmd = ["docker", "build", "-t", "multimodalrag", "."]
-    print(f"Build Docker: {' '.join(cmd)}")
+    print(f"Docker build: {' '.join(cmd)}")
     subprocess.run(cmd, cwd=ROOT_DIR, check=True)
 
 
 def run_docker():
-    """Avvia l'applicazione in modalità Docker."""
-    # Prima costruisci l'immagine
+    """Launch the application in Docker mode."""
+    # First build the image
     run_docker_build()
     
-    # Poi esegui il container
+    # Then run the container
     cmd = [
         "docker", "run", "-d", 
         "-p", "8501:8501", 
         "--name", "multimodalrag_container", 
         "multimodalrag"
     ]
-    print(f"Avvio Docker: {' '.join(cmd)}")
+    print(f"Starting Docker: {' '.join(cmd)}")
     subprocess.run(cmd, cwd=ROOT_DIR, check=True)
 
 
 def run_docker_compose():
-    """Avvia l'applicazione con Docker Compose."""
+    """Launch the application with Docker Compose."""
     cmd = ["docker-compose", "up", "-d"]
-    print(f"Avvio Docker Compose: {' '.join(cmd)}")
+    print(f"Starting Docker Compose: {' '.join(cmd)}")
     subprocess.run(cmd, cwd=ROOT_DIR, check=True)
 
 
 def run_dev():
-    """Avvia in modalità sviluppo con hot-reload."""
+    """Launch in development mode with hot-reload."""
     cmd = [
         "streamlit", "run", 
         str(ROOT_DIR / "streamlit_app" / "Home.py"),
@@ -70,23 +70,23 @@ def run_dev():
         "--server.runOnSave=true",
         "--server.fileWatcherType=auto"
     ]
-    print(f"Avvio modalità sviluppo: {' '.join(cmd)}")
+    print(f"Starting development mode: {' '.join(cmd)}")
     subprocess.run(cmd, cwd=ROOT_DIR)
 
 
 def main():
     """Main entry point."""
-    parser = argparse.ArgumentParser(description="Avvia MultimodalRAG")
+    parser = argparse.ArgumentParser(description="Launch MultimodalRAG")
     parser.add_argument(
         "mode",
         choices=["local", "docker", "docker-compose", "dev", "build"],
-        help="Modalità di avvio"
+        help="Launch mode"
     )
     
     args = parser.parse_args()
     
-    print(f"🚀 Avvio MultimodalRAG in modalità: {args.mode}")
-    print(f"📁 Directory di lavoro: {ROOT_DIR}")
+    print(f"🚀 Starting MultimodalRAG in mode: {args.mode}")
+    print(f"📁 Working directory: {ROOT_DIR}")
     
     try:
         if args.mode == "local":
@@ -100,9 +100,9 @@ def main():
         elif args.mode == "build":
             run_docker_build()
     except KeyboardInterrupt:
-        print("\n⏹️  Arresto dell'applicazione...")
+        print("\n⏹️  Application stopped...")
     except subprocess.CalledProcessError as e:
-        print(f"❌ Errore durante l'esecuzione: {e}")
+        print(f"❌ Error during execution: {e}")
         sys.exit(1)
 
 

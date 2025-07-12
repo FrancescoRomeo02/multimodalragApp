@@ -62,18 +62,18 @@ class DocumentIndexer:
                 all_table_elements.extend(table_elements)
 
                 processed_files += 1
-                logger.info(f"Processato {processed_files}/{len(pdf_paths)}: {os.path.basename(pdf_path)} "
-                            f"(testi: {len(text_elements)}, immagini: {len(image_elements)}, tabelle: {len(table_elements)})")
+                logger.info(f"Processed {processed_files}/{len(pdf_paths)}: {os.path.basename(pdf_path)} "
+                            f"(texts: {len(text_elements)}, images: {len(image_elements)}, tables: {len(table_elements)})")
             except Exception as e:
-                logger.error(f"Errore processamento file {pdf_path}: {e}")
+                logger.error(f"Error processing file {pdf_path}: {e}")
 
         if processed_files == 0:
-            logger.error("Nessun file processato con successo")
+            logger.error("No files processed successfully")
             return False
 
         success = True
 
-        # Indicizza tutti gli elementi in batch per efficienza
+        # Index all elements in batches for efficiency
         indexing_tasks = [
             ("text", all_text_elements, lambda els: self.embedder.embed_documents([el.text for el in els])),
             ("image", all_image_elements, lambda els: [self.embedder.embed_query(el.image_base64) for el in els]),
@@ -89,18 +89,18 @@ class DocumentIndexer:
                 points = self.qdrant_manager.convert_elements_to_points(elements, vectors)
                 
                 if self.qdrant_manager.upsert_points(points):
-                    logger.info(f"Indicizzati {len(points)} elementi di tipo {element_type}")
+                    logger.info(f"Indexed {len(points)} elements of type {element_type}")
                 else:
-                    logger.error(f"Fallito inserimento punti {element_type}")
+                    logger.error(f"Failed inserting {element_type} points")
                     success = False
             except Exception as e:
-                logger.error(f"Errore indicizzazione {element_type}: {e}")
+                logger.error(f"Error indexing {element_type}: {e}")
                 success = False
 
         if success:
-            logger.info("Indicizzazione completata con successo")
+            logger.info("Indexing completed successfully")
         else:
-            logger.warning("Indicizzazione completata con errori")
+            logger.warning("Indexing completed with errors")
 
         return success
 

@@ -16,13 +16,13 @@ logger = logging.getLogger(__name__)
 
 def get_detected_objects(base64_str: str) -> list:
     """
-    Rileva oggetti in un'immagine usando YOLO.
+    Detects objects in an image using YOLO.
     
     Args:
-        base64_str: Stringa base64 dell'immagine
+        base64_str: Base64 string of the image
         
     Returns:
-        Una lista di oggetti rilevati con il loro nome e confidenza.
+        A list of detected objects with their name and confidence.
     """
     try:
         # Path relativo al modello YOLO
@@ -49,22 +49,22 @@ def get_detected_objects(base64_str: str) -> list:
 
         return [obj for obj in detected_objects if obj is not None]
     except Exception as e:
-        logger.error(f"Errore nel rilevamento oggetti: {e}")
+        logger.error(f"Error in object detection: {e}")
         return []
 
 def get_caption(base64_str: str) -> str:
     """
-    Genera una descrizione testuale di un'immagine usando Groq's vision model.
+    Generates a textual description of an image using Groq's vision model.
     
     Args:
-        base64_str: Stringa base64 dell'immagine
+        base64_str: Base64 string of the image
         
     Returns:
-        Descrizione testuale dell'immagine
+        Textual description of the image
     """
     try:
         if not GROQ_API_KEY:
-            raise ValueError("La chiave API di Groq non è stata impostata (GROQ_API_KEY).")
+            raise ValueError("Groq API key has not been set (GROQ_API_KEY).")
 
         client = Groq(api_key=GROQ_API_KEY)
 
@@ -77,7 +77,7 @@ def get_caption(base64_str: str) -> str:
                         "content": [
                             {
                                 "type": "text", 
-                                "text": "Descrivi dettagliatamente cosa vedi in questa immagine. Fornisci una descrizione accurata e completa degli oggetti, delle persone, del contesto e di qualsiasi testo visibile."
+                                "text": "Describe in detail what you see in this image. Provide an accurate and complete description of objects, people, context and any visible text."
                             },
                             {
                                 "type": "image_url",
@@ -88,57 +88,57 @@ def get_caption(base64_str: str) -> str:
                         ],
                     }
                 ],
-                model=IMG_DESC_MODEL_LG,  # Usa il modello configurato per la descrizione immagini
+                model=IMG_DESC_MODEL_LG,  # Use configured model for image description
                 max_tokens=300,
                 temperature=0.1,
             )
             
             caption = chat_completion.choices[0].message.content
-            logger.info(f"Caption generata con successo usando {IMG_DESC_MODEL_LG}")
-            return caption if caption else "Immagine non descrivibile"
+            logger.info(f"Caption generated successfully using {IMG_DESC_MODEL_LG}")
+            return caption if caption else "Image not describable"
             
         except Exception as vision_error:
-            logger.warning(f"Modello {IMG_DESC_MODEL_LG} non supporta immagini: {vision_error}")
+            logger.warning(f"Model {IMG_DESC_MODEL_LG} does not support images: {vision_error}")
             return get_caption_alternative(base64_str)
 
     except Exception as e:
-        logger.error(f"Errore generazione caption con modello vision: {e}")
+        logger.error(f"Error generating caption with vision model: {e}")
         return get_caption_alternative(base64_str)
 
 def get_image_text(base64_str: str) -> str:
     """
-    Estrae testo da un'immagine usando OCR (Tesseract).
+    Extracts text from an image using OCR (Tesseract).
     
     Args:
-        base64_str: Stringa base64 dell'immagine
+        base64_str: Base64 string of the image
         
     Returns:
-        Testo estratto dall'immagine
+        Text extracted from the image
     """
     try:
-        # Decodifica e conversione immagine
+        # Decode and convert image
         image_data = base64.b64decode(base64_str)
         image = cv2.imdecode(np.frombuffer(image_data, np.uint8), cv2.IMREAD_COLOR)
         
         if image is None:
-            raise ValueError("Impossibile decodificare immagine")
+            raise ValueError("Unable to decode image")
             
         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         return pytesseract.image_to_string(image_rgb)
         
     except Exception as e:
-        logger.error(f"Errore OCR: {e}")
+        logger.error(f"OCR error: {e}")
         return ""
 
 def get_caption_alternative(base64_str: str) -> str:
     """
-    Versione alternativa che combina OCR + analisi oggetti per generare una caption.
+    Alternative version that combines OCR + object analysis to generate a caption.
     
     Args:
-        base64_str: Stringa base64 dell'immagine
+        base64_str: Base64 string of the image
         
     Returns:
-        Descrizione testuale dell'immagine
+        Textual description of the image
     """
     try:
         # Combina informazioni da OCR e object detection

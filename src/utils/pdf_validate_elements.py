@@ -5,56 +5,56 @@ logger = logging.getLogger(__name__)
 
 def is_valid_image(width: int, height: int) -> bool:
     """
-    Filtro per immagini valide basato su dimensioni e qualità:
-    - Dimensioni minime: 120x120 pixel
-    - Area minima: 14.400 pixel
-    - Dimensioni massime ragionevoli: 5000x5000 pixel
-    - Rapporto di aspetto ragionevole (non troppo allungate)
+    Filter for valid images based on dimensions and quality:
+    - Minimum dimensions: 120x120 pixel
+    - Minimum area: 14,400 pixel
+    - Reasonable maximum dimensions: 5000x5000 pixel
+    - Reasonable aspect ratio (not too stretched)
     """
-    # Controlli dimensioni di base
+    # Basic dimension checks
     if width < 120 or height < 120:
-        logger.debug(f"Immagine scartata: dimensioni troppo piccole ({width}x{height})")
+        logger.debug(f"Image discarded: dimensions too small ({width}x{height})")
         return False
     
-    # Controllo area minima
+    # Minimum area check
     area = width * height
     if area < 14400:  # ~120x120 pixel
-        logger.debug(f"Immagine scartata: area troppo piccola ({area} pixel)")
+        logger.debug(f"Image discarded: area too small ({area} pixels)")
         return False
     
-    # Controllo dimensioni massime
+    # Maximum dimensions check
     if width > 5000 or height > 5000:
-        logger.debug(f"Immagine scartata: dimensioni troppo grandi ({width}x{height})")
+        logger.debug(f"Image discarded: dimensions too large ({width}x{height})")
         return False
     
-    # Controllo rapporto di aspetto (evita immagini troppo allungate)
+    # Aspect ratio check (avoid overly stretched images)
     aspect_ratio = max(width, height) / min(width, height)
-    if aspect_ratio > 10:  # Rapporto massimo 10:1
-        logger.debug(f"Immagine scartata: rapporto di aspetto troppo estremo ({aspect_ratio:.2f})")
+    if aspect_ratio > 10:  # Maximum ratio 10:1
+        logger.debug(f"Image discarded: aspect ratio too extreme ({aspect_ratio:.2f})")
         return False
     
     return True
 
 def is_valid_table(table_data: Dict[str, Any]) -> bool:
     """
-    Filtro per tabelle valide basato su struttura e contenuto:
-    - Almeno 2 righe e 2 colonne
-    - Contenuto non vuoto
+    Filter for valid tables based on structure and content:
+    - At least 2 rows and 2 columns
+    - Non-empty content
     """
     if not table_data:
         return False
     
-    # Se abbiamo metadati sulla struttura della tabella
+    # If we have metadata about table structure
     if 'rows' in table_data and 'cols' in table_data:
         rows, cols = table_data['rows'], table_data['cols']
         if rows < 2 or cols < 2:
-            logger.debug(f"Tabella scartata: dimensioni insufficienti ({rows}x{cols})")
+            logger.debug(f"Table discarded: insufficient dimensions ({rows}x{cols})")
             return False
     
-    # Controllo contenuto non vuoto
+    # Check for non-empty content
     content = table_data.get('text', '') or table_data.get('html', '')
     if not content or len(content.strip()) < 20:
-        logger.debug("Tabella scartata: contenuto insufficiente")
+        logger.debug("Table discarded: insufficient content")
         return False
     
     return True

@@ -15,62 +15,62 @@ class TableResult(BaseModel):
     score: float
 
 
-#METADATI COMUNI
+#COMMON METADATA
 class ElementMetadata(BaseModel):
-    """Metadati comuni a tutti gli elementi, validati da Pydantic."""
+    """Common metadata for all elements, validated by Pydantic."""
     source: str
     page: int
     content_type: str
 
 
-#TABELLA
+#TABLE
 class TableMetadata(BaseModel):
-    """Metadati essenziali per gli elementi tabella"""
-    content_type: str = Field(default="table", description="Tipo di contenuto (sempre 'table')")
-    source: str = Field(..., description="Nome del file sorgente")
-    page: int = Field(..., description="Numero di pagina della tabella")
-    table_id: str = Field(..., description="Identificatore univoco della tabella (es. table_1)")
-    table_summary: Optional[str] = Field(None, description="Riassunto AI generato della tabella")
+    """Essential metadata for table elements"""
+    content_type: str = Field(default="table", description="Content type (always 'table')")
+    source: str = Field(..., description="Source file name")
+    page: int = Field(..., description="Table page number")
+    table_id: str = Field(..., description="Unique table identifier (e.g. table_1)")
+    table_summary: Optional[str] = Field(None, description="AI-generated table summary")
 
 class TableData(BaseModel): 
-    """Modello per i dati strutturati della tabella"""
+    """Model for structured table data"""
     cells: List[List[Optional[str]]]
     headers: List[str]
     shape: Tuple[int, int]
 
 class TableElement(BaseModel):
-    """Modello per gli elementi tabella estratti dai PDF"""
-    table_html: str = Field(..., description="Rappresentazione html della tabella")
-    metadata: TableMetadata = Field(..., description="Metadati standardizzati della tabella")
+    """Model for table elements extracted from PDFs"""
+    table_html: str = Field(..., description="HTML representation of the table")
+    metadata: TableMetadata = Field(..., description="Standardized table metadata")
 
-#TESTO
+#TEXT
 class TextMetadata(ElementMetadata):
-    pass  # Eredita tutti i campi necessari da ElementMetadata
+    pass  # Inherits all necessary fields from ElementMetadata
 
 class TextElement(BaseModel):
-    """Modello per un elemento testuale."""
+    """Model for a text element."""
     text: str
     metadata: TextMetadata
 
-#IMMAGINI
+#IMAGES
 class ImageMetadata(ElementMetadata):
-    content_type: str = Field(default="image", description="Tipo di contenuto (sempre 'image')")
-    image_id: str = Field(..., description="Identificatore univoco dell'immagine (es. image_1)")
-    image_caption: Optional[str] = Field(None, description="Caption generata dall'AI combinata con contesto")
+    content_type: str = Field(default="image", description="Content type (always 'image')")
+    image_id: str = Field(..., description="Unique image identifier (e.g. image_1)")
+    image_caption: Optional[str] = Field(None, description="AI-generated caption combined with context")
 
 class ImageElement(BaseModel):
-    image_base64: str  # Contenuto immagine codificato base64
+    image_base64: str  # Base64 encoded image content
     metadata: ImageMetadata
 
 
-#RISULTATO RETRIEVER
+#RETRIEVER RESULT
 class RetrievalResult(BaseModel):
     answer: str
     source_documents: List[Dict]
     confidence_score:float
-    query_time_ms: Optional[int] = Field(None, description="Tempo di esecuzione query in millisecondi")
-    retrieved_count: Optional[int] = Field(None, description="Numero di documenti recuperati")
-    filters_applied: Optional[Dict] = Field(None, description="Filtri applicati alla ricerca")
+    query_time_ms: Optional[int] = Field(None, description="Query execution time in milliseconds")
+    retrieved_count: Optional[int] = Field(None, description="Number of retrieved documents")
+    filters_applied: Optional[Dict] = Field(None, description="Filters applied to search")
 
 class ColorSpace(Enum):
     GRAY = 1

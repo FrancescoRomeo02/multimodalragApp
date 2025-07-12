@@ -1,16 +1,16 @@
 # Data Directory
 
-Questa directory contiene tutti i dati utilizzati dal progetto MultimodalRAG.
+This directory contains all data used by the MultimodalRAG project.
 
-## Struttura
+## Structure
 
-- **`raw/`**: PDF e documenti originali da processare
-- **`processed/`**: Dati elaborati e embeddings cache
-- **`models/`**: Modelli pre-addestrati (YOLO, embedding models)
-- **`temp/`**: File temporanei di processing
+- **`raw/`**: Original PDFs and documents to process
+- **`processed/`**: Processed data and embeddings cache
+- **`models/`**: Pre-trained models (YOLO, embedding models)
+- **`temp/`**: Temporary processing files
 
-## Note
+## Notes
 
-- I file in `temp/` vengono automaticamente puliti
-- I modelli in `models/` possono essere grandi (esclusi da git se necessario)
-- `raw/` contiene i documenti di input dell'utente
+- Files in `temp/` are automatically cleaned
+- Models in `models/` can be large (excluded from git if necessary)
+- `raw/` contains user input documents

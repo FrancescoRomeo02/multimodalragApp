@@ -12,48 +12,48 @@ logger = logging.getLogger(__name__)
 
 def create_table_summary(table_html: str, context_info: Optional[Dict[str, str]] = None, table_id: Optional[str] = None) -> str:
     """
-    Genera un riassunto intelligente di una tabella usando Groq LLM.
+    Generates an intelligent summary of a table using Groq LLM.
     
     Args:
-        table_html: Rappresentazione html della tabella
-        context_info: Informazioni di contesto (caption, context_text)
+        table_html: HTML representation of the table
+        context_info: Context information (caption, context_text)
         
     Returns:
-        Riassunto testuale della tabella
+        Textual summary of the table
     """
     try:
         if not GROQ_API_KEY:
-            logger.warning("GROQ_API_KEY non configurata, riassunto tabella non disponibile")
-            return "Riassunto non disponibile a causa di configurazione mancante."
+            logger.warning("GROQ_API_KEY not configured, table summary not available")
+            return "Summary not available due to missing configuration."
 
-        # Costruisci il prompt per il riassunto
+        # Build prompt for summary
         table_identifier = f"[{table_id}] " if table_id else ""
         prompt_parts = [
-            f"Analizza la seguente tabella {table_identifier} e fornisci un riassunto conciso e informativo che includa:",
-            "- Il tipo di dati contenuti",
-            "- Le principali tendenze o pattern", 
-            "- I valori chiave o interessanti",
-            "- Il contesto o scopo della tabella (se evidente)",
+            f"Analyze the following table {table_identifier} and provide a concise and informative summary that includes:",
+            "- The type of data contained",
+            "- The main trends or patterns", 
+            "- Key or interesting values",
+            "- The context or purpose of the table (if evident)",
             "",
-            f"TABELLA {table_identifier}, ecco la tabella in formato html: {table_html}"
+            f"TABLE {table_identifier}, here is the table in HTML format: {table_html}"
         ]
         
-        # Aggiungi informazioni di contesto se disponibili
+        # Add context information if available
         if context_info:
             if context_info.get('summary'):
                 prompt_parts.extend([
                     "",
-                    f"RIASSUNTO ESISTENTE: {context_info['summary']}"
+                    f"EXISTING SUMMARY: {context_info['summary']}"
                 ])
         
         prompt_parts.extend([
             "",
-            f"Fornisci un riassunto chiaro e strutturato in italiano per {table_identifier}:",
+            f"Provide a clear and structured summary in English for {table_identifier}:",
         ])
         
         prompt = "\n".join(prompt_parts)
         
-        # Usa il modello specifico per riassunto tabelle
+        # Use specific model for table summary
         llm = get_table_summary_llm()
         
         try:
@@ -61,57 +61,57 @@ def create_table_summary(table_html: str, context_info: Optional[Dict[str, str]]
             summary = str(response.content).strip() if response.content else ""
             
             if summary and len(summary) > 10:
-                logger.info(f"Riassunto tabella generato con successo usando {TABLE_SUMMARY_MODEL_LG}")
+                logger.info(f"Table summary generated successfully using {TABLE_SUMMARY_MODEL_LG}")
                 return summary
             else:
-                logger.warning("Riassunto tabella vuoto o troppo breve")
+                logger.warning("Table summary empty or too short")
             
-            return "Riassunto non disponibile a causa di contenuto insufficiente."
+            return "Summary not available due to insufficient content."
         
         except Exception as llm_error:
-            logger.error(f"Errore durante la generazione riassunto tabella con LLM: {llm_error}")
+            logger.error(f"Error during table summary generation with LLM: {llm_error}")
             
-            return "Riassunto non disponibile a causa di un errore LLM."
+            return "Summary not available due to LLM error."
     
     except Exception as e:
-        logger.error(f"Errore nel riassunto tabella: {e}")
+        logger.error(f"Error in table summary: {e}")
         
-        return "Riassunto non disponibile a causa di un errore interno."
+        return "Summary not available due to internal error."
     
 
 def enhance_table_with_summary(table_element: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Arricchisce un elemento tabella con il riassunto AI.
+    Enriches a table element with AI summary.
     
     Args:
-        table_element: Elemento tabella con table_html e metadata
+        table_element: Table element with table_html and metadata
 
     Returns:
-        Elemento tabella arricchito con summary nei metadati
+        Table element enriched with summary in metadata
     """
     try:
         table_html = table_element.get('table_html', '')
         metadata = table_element.get('metadata', {})
         
-        # Estrai identificatore della tabella
+        # Extract table identifier
         table_id = metadata.get('table_id')
         
-        # Estrai informazioni di contesto dai metadati esistenti
+        # Extract context information from existing metadata
         context_info = {
             'summary': metadata.get('table_summary')
         }
         
-        # Genera il riassunto con l'identificatore
+        # Generate summary with identifier
         summary = create_table_summary(table_html, context_info, table_id)
         
-        # Aggiungi il riassunto ai metadati
+        # Add summary to metadata
         metadata['table_summary'] = summary
         table_element['metadata'] = metadata
         
-        logger.info(f"Tabella arricchita con riassunto: {summary[:100]}...")
+        logger.info(f"Table enriched with summary: {summary[:100]}...")
         return table_element
         
     except Exception as e:
-        logger.error(f"Errore nell'arricchimento tabella con riassunto: {e}")
-        # Ritorna elemento originale in caso di errore
+        logger.error(f"Error enriching table with summary: {e}")
+        # Return original element in case of error
         return table_element

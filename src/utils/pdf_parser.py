@@ -31,23 +31,23 @@ def _create_chunk_object(element_content: str, metadata_dict: Dict[str, Any], ch
 
 def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
-    Parser PDF unificato con funzionalità avanzate complete.
+    Unified PDF parser with complete advanced functionality.
     
-    FUNZIONALITÀ:
-    - Estrazione testo, immagini e tabelle standardizzata per Qdrant
-    - Analisi AI delle immagini (caption BLIP, OCR Tesseract, object detection YOLO)
-    - Chunking semantico preservato per il testo
-    - Deduplicazione intelligente per tutti i tipi di contenuto
-    - Metadati completi e strutturati per ogni elemento
+    FEATURES:
+    - Standardized text, image, and table extraction for Qdrant
+    - AI image analysis (BLIP caption, Tesseract OCR, YOLO object detection)
+    - Preserved semantic chunking for text
+    - Intelligent deduplication for all content types
+    - Complete and structured metadata for each element
     
     Args:
-        pdf_path: Percorso al file PDF da processare
+        pdf_path: Path to PDF file to process
         
     Returns:
         Tuple[text_elements, image_elements, table_elements]
     """
     filename = os.path.basename(pdf_path)
-    logger.info(f"Avvio parsing PDF: {filename}")
+    logger.info(f"Starting PDF parsing: {filename}")
     
     try:
         chunks = partition_pdf(
@@ -121,7 +121,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     texts.append(chunk)
 
         print("="*50)
-        logger.info(f"Totale elementi estratti: {len(texts)} testi, {len(images)} immagini, {len(tables)} tabelle")
+        logger.info(f"Total extracted elements: {len(texts)} texts, {len(images)} images, {len(tables)} tables")
         print("="*50)
 
         for text in texts:
@@ -147,15 +147,15 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                         "page": page_num,
                         "content_type": "table",
                         "table_id": table_id,
-                        "table_summary": None  # Placeholder per il riassunto AI
+                        "table_summary": None  # Placeholder for AI summary
                         }
                 }
-                # Arricchisci la tabella con il riassunto AI
+                # Enrich table with AI summary
                 table_element = enhance_table_with_summary(table_element)
                 table_elements.append(table_element)
 
             except Exception as e:
-                logger.warning(f"Errore nell'elaborazione della tabella: {str(e)}")
+                logger.warning(f"Error in table processing: {str(e)}")
 
         for img_index, img_info in enumerate(images):
                 try:
@@ -163,25 +163,25 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     width = int(img_info.metadata.coordinates.system.width) if img_info.metadata.coordinates.system.width else 0
                     height = int(img_info.metadata.coordinates.system.height) if img_info.metadata.coordinates.system.height else 0
                     if not is_valid_image(width, height):
-                        logger.debug(f"Immagine {img_index+1} pagina {page_num} scartata per dimensioni/qualità")
+                        logger.debug(f"Image {img_index+1} page {page_num} discarded for size/quality")
                         continue
                     
                     image_counter += 1
                     image_id = f"image_{image_counter}"
                     image_info_ai = get_comprehensive_image_info(img_info.metadata.image_base64)
                     
-                    # Log informativo per immagini accettate
-                    logger.info(f"Immagine {img_index+1} pagina {page_num} accettata ({image_id})")
+                    # Informative log for accepted images
+                    logger.info(f"Image {img_index+1} page {page_num} accepted ({image_id})")
 
-                    # Crea caption completa con AI analysis
+                    # Create complete caption with AI analysis
                     caption_parts = [
-                        f"[{image_id}] Descrizione: {image_info_ai['caption']}",
-                        f"Testo rilevato: {image_info_ai['ocr_text']}" if image_info_ai["ocr_text"].strip() else None,
-                        f"Oggetti rilevati: {', '.join(image_info_ai['detected_objects'])}" if image_info_ai["detected_objects"] else None,
+                        f"[{image_id}] Description: {image_info_ai['caption']}",
+                        f"Detected text: {image_info_ai['ocr_text']}" if image_info_ai["ocr_text"].strip() else None,
+                        f"Detected objects: {', '.join(image_info_ai['detected_objects'])}" if image_info_ai["detected_objects"] else None,
                     ]
                     comprehensive_caption = " | ".join([p for p in caption_parts if p])
                     
-                    logger.debug(f"Immagine {img_index+1} pagina {page_num+1} ({image_id}) - Caption: {comprehensive_caption}")
+                    logger.debug(f"Image {img_index+1} page {page_num+1} ({image_id}) - Caption: {comprehensive_caption}")
                     
                     image_metadata = {
                         "source": filename,
@@ -198,12 +198,12 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     })
                     
                 except Exception as img_e:
-                    logger.error(f"Errore processamento immagine {img_index}: {str(img_e)}")
+                    logger.error(f"Error processing image {img_index}: {str(img_e)}")
                     continue
                     
     except Exception as e:
-        logger.error(f"Errore durante il parsing del PDF: {str(e)}")
+        logger.error(f"Error during PDF parsing: {str(e)}")
         raise RuntimeError(f"PDF parsing failed: {str(e)}") from e
     
-    logger.info(f"Estrazione completata: {len(text_elements)} testi, {len(image_elements)} immagini, {len(table_elements)} tabelle")
+    logger.info(f"Extraction completed: {len(text_elements)} texts, {len(image_elements)} images, {len(table_elements)} tables")
     return text_elements, image_elements, table_elements

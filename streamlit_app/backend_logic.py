@@ -62,16 +62,16 @@ def delete_source(filename: str) -> tuple[bool, str]:
 
 def smart_search_query(query: str, selected_files: List[str] = []) -> dict:
     """
-    Funzione di utilità per testare smart_query direttamente dal backend.
+    Utility function to test smart_query directly from backend.
     
     Args:
-        query: Query di ricerca
-        selected_files: File specifici da cercare
+        query: Search query
+        selected_files: Specific files to search
     
     Returns:
-        Risultati della smart_query con metadati
+        Smart query results with metadata
     """
-    logger.info(f"Esecuzione smart search per: '{query}'")
+    logger.info(f"Executing smart search for: '{query}'")
     
     try:
         results = qdrant_manager.smart_query(
@@ -80,15 +80,15 @@ def smart_search_query(query: str, selected_files: List[str] = []) -> dict:
             content_types=["text", "images", "tables"]
         )
         
-        # Log dei risultati per debugging
+        # Log results for debugging
         if "query_metadata" in results:
             metadata = results["query_metadata"]
-            logger.info(f"Smart search completata: intent='{metadata.get('intent')}', "
-                       f"totale={metadata.get('total_results')}, "
-                       f"strategia='{metadata.get('search_strategy')}'")
+            logger.info(f"Smart search completed: intent='{metadata.get('intent')}', "
+                       f"total={metadata.get('total_results')}, "
+                       f"strategy='{metadata.get('search_strategy')}'")
         
         return results
         
     except Exception as e:
-        logger.error(f"Errore in smart_search_query: {e}")
+        logger.error(f"Error in smart_search_query: {e}")
         return {"error": str(e)}

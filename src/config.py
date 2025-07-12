@@ -44,27 +44,27 @@ SCORE_THRESHOLD_MIXED = 0.65     # Per ricerche miste
 ADAPTIVE_K_MIN = 3               # Minimo risultati da restituire
 ADAPTIVE_K_MAX = 15              # Massimo risultati da considerare
 
-# Strategie per diversi tipi di query
+# Strategies for different query types
 RAG_PARAMS: Dict[str, Dict[str, Any]] = {
     "factual": {
         "k": 8,
         "score_threshold": 0.70,
-        "description": "Per domande fattuali precise"
+        "description": "For precise factual questions"
     },
     "exploratory": {
         "k": 12,
         "score_threshold": 0.60,
-        "description": "Per ricerche esplorative ampie"
+        "description": "For broad exploratory searches"
     },
     "technical": {
         "k": 6,
         "score_threshold": 0.75,
-        "description": "Per query tecniche specifiche"
+        "description": "For specific technical queries"
     },
     "multimodal": {
         "k": 10,
         "score_threshold": 0.65,
-        "description": "Per ricerche che includono testo, immagini e tabelle"
+        "description": "For searches including text, images and tables"
     }
 }
 

@@ -9,13 +9,13 @@ from typing import Optional
 
 def get_groq_llm(model_name: Optional[str] = None):
     """
-    Inizializza e restituisce l'LLM di Groq per LangChain.
+    Initialize and return Groq LLM for LangChain.
     
     Args:
-        model_name: Nome del modello specifico da usare. Se None, usa LLM_MODEL_NAME
+        model_name: Specific model name to use. If None, uses LLM_MODEL_NAME
     """
     if not GROQ_API_KEY:
-        raise ValueError("La chiave API di Groq non è stata impostata (GROQ_API_KEY).")
+        raise ValueError("Groq API key has not been set (GROQ_API_KEY).")
     
     return ChatGroq(
         model=model_name or LLM_MODEL_NAME,
@@ -25,13 +25,13 @@ def get_groq_llm(model_name: Optional[str] = None):
     )
 
 def get_table_summary_llm():
-    """Restituisce LLM specifico per riassunto tabelle (versione SM)"""
+    """Returns specific LLM for table summary (LG version)"""
     return get_groq_llm(TABLE_SUMMARY_MODEL_LG)
 
 def get_text_summary_llm():
-    """Restituisce LLM specifico per riassunto testo (versione SM)"""
+    """Returns specific LLM for text summary (LG version)"""
     return get_groq_llm(TEXT_SUMMARY_MODEL_LG)
 
 def get_text_rewrite_llm():
-    """Restituisce LLM specifico per riscrittura testo (versione SM)"""
+    """Returns specific LLM for text rewriting (LG version)"""
     return get_groq_llm(TEXT_SUMMARY_MODEL_LG)

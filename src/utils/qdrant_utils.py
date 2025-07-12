@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 
 class QdrantManager:
     """
-    Gestisce tutte le operazioni con il database vettoriale Qdrant.
-    Centralizza connessione, creazione collezioni, inserimento e ricerca.
+    Manages all operations with the Qdrant vector database.
+    Centralizes connection, collection creation, insertion and search.
     """
     
     def __init__(self, 
@@ -160,7 +160,7 @@ class QdrantManager:
         try:
             return self.client.collection_exists(self.collection_name)
         except Exception as e:
-            logger.error(f"Errore verifica collezione: {e}")
+            logger.error(f"Collection verification error: {e}")
             return False
 
     def create_collection(self, 
@@ -169,7 +169,7 @@ class QdrantManager:
         try:
             if force_recreate and self.collection_exists():
                 self.delete_collection()
-                logger.info(f"Collezione {self.collection_name} eliminata per ricreazione")
+                logger.info(f"Collection {self.collection_name} deleted for recreation")
             if not self.collection_exists():
                 self.client.create_collection(
                     collection_name=self.collection_name,
@@ -179,22 +179,22 @@ class QdrantManager:
                         on_disk=True
                     )
                 )
-                logger.info(f"Collezione {self.collection_name} creata con successo")
+                logger.info(f"Collection {self.collection_name} created successfully")
                 return True
             else:
-                logger.info(f"Collezione {self.collection_name} esiste già")
+                logger.info(f"Collection {self.collection_name} already exists")
                 return True
         except Exception as e:
-            logger.error(f"Errore creazione collezione: {e}")
+            logger.error(f"Collection creation error: {e}")
             return False
     
     def delete_collection(self) -> bool:
         try:
             self.client.delete_collection(self.collection_name)
-            logger.info(f"Collezione {self.collection_name} eliminata")
+            logger.info(f"Collection {self.collection_name} deleted")
             return True
         except Exception as e:
-            logger.error(f"Errore eliminazione collezione: {e}")
+            logger.error(f"Collection deletion error: {e}")
             return False
     
     def ensure_collection_exists(self, 
@@ -219,12 +219,12 @@ class QdrantManager:
             logger.info(f"Inseriti {len(points)} punti nella collezione")
             return True
         except Exception as e:
-            logger.error(f"Errore inserimento punti: {e}")
+            logger.error(f"Point insertion error: {e}")
             return False
     
     def delete_by_source(self, 
                          filename: str) -> Tuple[bool, str]:
-        logger.info(f"Eliminazione documenti per source='{filename}'")
+        logger.info(f"Deleting documents for source='{filename}'")
         try:
             qdrant_filter = models.Filter(
                 should=[
@@ -243,10 +243,10 @@ class QdrantManager:
                 points_selector=models.FilterSelector(filter=qdrant_filter),
                 wait=True
             )
-            logger.info(f"Risultato eliminazione: {response}")
-            return True, "Punti eliminati con successo da Qdrant"
+            logger.info(f"Deletion result: {response}")
+            return True, "Points successfully deleted from Qdrant"
         except Exception as e:
-            error_message = f"Errore durante l'eliminazione da Qdrant: {e}"
+            error_message = f"Error during deletion from Qdrant: {e}"
             logger.error(error_message)
             return False, error_message
     
@@ -387,12 +387,12 @@ class QdrantManager:
                 score_threshold=score_threshold
             )
             
-            logger.info(f"Ricerca adattiva: trovati {len(results)} risultati "
-                       f"(soglia: {score_threshold:.2f}, {optimal_params['description']})")
+            logger.info(f"Adaptive search: found {len(results)} results "
+                       f"(threshold: {score_threshold:.2f}, {optimal_params['description']})")
             return results
             
         except Exception as e:
-            logger.error(f"Errore ricerca vettoriale adattiva: {e}")
+            logger.error(f"Adaptive vector search error: {e}")
             return []
     
     def search_vectors(self, 
@@ -404,9 +404,9 @@ class QdrantManager:
         try:
             qdrant_filter = self.build_combined_filter(selected_files, query_type)
 
-            # Log del filtro per debug
+            # Log filter for debugging
             if qdrant_filter:
-                logger.debug(f"Filtro applicato: {qdrant_filter}")
+                logger.debug(f"Applied filter: {qdrant_filter}")
             
             results = self.client.search(
                 collection_name=self.collection_name,
@@ -417,10 +417,10 @@ class QdrantManager:
                 with_vectors=False,
                 score_threshold=score_threshold
             )
-            logger.info(f"Ricerca vettoriale: trovati {len(results)} risultati per query_type='{query_type}', files={selected_files}")
+            logger.info(f"Vector search: found {len(results)} results for query_type='{query_type}', files={selected_files}")
             return results
         except Exception as e:
-            logger.error(f"Errore ricerca vettoriale: {e}")
+            logger.error(f"Vector search error: {e}")
             return []
     
     def query_text(self, 
@@ -530,7 +530,7 @@ class QdrantManager:
                      selected_files: List[str] = [],
                      query_intent: str = "exploratory",
                      top_k: Optional[int] = None) -> List[Dict[str, Any]]:
-        logger.info(f"Query tabelle ottimizzata: '{query}' (intent: {query_intent})")
+        logger.info(f"Optimized table query: '{query}' (intent: {query_intent})")
         try:
             query_embedding = self.embedder.embed_query(query)
             results = self.search_vectors_adaptive(
@@ -549,7 +549,7 @@ class QdrantManager:
                     table_html = payload.get("page_content", "")
                     
                     if not table_html:
-                        logger.debug(f"Saltato risultato senza contenuto tabella: {result.id}")
+                        logger.debug(f"Skipped result without table content: {result.id}")
                         continue
                     
                     table_results.append({
@@ -560,19 +560,19 @@ class QdrantManager:
                         "relevance_tier": "high" if result.score > 0.75 else "medium" if result.score > 0.60 else "low"
                     })
                 except Exception as e:
-                    logger.warning(f"Errore processamento risultato tabella: {e}")
+                    logger.warning(f"Error processing table result: {e}")
                     continue
             
-            logger.info(f"Trovate {len(table_results)} tabelle per query '{query}' (intent: {query_intent})")
+            logger.info(f"Found {len(table_results)} tables for query '{query}' (intent: {query_intent})")
             return table_results
         except Exception as e:
-            logger.error(f"Errore query tabelle: {e}")
+            logger.error(f"Table query error: {e}")
             return []
 
     def debug_collection_content(self, 
                                  limit: int = 10) -> Dict[str, Any]:
         """
-        Metodo di debug per vedere il contenuto della collezione.
+        Debug method to view collection content.
         """
         try:
             results, _ = self.client.scroll(
@@ -593,17 +593,17 @@ class QdrantManager:
                 payload = result.payload or {}
                 content_type = payload.get("content_type", "unknown")
                 
-                # Conta i tipi di contenuto
+                # Count content types
                 if content_type not in debug_info["content_types"]:
                     debug_info["content_types"][content_type] = 0
                 debug_info["content_types"][content_type] += 1
                 
-                # Raccoglie le fonti
+                # Collect sources
                 metadata = payload.get("metadata", {})
                 source = metadata.get("source", payload.get("source", "unknown"))
                 debug_info["sources"].add(source)
                 
-                # Campione di punti
+                # Sample points
                 if len(debug_info["sample_points"]) < 5:
                     debug_info["sample_points"].append({
                         "id": result.id,
@@ -614,11 +614,11 @@ class QdrantManager:
                     })
             
             debug_info["sources"] = list(debug_info["sources"])
-            logger.info(f"Debug collezione: {debug_info['content_types']}")
+            logger.info(f"Collection debug: {debug_info['content_types']}")
             return debug_info
             
         except Exception as e:
-            logger.error(f"Errore debug collezione: {e}")
+            logger.error(f"Collection debug error: {e}")
             return {"error": str(e)}
     
     def get_collection_info(self) -> Dict[str, Any]:
@@ -659,14 +659,14 @@ class QdrantManager:
     def detect_query_intent(self, 
                             query: str) -> str:
         """
-        Determina automaticamente l'intent della query analizzando il testo.
+        Automatically determines query intent by analyzing the text.
         
         Returns:
-            Intent della query: "factual", "exploratory", "technical", o "multimodal"
+            Query intent: "factual", "exploratory", "technical", or "multimodal"
         """
         query_lower = query.lower()
         
-        # Parole chiave per intent factual (domande specifiche)
+        # Keywords for factual intent (specific questions)
         factual_keywords = [
             "cosa è", "cos'è", "che cos'è", "definisci", "definizione",
             "quando", "dove", "chi", "quale", "quanto", "quanti",
@@ -678,7 +678,7 @@ class QdrantManager:
             "describe", "feature", "function", "usage", "purpose", "goal"
         ]
         
-        # Parole chiave per intent technical (contenuti tecnici)
+        # Keywords for technical intent (technical content)
         technical_keywords = [
             "algoritmo", "codice", "implementazione", "funzione", "metodo",
             "classe", "api", "configurazione", "parametri", "variabili",
@@ -692,7 +692,7 @@ class QdrantManager:
             "performance", "optimization", "debug", "error", "bug"
         ]
         
-        # Parole chiave per intent multimodal (contenuti misti)
+        # Keywords for multimodal intent (mixed content)
         multimodal_keywords = [
             "immagine", "tabella", "grafico", "figura", "diagramma",
             "chart", "visualizzazione", "schema", "esempio visivo", "dati visivi",
@@ -702,12 +702,12 @@ class QdrantManager:
             "text and graphs", "text and figures", "text and diagrams"
         ]
         
-        # Conta occorrenze per ogni categoria
+        # Count occurrences for each category
         factual_score = sum(1 for keyword in factual_keywords if keyword in query_lower)
         technical_score = sum(1 for keyword in technical_keywords if keyword in query_lower)
         multimodal_score = sum(1 for keyword in multimodal_keywords if keyword in query_lower)
         
-        # Determina intent basato sui punteggi
+        # Determine intent based on scores
         if multimodal_score > 0:
             return "multimodal"
         elif technical_score > factual_score:
@@ -715,22 +715,22 @@ class QdrantManager:
         elif factual_score > 0:
             return "factual"
         else:
-            return "exploratory"  # Default per query generiche
+            return "exploratory"  # Default for generic queries
     
     def smart_query(self, 
                    query: str, 
                    selected_files: List[str] = [],
                    content_types: List[str] = ["text", "images", "tables"]) -> Dict[str, Any]:
         """
-        Esegue una query intelligente con rilevamento automatico dell'intent.
+        Executes intelligent query with automatic intent detection.
         
         Args:
-            query: Query di ricerca
-            selected_files: File specifici da cercare
-            content_types: Tipi di contenuto da includere
+            query: Search query
+            selected_files: Specific files to search
+            content_types: Content types to include
         """
         intent = self.detect_query_intent(query)
-        logger.info(f"Query intelligente: '{query}' -> intent rilevato: '{intent}'")
+        logger.info(f"Smart query: '{query}' -> detected intent: '{intent}'")
         
         results = {}
         
@@ -756,7 +756,7 @@ class QdrantManager:
                     query_intent=intent
                 )
             
-            # Aggiungi metadati sulla query
+            # Add query metadata
             results["query_metadata"] = {
                 "intent": intent,
                 "query": query,
@@ -765,10 +765,10 @@ class QdrantManager:
             }
             
         except Exception as e:
-            logger.error(f"Errore nella smart_query: {e}")
+            logger.error(f"Error in smart_query: {e}")
             results["error"] = str(e)
         
         return results
 
-# Singleton per uso globale 
+# Singleton for global use 
 qdrant_manager = QdrantManager()
