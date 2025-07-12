@@ -53,7 +53,6 @@ def get_detected_objects(base64_str: str) -> list:
         logger.error(f"Errore nel rilevamento oggetti: {e}")
         return []
 
-
 def get_caption(base64_str: str) -> str:
     """
     Genera una descrizione testuale di un'immagine usando Groq's vision model.
@@ -101,44 +100,10 @@ def get_caption(base64_str: str) -> str:
             
         except Exception as vision_error:
             logger.warning(f"Modello {IMG_DESC_MODEL_LG} non supporta immagini: {vision_error}")
-            
-            # Fallback: prova con modello vision specifico se disponibile
-            try:
-                chat_completion = client.chat.completions.create(
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "text", 
-                                    "text": "Descrivi dettagliatamente cosa vedi in questa immagine. Fornisci una descrizione accurata e completa degli oggetti, delle persone, del contesto e di qualsiasi testo visibile."
-                                },
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:image/jpeg;base64,{base64_str}",
-                                    },
-                                },
-                            ],
-                        }
-                    ],
-                    model="llama-3.2-11b-vision-preview",  # Modello vision specifico
-                    max_tokens=300,
-                    temperature=0.1,
-                )
-                
-                caption = chat_completion.choices[0].message.content
-                logger.info(f"Caption generata con fallback usando llama-3.2-11b-vision-preview")
-                return caption if caption else "Immagine non descrivibile"
-                
-            except Exception as fallback_error:
-                logger.warning(f"Anche il modello vision fallback è fallito: {fallback_error}")
-                raise fallback_error
+            return get_caption_alternative(base64_str)
 
     except Exception as e:
-        logger.error(f"Errore generazione caption con modelli vision: {e}")
-        # Fallback finale: usa metodo alternativo con OCR + object detection
-        logger.info("Tentativo fallback con metodo alternativo...")
+        logger.error(f"Errore generazione caption con modello vision: {e}")
         return get_caption_alternative(base64_str)
 
 def get_image_text(base64_str: str) -> str:
@@ -165,23 +130,6 @@ def get_image_text(base64_str: str) -> str:
     except Exception as e:
         logger.error(f"Errore OCR: {e}")
         return ""
-
-def get_comprehensive_image_info(base64_str: str) -> dict:
-    """
-    Estrae un set completo di informazioni da un'immagine.
-    
-    Args:
-        base64_str: Stringa base64 dell'immagine
-        
-    Returns:
-        Un dizionario contenente tutte le informazioni estratte.
-    """
-    info = {
-        "caption": get_caption(base64_str),
-        "ocr_text": get_image_text(base64_str),
-        "detected_objects": get_detected_objects(base64_str),
-    }
-    return info
 
 def get_caption_alternative(base64_str: str) -> str:
     """
@@ -222,3 +170,20 @@ def get_caption_alternative(base64_str: str) -> str:
     except Exception as e:
         logger.error(f"Errore nella caption alternativa: {e}")
         return "Immagine non analizzabile"
+    
+def get_comprehensive_image_info(base64_str: str) -> dict:
+    """
+    Estrae un set completo di informazioni da un'immagine.
+    
+    Args:
+        base64_str: Stringa base64 dell'immagine
+        
+    Returns:
+        Un dizionario contenente tutte le informazioni estratte.
+    """
+    info = {
+        "caption": get_caption(base64_str),
+        "ocr_text": get_image_text(base64_str),
+        "detected_objects": get_detected_objects(base64_str),
+    }
+    return info
