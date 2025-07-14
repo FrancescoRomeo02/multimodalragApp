@@ -112,7 +112,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                             unique_images[element_id] = image_chunk
                             images.append(image_chunk)
             
-            # Preserva chunking semantico per il testo
+            # Preserva chunking per il testo
             if not has_special_elements and hasattr(chunk, 'text') and chunk.text.strip():
                 chunk_content = chunk.text
                 chunk_id = hash(chunk_content)

@@ -209,7 +209,6 @@ This project is licensed under the **MIT License**. See the `LICENSE` file for m
 ## Documentation
 
 * [Quick Start Guide](docs/GUIDA_AVVIO.md)
-* [Semantic Chunking](docs/CHUNKING_SEMANTICO.md)
 * [Makefile Command Reference](#makefile-commands-reference)
 
 ---
