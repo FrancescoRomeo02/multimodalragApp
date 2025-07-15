@@ -1,6 +1,6 @@
 import os
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 from src.utils.pdf_parser import parse_pdf_elements
 from src.utils.qdrant_utils import qdrant_manager
@@ -18,30 +18,30 @@ class DocumentIndexer:
 
     def index_files(self, pdf_paths: List[str], force_recreate: bool = False) -> bool:
         if not pdf_paths:
-            logger.warning("Nessun file da indicizzare")
+            logger.warning("No files provided for indexing")
             return True
 
-        logger.info(f"Inizio indicizzazione di {len(pdf_paths)} file")
+        logger.info(f"Starting indexing for {len(pdf_paths)} files")
 
         if not self.qdrant_manager.verify_connection():
-            logger.error("Impossibile connettersi a Qdrant")
+            logger.error("Unable to connect to Qdrant")
             return False
 
         try:
             if force_recreate:
-                logger.info("Forzata ricreazione della collezione")
+                logger.info("Recreating collection")
                 if not self.qdrant_manager.create_collection(
                     embedding_dim=self.embedder.embedding_dim,
                     force_recreate=True
                 ):
-                    logger.error("Fallita ricreazione collezione")
+                    logger.error("Failed to recreate collection")
                     return False
             else:
                 if not self.qdrant_manager.ensure_collection_exists(self.embedder.embedding_dim):
-                    logger.error("Impossibile assicurare esistenza collezione")
+                    logger.error("Collection does not exist and recreation is not forced")
                     return False
         except Exception as e:
-            logger.error(f"Errore gestione collezione: {e}")
+            logger.error(f" Error during creation {e}")
             return False
 
         all_text_elements: List[TextElement] = []
@@ -51,12 +51,14 @@ class DocumentIndexer:
 
         for pdf_path in pdf_paths:
             try:
+                # Parse the PDF to extract text, images, and tables
                 texts_dicts, images_dicts, tables_dicts = parse_pdf_elements(pdf_path)
-  
+                # Create elements from parsed data
                 text_elements = [TextElement(text=d['text'].text, metadata=d['metadata']) for d in texts_dicts]
                 image_elements = [ImageElement(image_base64=d['image_base64'], metadata=d['metadata']) for d in images_dicts]
                 table_elements = [TableElement(table_html=d['table_html'], metadata=d['metadata']) for d in tables_dicts]
 
+                # Collect all elements
                 all_text_elements.extend(text_elements)
                 all_image_elements.extend(image_elements)
                 all_table_elements.extend(table_elements)
@@ -85,7 +87,11 @@ class DocumentIndexer:
                 continue
             
             try:
+                # Embed the elements
                 vectors = embedding_func(elements)
+                # Convert elements to Qdrant points
+
+                # Elements --> Embedded in Vectors --> Stored in points
                 points = self.qdrant_manager.convert_elements_to_points(elements, vectors)
                 
                 if self.qdrant_manager.upsert_points(points):
