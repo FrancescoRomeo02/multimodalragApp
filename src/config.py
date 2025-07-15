@@ -31,9 +31,6 @@ DEFAULT_EMBEDDING_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 DEFAULT_BATCH_SIZE = 32
 FALLBACK_TEXT_FOR_EMPTY_DOC = " "
 
-# ===== RAG SEARCH PARAMETERS (Ottimizzati per qualità) =====
-K_NEAREST_NEIGHBORS = 10  # Risultati candidati base
-
 # Score thresholds ottimizzati per tipo di contenuto
 SCORE_THRESHOLD_TEXT = 0.65      # Testo ha semantica più flessibile
 SCORE_THRESHOLD_IMAGES = 0.70    # Immagini richiedono match più precisi  
