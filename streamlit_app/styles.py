@@ -1,5 +1,3 @@
-# streamlit_app/styles.py
-
 def get_custom_css():
     """Generate custom CSS for Streamlit app."""
     return """

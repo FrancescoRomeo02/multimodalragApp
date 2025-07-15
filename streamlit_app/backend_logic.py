@@ -1,5 +1,3 @@
-# streamlit_app/backend_logic.py
-
 import os
 import logging
 from typing import List

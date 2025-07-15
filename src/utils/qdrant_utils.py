@@ -3,7 +3,7 @@ import logging
 import qdrant_client
 from qdrant_client.http import models
 from src.config import (
-    K_NEAREST_NEIGHBORS, QDRANT_URL, COLLECTION_NAME,
+    QDRANT_URL, COLLECTION_NAME,
     SCORE_THRESHOLD_TEXT, SCORE_THRESHOLD_IMAGES, SCORE_THRESHOLD_TABLES, 
     RAG_PARAMS, ADAPTIVE_K_MIN, ADAPTIVE_K_MAX
 )
