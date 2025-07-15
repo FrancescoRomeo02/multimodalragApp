@@ -1,5 +1,3 @@
-# file: src/utils/embedder.py
-
 import logging
 from typing import List, Optional
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
@@ -71,10 +69,3 @@ class AdvancedEmbedder(Embeddings):
 def get_embedding_model() -> AdvancedEmbedder:
     """Factory function to create a pre-configured instance"""
     return AdvancedEmbedder()
-
-
-# Function maintained for compatibility - IMPROVE THIS MANAGEMENT
-def get_multimodal_embedding_model() -> AdvancedEmbedder:
-    """Alias for get_embedding_model() to maintain compatibility"""
-    logger.warning("get_multimodal_embedding_model() is deprecated, use get_embedding_model()")
-    return get_embedding_model()

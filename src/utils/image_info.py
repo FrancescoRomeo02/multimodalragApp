@@ -1,5 +1,3 @@
-# file: app/utils/image_info.py
-
 import base64
 from io import BytesIO
 from PIL import Image
@@ -25,11 +23,8 @@ def get_detected_objects(base64_str: str) -> list:
         A list of detected objects with their name and confidence.
     """
     try:
-        # Path relativo al modello YOLO
-        import os
+        #Path for YOLO model
         from pathlib import Path
-        
-        # Ottieni il path del progetto (root)
         project_root = Path(__file__).parent.parent.parent
         model_path = project_root / "data" / "models" / "yolov8n.pt"
         
@@ -68,9 +63,9 @@ def get_caption(base64_str: str) -> str:
 
         client = Groq(api_key=GROQ_API_KEY)
 
-        # Prova prima con il modello configurato per immagini
         try:
             chat_completion = client.chat.completions.create(
+                # Use the Groq vision model for image description
                 messages=[
                     {
                         "role": "user",
@@ -89,8 +84,8 @@ def get_caption(base64_str: str) -> str:
                     }
                 ],
                 model=IMG_DESC_MODEL_LG,  # Use configured model for image description
-                max_tokens=300,
-                temperature=0.1,
+                max_tokens=300, # Limit the response length
+                temperature=0.1, # Lower temperature for more deterministic output
             )
             
             caption = chat_completion.choices[0].message.content
@@ -141,38 +136,38 @@ def get_caption_alternative(base64_str: str) -> str:
         Textual description of the image
     """
     try:
-        # Combina informazioni da OCR e object detection
+        # OCR + OBJD
         ocr_text = get_image_text(base64_str)
         detected_objects = get_detected_objects(base64_str)
         
         caption_parts = []
         
-        # Aggiungi oggetti rilevati
         if detected_objects:
             unique_objects = list(set(detected_objects))
             if len(unique_objects) == 1:
-                caption_parts.append(f"Immagine contenente: {unique_objects[0]}")
+                caption_parts.append(f"Image: {unique_objects[0]}")
             else:
-                caption_parts.append(f"Immagine contenente: {', '.join(unique_objects[:3])}")
+                caption_parts.append(f"Image: {', '.join(unique_objects[:3])}")
         
-        # Aggiungi testo OCR se presente
+        # Adding OCR text if available
         if ocr_text.strip():
             clean_text = ocr_text.strip().replace('\n', ' ')[:100]
-            caption_parts.append(f"Con testo visibile: {clean_text}")
+            caption_parts.append(f"Visible text: {clean_text}")
         
-        # Combina le parti
+        # Combine parts
         if caption_parts:
             return ". ".join(caption_parts)
         else:
-            return "Immagine senza contenuto testuale riconoscibile"
+            return "No recognizible texts or objects in the image."
             
     except Exception as e:
-        logger.error(f"Errore nella caption alternativa: {e}")
-        return "Immagine non analizzabile"
+        logger.error(f"Error in the caption: {e}")
+        return "Not valid image"
     
 def get_comprehensive_image_info(base64_str: str) -> dict:
     """
-    Estrae un set completo di informazioni da un'immagine.
+    Information retrieved from an image in base64 format.
+    This function combines caption generation, OCR text extraction, and object detection.
     
     Args:
         base64_str: Stringa base64 dell'immagine

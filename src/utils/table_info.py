@@ -1,5 +1,3 @@
-# file: src/utils/table_info.py
-
 import logging
 from typing import Dict, Any, Optional, List
 from langchain.schema.messages import HumanMessage
@@ -8,11 +6,9 @@ from src.llm.groq_client import get_table_summary_llm
 
 logger = logging.getLogger(__name__)
 
-
-
 def create_table_summary(table_html: str, context_info: Optional[Dict[str, str]] = None, table_id: Optional[str] = None) -> str:
     """
-    Generates an intelligent summary of a table using Groq LLM.
+    Generates an intelligent summary of a table using LLM.
     
     Args:
         table_html: HTML representation of the table

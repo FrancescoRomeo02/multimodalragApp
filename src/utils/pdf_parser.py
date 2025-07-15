@@ -2,17 +2,17 @@ import os
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 import logging
-from typing import Tuple, List, Dict, Any, Optional
+from typing import Tuple, List, Dict, Any
 from src.utils.image_info import get_comprehensive_image_info
 from src.utils.table_info import enhance_table_with_summary
 from unstructured.partition.pdf import partition_pdf
-from src.utils.pdf_validate_elements import is_valid_image, is_valid_table
+from src.utils.pdf_validate_elements import is_valid_image
 
 logger = logging.getLogger(__name__)
 
 
 def _extract_metadata_safely(element, *attributes) -> Dict[str, Any]:
-    """Estrae metadati in modo sicuro da un elemento."""
+    """Metadata extraction"""
     metadata = {}
     if hasattr(element, 'metadata'):
         for attr in attributes:
@@ -22,7 +22,7 @@ def _extract_metadata_safely(element, *attributes) -> Dict[str, Any]:
 
 
 def _create_chunk_object(element_content: str, metadata_dict: Dict[str, Any], chunk_type: str):
-    """Crea un oggetto chunk dinamico con metadati."""
+    """Dynamic chunk object creation with metadata."""
     return type(f'{chunk_type}Chunk', (), {
         'text': element_content,
         'metadata': type('Metadata', (), metadata_dict)()
@@ -62,16 +62,16 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
             new_after_n_chars=6000,
         )
 
-        # Contatori per identificatori univoci
+        # Initialize counters and collections
         table_counter = 0
         image_counter = 0
         
-        # Collections per elementi unici
+        # Dictionaries for unique elements
         unique_tables = {}
         unique_images = {}
         unique_texts = {}
         
-        # Collections finali
+        #Final collextions
         tables, texts, images = [], [], []
         text_elements, image_elements, table_elements = [], [], []
 
@@ -82,7 +82,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                 for el in chunk.metadata.orig_elements:
                     element_type = str(type(el))
                     
-                    # Determina contenuto per ID unico
+                    # Handle different element types
                     if hasattr(el, 'text'):
                         element_content = el.text
                     elif hasattr(el, 'to_dict'):
@@ -112,7 +112,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                             unique_images[element_id] = image_chunk
                             images.append(image_chunk)
             
-            # Preserva chunking per il testo
+            # Handle text chunks
             if not has_special_elements and hasattr(chunk, 'text') and chunk.text.strip():
                 chunk_content = chunk.text
                 chunk_id = hash(chunk_content)
