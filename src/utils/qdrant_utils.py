@@ -3,7 +3,7 @@ import logging
 import qdrant_client
 from qdrant_client.http import models
 from src.config import (
-    K_NEAREST_NEIGHBORS, QDRANT_URL, COLLECTION_NAME,
+    QDRANT_URL, COLLECTION_NAME,
     SCORE_THRESHOLD_TEXT, SCORE_THRESHOLD_IMAGES, SCORE_THRESHOLD_TABLES, 
     RAG_PARAMS, ADAPTIVE_K_MIN, ADAPTIVE_K_MAX
 )
@@ -43,7 +43,7 @@ class QdrantManager:
             self._embedder = get_embedding_model()
         return self._embedder
     
-    # === Funzioni helper per convertire i modelli in punti Qdrant ===
+    # === MODELS TO POINT IN QDRANT ===
     
     def _text_element_to_point(self, 
                                element: TextElement, 
@@ -61,11 +61,10 @@ class QdrantManager:
     def _image_element_to_point(self,
                                 element: Union[ImageElement, Dict[str, Any]], 
                                 vector: List[float]) -> models.PointStruct:
-        # Gestisce sia oggetti Pydantic che dizionari dal parser
+    
         if isinstance(element, dict):
-            # Caso dizionario dal parser legacy
             metadata = element.get("metadata", {})
-            # Rimuovi image_base64 dai metadati se presente per evitare duplicazione pesante
+            #Removing image_base64 from metadata if present cause too heavy
             if "image_base64" in metadata:
                 metadata = metadata.copy()
                 del metadata["image_base64"]
@@ -75,13 +74,12 @@ class QdrantManager:
                 vector=vector,
                 payload={
                     "page_content": element.get("page_content", ""),
-                    # image_base64 rimosso dal database - troppo pesante e inutile per la ricerca
                     "content_type": "image",
                     "metadata": metadata
                 }
             )
         else:
-            # Caso oggetto Pydantic
+            #If pydantic object
             return models.PointStruct(
                 id=str(uuid.uuid4()),
                 vector=vector,
@@ -95,9 +93,8 @@ class QdrantManager:
     def _table_element_to_point(self, 
                                 element: Union[TableElement, Dict[str, Any]], 
                                 vector: List[float]) -> models.PointStruct:
-        # Gestisce sia oggetti Pydantic che dizionari dal parser
+        
         if isinstance(element, dict):
-            # Caso dizionario dal parser legacy
             return models.PointStruct(
                 id=str(uuid.uuid4()),
                 vector=vector,
@@ -108,7 +105,6 @@ class QdrantManager:
                 }
             )
         else:
-            # Caso oggetto Pydantic
             return models.PointStruct(
                 id=str(uuid.uuid4()),
                 vector=vector,
@@ -125,8 +121,7 @@ class QdrantManager:
         vectors: List[List[float]]
     ) -> List[models.PointStruct]:
         """
-        Converte una lista di elementi e vettori in punti Qdrant da inserire.
-        Assumiamo che elements[i] corrisponda a vectors[i].
+        Converts an elements list and vectors list into Qdrant points for insertion.
         """
         points = []
         for element, vector in zip(elements, vectors):
@@ -143,18 +138,18 @@ class QdrantManager:
             ):
                 points.append(self._table_element_to_point(element, vector))
             else:
-                logger.warning(f"Elemento non riconosciuto per indicizzazione: {element}")
+                logger.warning(f"Non recognizible element fo the insertion: {element}")
         return points
     
-    # === GESTIONE COLLEZIONE E CONNESSIONE ===
+    # === COLLECTION AND CONNESSION HANDLING ===
     
     def verify_connection(self) -> bool:
         try:
             self.client.get_collections()
-            logger.info(f"Connesso a Qdrant all'URL {self.url}")
+            logger.info(f"Qdrant connected at {self.url}")
             return True
         except Exception as e:
-            logger.error(f"Connessione Qdrant fallita: {e}")
+            logger.error(f"Failed connection: {e}")
             return False
     
     def collection_exists(self) -> bool:
@@ -204,7 +199,7 @@ class QdrantManager:
             return self.create_collection(embedding_dim)
         return True
     
-    # === OPERAZIONI CRUD ===
+    # === CRUD OPERATIONS ===
     
     def upsert_points(self, 
                       points: List[models.PointStruct], 
@@ -217,7 +212,7 @@ class QdrantManager:
                     points=batch,
                     wait=True
                 )
-            logger.info(f"Inseriti {len(points)} punti nella collezione")
+            logger.info(f"Inserted {len(points)} points")
             return True
         except Exception as e:
             logger.error(f"Point insertion error: {e}")
@@ -227,6 +222,7 @@ class QdrantManager:
                          filename: str) -> Tuple[bool, str]:
         logger.info(f"Deleting documents for source='{filename}'")
         try:
+            # Create filter to match both metadata.source and source
             qdrant_filter = models.Filter(
                 should=[
                     models.FieldCondition(
@@ -239,6 +235,7 @@ class QdrantManager:
                     ),
                 ],
             )
+            # Perform deletion
             response = self.client.delete(
                 collection_name=self.collection_name,
                 points_selector=models.FilterSelector(filter=qdrant_filter),
@@ -251,10 +248,11 @@ class QdrantManager:
             logger.error(error_message)
             return False, error_message
     
-    # === FILTRI ===
+    # === FILTERS ===
     
     def create_content_filter(self, 
                               query_type: Optional[str] = None) -> Optional[models.Filter]:
+        # Create a filter based on content type
         if query_type == "image":
             return models.Filter(
                 must=[
@@ -286,10 +284,11 @@ class QdrantManager:
     
     def create_file_filter(self, 
                            selected_files: List[str]) -> Optional[models.Filter]:
+        """ Filter creation for selected files"""
         if not selected_files:
             return None
         
-        # Supporta sia metadata.source che source per compatibilità
+        # Create conditions for each selected file
         file_conditions = []
         for filename in selected_files:
             file_conditions.extend([
@@ -308,35 +307,38 @@ class QdrantManager:
     def build_combined_filter(self, 
                             selected_files: List[str] = [],
                             query_type: Optional[str] = None) -> Optional[models.Filter]:
+        """Combines file and content filters into a single Qdrant filter."""
         filters = []
-        
+        # Create file filter if files are selected
         if selected_files:
             file_filter = self.create_file_filter(selected_files)
             if file_filter:
                 filters.append(file_filter)
-        
+
+        # Create content filter if query type is specified
         if query_type:
             content_filter = self.create_content_filter(query_type)
             if content_filter:
                 filters.append(content_filter)
-        
+
+        # If no filters are specified, return None
         if not filters:
             return None
         if len(filters) == 1:
             return filters[0]
         return models.Filter(must=filters)
     
-    # === RICERCA OTTIMIZZATA ===
+    # === OPTIMIZED SEARCH ===
     
     def get_optimal_search_params(self, 
                                   query_type: str = "multimodal",
                                   query_intent: str = "exploratory") -> Dict[str, Any]:
         """
-        Restituisce parametri ottimizzati basati sul tipo di query e intento.
+        Returns optimized parameters based on query type and intent.
         """
         base_params = RAG_PARAMS.get(query_intent, RAG_PARAMS["multimodal"])
         
-        # Adatta score threshold per tipo di contenuto
+        #Different score thresold for eeach query type
         if query_type == "text":
             score_threshold = SCORE_THRESHOLD_TEXT
         elif query_type == "image":
@@ -346,6 +348,7 @@ class QdrantManager:
         else:
             score_threshold = base_params["score_threshold"]
         
+        # Return optimized parameters 
         return {
             "k": base_params["k"],
             "score_threshold": score_threshold,
@@ -360,24 +363,25 @@ class QdrantManager:
                                custom_k: Optional[int] = None,
                                custom_threshold: Optional[float] = None) -> List[models.ScoredPoint]:
         """
-        Ricerca vettoriale con parametri adattivi ottimizzati.
+        Vector search with adaptive parameters based on query type and intent.
         """
         try:
-            # Ottieni parametri ottimali
+            # Get optimized parameters from previous function
             optimal_params = self.get_optimal_search_params(query_type or "multimodal", query_intent)
             
-            # Usa parametri personalizzati se forniti
+            # Use custom parameters if provided, otherwise use optimal ones
             k = custom_k or optimal_params["k"]
             score_threshold = custom_threshold or optimal_params["score_threshold"]
             
-            # Assicura che k sia nei limiti ragionevoli
+            # Ensure k is within the defined limits
             k = max(ADAPTIVE_K_MIN, min(k, ADAPTIVE_K_MAX))
             
             qdrant_filter = self.build_combined_filter(selected_files, query_type)
 
-            logger.info(f"Ricerca adattiva: k={k}, threshold={score_threshold:.2f}, "
+            logger.info(f"Adaptive search: k={k}, threshold={score_threshold:.2f}, "
                        f"intent='{query_intent}', type='{query_type}'")
             
+            # Perform the search with the adaptive parameters
             results = self.client.search(
                 collection_name=self.collection_name,
                 query_vector=query_embedding,
@@ -396,34 +400,6 @@ class QdrantManager:
             logger.error(f"Adaptive vector search error: {e}")
             return []
     
-    def search_vectors(self, 
-                      query_embedding: List[float],
-                      top_k: int = K_NEAREST_NEIGHBORS,
-                      selected_files: List[str] = [],
-                      query_type: Optional[str] = None,
-                      score_threshold: Optional[float] = 0.80) -> List[models.ScoredPoint]:
-        try:
-            qdrant_filter = self.build_combined_filter(selected_files, query_type)
-
-            # Log filter for debugging
-            if qdrant_filter:
-                logger.debug(f"Applied filter: {qdrant_filter}")
-            
-            results = self.client.search(
-                collection_name=self.collection_name,
-                query_vector=query_embedding,
-                query_filter=qdrant_filter,
-                limit=top_k,
-                with_payload=True,
-                with_vectors=False,
-                score_threshold=score_threshold
-            )
-            logger.info(f"Vector search: found {len(results)} results for query_type='{query_type}', files={selected_files}")
-            return results
-        except Exception as e:
-            logger.error(f"Vector search error: {e}")
-            return []
-    
     def query_text(self, 
                    query: str, 
                    selected_files: List[str] = [],
@@ -431,18 +407,21 @@ class QdrantManager:
                    top_k: Optional[int] = None,
                    score_threshold: Optional[float] = None) -> List[Dict[str, Any]]:
         """
-        Cerca documenti di testo con parametri ottimizzati.
+        Optimized text query with adaptive parameters.
         
         Args:
-            query: Query testuale
-            selected_files: File specifici da cercare
-            query_intent: Tipo di query ("factual", "exploratory", "technical", "multimodal")
-            top_k: Numero di risultati (None per usare ottimale)
-            score_threshold: Soglia di similarità (None per usare ottimale)
+            query: Query text
+            selected_files: File names to filter results
+            query_intent: Intent of the query (e.g., "factual", "exploratory", "technical", "multimodal")
+            top_k: Number of results (None to use optimal)
+            score_threshold: similarity thresold (None to use optimal)
         """
-        logger.info(f"Query testo ottimizzata: '{query}' (intent: {query_intent})")
+        logger.info(f"Optimzied query text: '{query}' (intent: {query_intent})")
+           
         try:
+            # Embed the query using the embedder
             query_embedding = self.embedder.embed_query(query)
+            # Perform the search with adaptive parameters
             results = self.search_vectors_adaptive(
                 query_embedding=query_embedding,
                 query_type="text",
@@ -488,9 +467,11 @@ class QdrantManager:
                     selected_files: List[str] = [],
                     query_intent: str = "exploratory",
                     top_k: Optional[int] = None) -> List[ImageResult]:
-        logger.info(f"Query immagini ottimizzata: '{query}' (intent: {query_intent})")
+        logger.info(f"Optimized query: '{query}' (intent: {query_intent})")
         try:
+            # Embed the query using the embedder
             query_embedding = self.embedder.embed_query(query)
+            # Perform the search with adaptive parameters
             results = self.search_vectors_adaptive(
                 query_embedding=query_embedding,
                 query_type="image",
@@ -502,28 +483,29 @@ class QdrantManager:
             image_results = []
             for result in results:
                 try:
+                    # Extract payload and metadata
                     payload = result.payload or {}
                     metadata = payload.get("metadata", {})
                     image_base64 = payload.get("image_base64", "")
                     
                     if not image_base64:
-                        logger.debug(f"Saltato risultato senza immagine base64: {result.id}")
+                        logger.debug(f"Jumped result w/out base64: {result.id}")
                         continue
                     
-                    image_results.append(ImageResult(
+                    image_results.append(ImageResult( 
                         image_base64=image_base64,
                         metadata=metadata,
                         score=result.score,
                         page_content=payload.get("page_content", "")
                     ))
                 except Exception as e:
-                    logger.warning(f"Errore processamento risultato immagine: {e}")
+                    logger.warning(f"Errorprocessing image: {e}")
                     continue
             
-            logger.info(f"Trovate {len(image_results)} immagini per query '{query}' (intent: {query_intent})")
+            logger.info(f"Found {len(image_results)} images for query '{query}' (intent: {query_intent})")
             return image_results
         except Exception as e:
-            logger.error(f"Errore query immagini: {e}")
+            logger.error(f"Error image query: {e}")
             return []
     
     def query_tables(self, 
@@ -655,7 +637,7 @@ class QdrantManager:
             logger.error(f"Errore health check: {e}")
             return {"error": str(e)}
     
-    # === UTILITY PER QUERY INTELLIGENTE ===
+    # === INTELLIGENT QUERY ===
     
     def detect_query_intent(self, 
                             query: str) -> str:

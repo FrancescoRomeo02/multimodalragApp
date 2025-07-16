@@ -14,38 +14,38 @@ logger = logging.getLogger(__name__)
 def enhanced_rag_query(query: str,
                        selected_files: Optional[List[str]] = None) -> RetrievalResult:
     """
-    Esegue una query RAG intelligente con rilevamento automatico dell'intent.
+    Execute a smart query to retrieve relevant documents and generate an answer using RAG 
     
     Args:
-        query: La domanda da porre al sistema
-        selected_files: Lista opzionale di file specifici su cui cercare
+        query: question to ask
+        selected_files: optional list of specific files to filter results
     
     Returns:
-        RetrievalResult con risposta e documenti recuperati
+        RetrievalResult containing the answer, source documents, and metadata
     """
-    logger.info(f"Esecuzione query RAG intelligente: '{query}'")
+    logger.info(f"SMART RAG query: '{query}'")
     start_time = time.time()
     
     try:
-        # 🧠 UTILIZZO SMART_QUERY - Ricerca intelligente con intent automatico
+        # Execute the smart query using Qdrant manager
         search_results = qdrant_manager.smart_query(
-            query=query,
-            selected_files=selected_files or [],
-            content_types=["text", "images", "tables"]
+            query=query, # query to search
+            selected_files=selected_files or [], # specific files to filter results
+            content_types=["text", "images", "tables"] # types of content to retrieve
         )
         
-        # Estrai metadati sulla query
+        
         query_metadata = search_results.get("query_metadata", {})
         detected_intent = query_metadata.get("intent", "unknown")
         total_results = query_metadata.get("total_results", 0)
         
-        logger.info(f"Smart Query completata: intent='{detected_intent}', "
+        logger.info(f"Query completed: intent='{detected_intent}', "
                    f"risultati={total_results} per query: '{query}'")
 
-        # Combina tutti i risultati in una lista unificata per il prompt
+        # Combine results from different content types
         all_results = []
         
-        # Aggiungi risultati testo
+        # Add results from text search
         for text_result in search_results.get("text", []):
             all_results.append({
                 "content": text_result["content"],
@@ -55,7 +55,7 @@ def enhanced_rag_query(query: str,
                 "relevance_tier": text_result.get("relevance_tier", "medium")
             })
         
-        # Aggiungi risultati immagini  
+        # Add results from image search 
         for img_result in search_results.get("images", []):
             all_results.append({
                 "content": img_result.page_content,
@@ -64,7 +64,7 @@ def enhanced_rag_query(query: str,
                 "content_type": "image"
             })
         
-        # Aggiungi risultati tabelle
+        # Add results from table search
         for table_result in search_results.get("tables", []):
             all_results.append({
                 "content": table_result["page_content"],
@@ -76,7 +76,7 @@ def enhanced_rag_query(query: str,
         
         logger.info(f"Combinati {len(all_results)} risultati totali per generazione risposta")
 
-        # Costruisci documenti dai risultati smart_query
+        # Build the final documents list with metadata and content
         documents = []
         for result in all_results:
             doc_info = {
@@ -102,30 +102,33 @@ def enhanced_rag_query(query: str,
                     "image_caption": result["metadata"].get("image_caption")
                 })
             else:
-                # Contenuto testuale
+                # Assuming text content is a string
                 content = result["content"]
+                # Limit content length for display
                 doc_info["content"] = content[:500] + "..." if len(content) > 500 else content
             
+            # Add information about the document
             documents.append(doc_info)
         
-        # Ordina per punteggio di rilevanza (score più alto = più rilevante)
+        # Sort documents by score in descending order
         documents.sort(key=lambda x: x.get("score", 0), reverse=True)
         
-        # Log dei tipi di contenuto recuperati per debug  
+        # Log the content types and detected intent  
         content_types = {}
         for doc in documents:
             doc_type = doc.get("content_type", "unknown")
             content_types[doc_type] = content_types.get(doc_type, 0) + 1
         
-        logger.info(f"Contenuti recuperati per tipo: {content_types}")
-        logger.info(f"Intent rilevato: '{detected_intent}' - Strategia: {query_metadata.get('search_strategy', 'N/A')}")
+        logger.info(f"Content retrieved by type: {content_types}")
+        logger.info(f"Intent: '{detected_intent}' - Strategy: {query_metadata.get('search_strategy', 'N/A')}")
         
-        # Ora passa i documenti al LLM per generare la risposta
-        # Costruiamo un contesto unificato con tutti i tipi di contenuto
+        # Documents to LLM to generate response
+        # Unified context for LLM
         context_texts = []
         for doc in documents[:len(documents)]:
+            # Extract relevant metadata and content
             doc_type = doc.get("content_type", "text")
-            source = doc.get("source", "Sconosciuto")
+            source = doc.get("source", "Unknown")
             page = doc.get("page", "N/A")
             content = doc.get("content", "")
             relevance_tier = doc.get("relevance_tier", "medium")
@@ -143,26 +146,29 @@ def enhanced_rag_query(query: str,
         
         unified_context = "\n".join(context_texts)
         
-        # Genera la risposta usando il LLM
+        # GENERATION OF THE ANSWER
         llm = get_groq_llm()
+        # PROMPT TEMPLATE 
         prompt = create_prompt_template()
         
-        # Crea una risposta simulando il formato di langchain
+        #Creating prompt with langchain formt
         formatted_prompt = prompt.format(context=unified_context, input=query)
+        # Invoke the LLM with the formatted prompt
         response = llm.invoke([HumanMessage(content=formatted_prompt)])
         
-        # Estrai correttamente il contenuto della risposta
+        # Extract the answer from the response
         if hasattr(response, 'content'):
             answer = str(response.content)
         else:
             answer = str(response)
         
-        # Calcola metriche di qualità
-        confidence_score = min(1.0, len(documents) / 10.0)  # Semplice basato sul numero di risultati
+        # METRICS 
+        confidence_score = min(1.0, len(documents) / 10.0)  # Based on retrieved documents
         
         query_time_ms = int((time.time() - start_time) * 1000)
         
         return RetrievalResult(
+            # Final result with answer and metadata
             answer=answer,
             source_documents=documents,
             confidence_score=confidence_score,
@@ -178,10 +184,10 @@ def enhanced_rag_query(query: str,
         )
 
     except Exception as e:
-        logger.error(f"Errore RAG unificato: {e}")
+        logger.error(f"Errore RAG: {e}")
         query_time_ms = int((time.time() - start_time) * 1000)
         return RetrievalResult(
-            answer="Errore durante la ricerca.",
+            answer="Error during search",
             source_documents=[],
             confidence_score=0.0,
             query_time_ms=query_time_ms,

@@ -1,4 +1,3 @@
-# src/llm/groq_client.py
 from langchain_groq import ChatGroq
 from src.config import (
     GROQ_API_KEY, LLM_MODEL_NAME,

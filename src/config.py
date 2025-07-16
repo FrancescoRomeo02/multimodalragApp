@@ -1,4 +1,3 @@
-# src/config.py
 import os
 from dotenv import load_dotenv
 import logging
@@ -30,9 +29,6 @@ TEXT_REWRITE_MODEL_LG = "llama-3.3-70b-versatile"
 DEFAULT_EMBEDDING_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 DEFAULT_BATCH_SIZE = 32
 FALLBACK_TEXT_FOR_EMPTY_DOC = " "
-
-# ===== RAG SEARCH PARAMETERS (Ottimizzati per qualità) =====
-K_NEAREST_NEIGHBORS = 10  # Risultati candidati base
 
 # Score thresholds ottimizzati per tipo di contenuto
 SCORE_THRESHOLD_TEXT = 0.65      # Testo ha semantica più flessibile
