@@ -64,6 +64,9 @@ class QdrantManager:
     
         if isinstance(element, dict):
             metadata = element.get("metadata", {})
+            #Get image_base64 before removing from metadata
+            image_base64 = element.get("image_base64", "") or metadata.get("image_base64", "")
+            
             #Removing image_base64 from metadata if present cause too heavy
             if "image_base64" in metadata:
                 metadata = metadata.copy()
@@ -75,18 +78,29 @@ class QdrantManager:
                 payload={
                     "page_content": element.get("page_content", ""),
                     "content_type": "image",
-                    "metadata": metadata
+                    "metadata": metadata,
+                    "image_base64": image_base64  # Save image_base64 in payload root
                 }
             )
         else:
             #If pydantic object
+            metadata = element.metadata.model_dump()
+            #Get image_base64 before removing from metadata
+            image_base64 = element.image_base64 if hasattr(element, 'image_base64') else ""
+            
+            #Remove image_base64 from metadata if present
+            if "image_base64" in metadata:
+                metadata = metadata.copy()
+                del metadata["image_base64"]
+            
             return models.PointStruct(
                 id=str(uuid.uuid4()),
                 vector=vector,
                 payload={
                     "page": element.metadata.page,
                     "content_type": "image",
-                    "metadata": element.metadata.model_dump()
+                    "metadata": metadata,
+                    "image_base64": image_base64  # Save image_base64 in payload root
                 }
             )
     
@@ -481,6 +495,7 @@ class QdrantManager:
             )
             
             image_results = []
+            skipped_count = 0
             for result in results:
                 try:
                     # Extract payload and metadata
@@ -489,7 +504,8 @@ class QdrantManager:
                     image_base64 = payload.get("image_base64", "")
                     
                     if not image_base64:
-                        logger.debug(f"Jumped result w/out base64: {result.id}")
+                        skipped_count += 1
+                        logger.debug(f"Skipped result {result.id} - payload keys: {list(payload.keys())}")
                         continue
                     
                     image_results.append(ImageResult( 
@@ -499,9 +515,11 @@ class QdrantManager:
                         page_content=payload.get("page_content", "")
                     ))
                 except Exception as e:
-                    logger.warning(f"Errorprocessing image: {e}")
+                    logger.warning(f"Error processing image: {e}")
                     continue
             
+            if skipped_count > 0:
+                logger.warning(f"Skipped {skipped_count} image results without base64 data")
             logger.info(f"Found {len(image_results)} images for query '{query}' (intent: {query_intent})")
             return image_results
         except Exception as e:

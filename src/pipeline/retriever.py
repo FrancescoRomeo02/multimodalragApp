@@ -61,7 +61,9 @@ def enhanced_rag_query(query: str,
                 "content": img_result.page_content,
                 "metadata": img_result.metadata,
                 "score": img_result.score,
-                "content_type": "image"
+                "content_type": "image",
+                "relevance_tier": "medium",  # Default value since ImageResult doesn't have this field
+                "image_base64": img_result.image_base64  # Add the base64 data
             })
         
         # Add results from table search
@@ -139,8 +141,26 @@ def enhanced_rag_query(query: str,
                 context_texts.append(f"[TABELLA {identifier}da {source}, pagina {page}] (Rilevanza: {relevance_tier})\n{content}\n")
             elif doc_type == "image":
                 image_id = doc.get("metadata", {}).get("image_id", "")
+                image_caption = doc.get("metadata", {}).get("image_caption", "")
+                context_text = doc.get("metadata", {}).get("context_text", "")
+                image_description = doc.get("metadata", {}).get("image_description", "")
+                
                 identifier = f"[{image_id}] " if image_id else ""
-                context_texts.append(f"[IMMAGINE {identifier}da {source}, pagina {page}]\n{content}\n")
+                
+                # Build comprehensive image context
+                image_info_parts = []
+                if image_caption:
+                    image_info_parts.append(f"Caption: {image_caption}")
+                if image_description:
+                    image_info_parts.append(f"Description: {image_description}")
+                if context_text:
+                    image_info_parts.append(f"Context: {context_text}")
+                if content:
+                    image_info_parts.append(f"Content: {content}")
+                
+                image_info = " | ".join(image_info_parts) if image_info_parts else "No description available"
+                
+                context_texts.append(f"[IMMAGINE {identifier}da {source}, pagina {page}]\n{image_info}\n")
             else:
                 context_texts.append(f"[TESTO da {source}, pagina {page}]\n{content}\n")
         
