@@ -90,7 +90,23 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     else:
                         element_content = str(el)
                     
-                    element_id = hash(element_content)
+                    # Create more specific element_id to avoid collisions
+                    if "Table" in element_type:
+                        # For tables, use content hash + page number
+                        page_num = getattr(el.metadata, 'page_number', 0) if hasattr(el, 'metadata') else 0
+                        element_id = hash(f"table_{element_content}_{page_num}")
+                    elif "Image" in element_type:
+                        # For images, use more specific identifiers
+                        page_num = getattr(el.metadata, 'page_number', 0) if hasattr(el, 'metadata') else 0
+                        image_base64 = getattr(el.metadata, 'image_base64', '') if hasattr(el, 'metadata') else ''
+                        coordinates = getattr(el.metadata, 'coordinates', '') if hasattr(el, 'metadata') else ''
+                        
+                        # Use first 100 chars of base64 + page + coordinates for unique ID
+                        unique_image_signature = f"image_{page_num}_{image_base64[:100]}_{str(coordinates)}"
+                        element_id = hash(unique_image_signature)
+                    else:
+                        # For other elements, use content hash
+                        element_id = hash(element_content)
                     
                     if "Table" in element_type:
                         has_special_elements = True
@@ -103,18 +119,17 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                             tables.append(table_chunk)
                             
                     elif "Image" in element_type:
-                        print("="* 50)
-                        print("Immagine found... INVOCATO")
                         has_special_elements = True
+                        page_num = getattr(el.metadata, 'page_number', 0) if hasattr(el, 'metadata') else 0
+                        
                         if element_id not in unique_images:
-                            print("="* 50)
-                            print("Creating image chunk... INVOCATO")
                             metadata = _extract_metadata_safely(el, 'page_number', 'image_base64', 'coordinates')
                             metadata['orig_elements'] = [el]
-                            
                             image_chunk = _create_chunk_object(element_content, metadata, 'Image')
                             unique_images[element_id] = image_chunk
                             images.append(image_chunk)
+                        else:
+                            logger.debug(f"Duplicate image found on page {page_num}, skipping...")
                             
             # Handle text chunks
             if not has_special_elements and hasattr(chunk, 'text') and chunk.text.strip():
