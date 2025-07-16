@@ -124,5 +124,5 @@ class DocumentIndexer:
         try:
             return self.qdrant_manager.health_check()
         except Exception as e:
-            logger.error(f"Error check index status: {e}")
+            logger.error(f"Error: {e}")
             return {"error": str(e)}
