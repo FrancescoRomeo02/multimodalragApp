@@ -102,7 +102,7 @@ def enhanced_rag_query(query: str,
             elif result["content_type"] == "image":
                 doc_info.update({
                     "content": result["content"],
-                    "image_base64": result.get("image_base64"),
+                    "image_base64": result.get("image_base64"), # Base64 encoded image content to be used in LLM
                     "image_caption": result["metadata"].get("image_caption")
                 })
             else:

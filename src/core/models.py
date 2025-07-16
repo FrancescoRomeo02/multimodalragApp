@@ -9,12 +9,6 @@ class ImageResult(BaseModel):
     score: float
     page_content: str
 
-class TableResult(BaseModel):
-    table_html: str
-    metadata: dict
-    score: float
-
-
 #COMMON METADATA
 class ElementMetadata(BaseModel):
     """Common metadata for all elements, validated by Pydantic."""

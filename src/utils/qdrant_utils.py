@@ -64,43 +64,26 @@ class QdrantManager:
     
         if isinstance(element, dict):
             metadata = element.get("metadata", {})
-            #Get image_base64 before removing from metadata
-            image_base64 = element.get("image_base64", "") or metadata.get("image_base64", "")
-            
-            #Removing image_base64 from metadata if present cause too heavy
-            if "image_base64" in metadata:
-                metadata = metadata.copy()
-                del metadata["image_base64"]
-            
             return models.PointStruct(
                 id=str(uuid.uuid4()),
                 vector=vector,
                 payload={
                     "page_content": element.get("page_content", ""),
                     "content_type": "image",
-                    "metadata": metadata,
-                    "image_base64": image_base64  # Save image_base64 in payload root
+                    "image_base64": element.get("image_base64", ""),
+                    "metadata": metadata
                 }
             )
         else:
             #If pydantic object
-            metadata = element.metadata.model_dump()
-            #Get image_base64 before removing from metadata
-            image_base64 = element.image_base64 if hasattr(element, 'image_base64') else ""
-            
-            #Remove image_base64 from metadata if present
-            if "image_base64" in metadata:
-                metadata = metadata.copy()
-                del metadata["image_base64"]
-            
             return models.PointStruct(
                 id=str(uuid.uuid4()),
                 vector=vector,
                 payload={
                     "page": element.metadata.page,
                     "content_type": "image",
-                    "metadata": metadata,
-                    "image_base64": image_base64  # Save image_base64 in payload root
+                    "image_base64": element.image_base64,
+                    "metadata": element.metadata.model_dump()
                 }
             )
     
@@ -495,7 +478,6 @@ class QdrantManager:
             )
             
             image_results = []
-            skipped_count = 0
             for result in results:
                 try:
                     # Extract payload and metadata
@@ -504,8 +486,7 @@ class QdrantManager:
                     image_base64 = payload.get("image_base64", "")
                     
                     if not image_base64:
-                        skipped_count += 1
-                        logger.debug(f"Skipped result {result.id} - payload keys: {list(payload.keys())}")
+                        logger.debug(f"Jumped result w/out base64: {result.id}")
                         continue
                     
                     image_results.append(ImageResult( 
@@ -515,11 +496,9 @@ class QdrantManager:
                         page_content=payload.get("page_content", "")
                     ))
                 except Exception as e:
-                    logger.warning(f"Error processing image: {e}")
+                    logger.warning(f"Errorprocessing image: {e}")
                     continue
             
-            if skipped_count > 0:
-                logger.warning(f"Skipped {skipped_count} image results without base64 data")
             logger.info(f"Found {len(image_results)} images for query '{query}' (intent: {query_intent})")
             return image_results
         except Exception as e:
@@ -657,44 +636,6 @@ class QdrantManager:
     
     # === INTELLIGENT QUERY ===
     
-    def detect_content_specific_query(self, query: str) -> Optional[str]:
-        """
-        Detects if the query is asking specifically for only one type of content.
-        
-        Returns:
-            "images" if asking only for images
-            "tables" if asking only for tables  
-            "text" if asking only for text
-            None if multimodal or unclear
-        """
-        query_lower = query.lower()
-        
-        # Specific image-only keywords
-        image_only_patterns = [
-            "tutte le immagini", "elenco immagini", "lista immagini", "mostra immagini",
-            "quante immagini", "numero immagini", "solo immagini", "unicamente immagini",
-            "all images", "list images", "show images", "how many images", "number of images", 
-            "only images", "images only", "just images"
-        ]
-        
-        # Specific table-only keywords  
-        table_only_patterns = [
-            "tutte le tabelle", "elenco tabelle", "lista tabelle", "mostra tabelle",
-            "quante tabelle", "numero tabelle", "solo tabelle", "unicamente tabelle",
-            "all tables", "list tables", "show tables", "how many tables", "number of tables",
-            "only tables", "tables only", "just tables"
-        ]
-        
-        # Check for image-only queries
-        if any(pattern in query_lower for pattern in image_only_patterns):
-            return "images"
-            
-        # Check for table-only queries
-        if any(pattern in query_lower for pattern in table_only_patterns):
-            return "tables"
-            
-        return None
-
     def detect_query_intent(self, 
                             query: str) -> str:
         """
@@ -768,15 +709,8 @@ class QdrantManager:
             selected_files: Specific files to search
             content_types: Content types to include
         """
-        # First check if this is a content-specific query
-        specific_content = self.detect_content_specific_query(query)
-        if specific_content:
-            # Override content_types for specific queries
-            content_types = [specific_content]
-            logger.info(f"Detected {specific_content}-only query: '{query}'")
-        
         intent = self.detect_query_intent(query)
-        logger.info(f"Smart query: '{query}' -> detected intent: '{intent}', content_types: {content_types}")
+        logger.info(f"Smart query: '{query}' -> detected intent: '{intent}'")
         
         results = {}
         
@@ -806,8 +740,6 @@ class QdrantManager:
             results["query_metadata"] = {
                 "intent": intent,
                 "query": query,
-                "content_types_used": content_types,
-                "specific_content_detected": specific_content,
                 "total_results": sum(len(results.get(t, [])) for t in content_types),
                 "search_strategy": RAG_PARAMS[intent]["description"]
             }
