@@ -103,15 +103,19 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                             tables.append(table_chunk)
                             
                     elif "Image" in element_type:
+                        print("="* 50)
+                        print("Immagine found... INVOCATO")
                         has_special_elements = True
                         if element_id not in unique_images:
+                            print("="* 50)
+                            print("Creating image chunk... INVOCATO")
                             metadata = _extract_metadata_safely(el, 'page_number', 'image_base64', 'coordinates')
                             metadata['orig_elements'] = [el]
                             
                             image_chunk = _create_chunk_object(element_content, metadata, 'Image')
                             unique_images[element_id] = image_chunk
                             images.append(image_chunk)
-            
+                            
             # Handle text chunks
             if not has_special_elements and hasattr(chunk, 'text') and chunk.text.strip():
                 chunk_content = chunk.text

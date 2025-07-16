@@ -4,6 +4,9 @@ from typing import Dict, Any
 logger = logging.getLogger(__name__)
 
 def is_valid_image(width: int, height: int) -> bool:
+    print("="* 50)
+    print("Validating image... INVOCATO")
+    print("="* 50)
     """
     Filter for valid images based on dimensions and quality:
     - Minimum dimensions: 120x120 pixel

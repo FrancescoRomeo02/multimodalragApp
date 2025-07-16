@@ -657,6 +657,44 @@ class QdrantManager:
     
     # === INTELLIGENT QUERY ===
     
+    def detect_content_specific_query(self, query: str) -> Optional[str]:
+        """
+        Detects if the query is asking specifically for only one type of content.
+        
+        Returns:
+            "images" if asking only for images
+            "tables" if asking only for tables  
+            "text" if asking only for text
+            None if multimodal or unclear
+        """
+        query_lower = query.lower()
+        
+        # Specific image-only keywords
+        image_only_patterns = [
+            "tutte le immagini", "elenco immagini", "lista immagini", "mostra immagini",
+            "quante immagini", "numero immagini", "solo immagini", "unicamente immagini",
+            "all images", "list images", "show images", "how many images", "number of images", 
+            "only images", "images only", "just images"
+        ]
+        
+        # Specific table-only keywords  
+        table_only_patterns = [
+            "tutte le tabelle", "elenco tabelle", "lista tabelle", "mostra tabelle",
+            "quante tabelle", "numero tabelle", "solo tabelle", "unicamente tabelle",
+            "all tables", "list tables", "show tables", "how many tables", "number of tables",
+            "only tables", "tables only", "just tables"
+        ]
+        
+        # Check for image-only queries
+        if any(pattern in query_lower for pattern in image_only_patterns):
+            return "images"
+            
+        # Check for table-only queries
+        if any(pattern in query_lower for pattern in table_only_patterns):
+            return "tables"
+            
+        return None
+
     def detect_query_intent(self, 
                             query: str) -> str:
         """
@@ -730,8 +768,15 @@ class QdrantManager:
             selected_files: Specific files to search
             content_types: Content types to include
         """
+        # First check if this is a content-specific query
+        specific_content = self.detect_content_specific_query(query)
+        if specific_content:
+            # Override content_types for specific queries
+            content_types = [specific_content]
+            logger.info(f"Detected {specific_content}-only query: '{query}'")
+        
         intent = self.detect_query_intent(query)
-        logger.info(f"Smart query: '{query}' -> detected intent: '{intent}'")
+        logger.info(f"Smart query: '{query}' -> detected intent: '{intent}', content_types: {content_types}")
         
         results = {}
         
@@ -761,6 +806,8 @@ class QdrantManager:
             results["query_metadata"] = {
                 "intent": intent,
                 "query": query,
+                "content_types_used": content_types,
+                "specific_content_detected": specific_content,
                 "total_results": sum(len(results.get(t, [])) for t in content_types),
                 "search_strategy": RAG_PARAMS[intent]["description"]
             }

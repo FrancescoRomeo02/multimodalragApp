@@ -38,6 +38,8 @@ def enhanced_rag_query(query: str,
         query_metadata = search_results.get("query_metadata", {})
         detected_intent = query_metadata.get("intent", "unknown")
         total_results = query_metadata.get("total_results", 0)
+        specific_content_detected = query_metadata.get("specific_content_detected", None)
+        content_types_used = query_metadata.get("content_types_used", ["text", "images", "tables"])
         
         logger.info(f"Query completed: intent='{detected_intent}', "
                    f"risultati={total_results} per query: '{query}'")
@@ -171,8 +173,16 @@ def enhanced_rag_query(query: str,
         # PROMPT TEMPLATE 
         prompt = create_prompt_template()
         
-        #Creating prompt with langchain formt
-        formatted_prompt = prompt.format(context=unified_context, input=query)
+        # Add specific instructions for content-specific queries
+        if specific_content_detected == "images":
+            specific_instruction = "\n\nIMPORTANTE: L'utente ha chiesto specificamente informazioni sulle IMMAGINI. Concentrati solo sulle immagini trovate e ignora tabelle o testo. Fornisci un elenco chiaro delle immagini con le loro descrizioni e caratteristiche."
+        elif specific_content_detected == "tables":
+            specific_instruction = "\n\nIMPORTANTE: L'utente ha chiesto specificamente informazioni sulle TABELLE. Concentrati solo sulle tabelle trovate e ignora immagini o testo normale."
+        else:
+            specific_instruction = ""
+        
+        #Creating prompt with langchain format
+        formatted_prompt = prompt.format(context=unified_context, input=query + specific_instruction)
         # Invoke the LLM with the formatted prompt
         response = llm.invoke([HumanMessage(content=formatted_prompt)])
         
@@ -199,6 +209,8 @@ def enhanced_rag_query(query: str,
                 "smart_query": True,
                 "detected_intent": detected_intent,
                 "content_types_found": content_types,
+                "content_types_used": content_types_used,
+                "specific_content_detected": specific_content_detected,
                 "search_strategy": query_metadata.get("search_strategy", "N/A")
             }
         )
