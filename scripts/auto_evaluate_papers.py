@@ -5,7 +5,6 @@ Interroga il database RAG e compila automaticamente le risposte "local" nei file
 """
 
 import json
-import os
 import sys
 import glob
 import logging
@@ -277,7 +276,7 @@ Dettagli per File:
 """
         
         for file_info in stats.get('files', []):
-            status_emoji = "✅" if file_info['status'] == 'success' else "❌"
+            status_emoji = "ok" if file_info['status'] == 'success' else "error"
             report += f"{status_emoji} {file_info['file']} - {file_info['status']}\n"
             if 'error' in file_info:
                 report += f"    Errore: {file_info['error']}\n"
@@ -321,12 +320,12 @@ def main():
         
         success = evaluator.process_single_file(file_path, args.overwrite)
         if success:
-            print(f"✅ File {args.single_file} processato con successo")
+            print(f"ok File {args.single_file} processato con successo")
         else:
-            print(f"❌ Errore nel processing di {args.single_file}")
+            print(f"Errore nel processing di {args.single_file}")
     else:
         # Processa tutti i file
-        print("🚀 Avvio valutazione automatica dei paper...")
+        print("Avvio valutazione automatica dei paper...")
         
         stats = evaluator.process_all_files(args.overwrite)
         report = evaluator.create_summary_report(stats)
@@ -337,8 +336,8 @@ def main():
         report_file = evaluator.eval_dir_path / "evaluation_report.txt"
         with open(report_file, 'w', encoding='utf-8') as f:
             f.write(report)
-        
-        print(f"\n📊 Report salvato in: {report_file}")
+
+        print(f"\nReport salvato in: {report_file}")
 
 
 if __name__ == "__main__":

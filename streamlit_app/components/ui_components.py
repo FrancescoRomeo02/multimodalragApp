@@ -1,32 +1,166 @@
 import streamlit as st
 import os
+import time
+import threading
+from datetime import datetime
 from src.config import RAW_DATA_PATH
 from src.pipeline.retriever import enhanced_rag_query
 from streamlit_app.backend_logic import process_uploaded_file, delete_source
+from streamlit_app.components.sequential_uploader import SequentialUploader
 
 def upload_widget(indexer):
-    """Upload widget for new document."""
-    st.header("Upload a New Document")
-    uploaded_file = st.file_uploader(
-        "Choose a PDF file", type="pdf", label_visibility="collapsed"
+    """Upload widget per più documenti con caricamento sequenziale."""
+    st.header("Upload Documents")
+    
+    # Inizializza l'uploader sequenziale
+    uploader = SequentialUploader(delay_seconds=30)
+    
+    # Caricamento file
+    uploaded_files = st.file_uploader(
+        "Choose PDF files", 
+        type="pdf", 
+        accept_multiple_files=True,
+        label_visibility="collapsed",
+        help="Seleziona uno o più file PDF per il caricamento sequenziale con ritardo di 30 secondi"
     )
 
-    if uploaded_file:
-        # Create a unique key for this specific uploaded file.
-        upload_key = f"processed_{uploaded_file.name}_{uploaded_file.size}"
+    # Ottieni lo stato corrente
+    status = uploader.get_current_status()
+    
+    # Interfaccia per file non ancora in processing
+    if uploaded_files and not status['in_progress']:
+        st.info(f"📁 Selezionati {len(uploaded_files)} file per il caricamento")
+        
+        # Mostra l'elenco dei file
+        with st.expander("File selezionati", expanded=True):
+            for i, file in enumerate(uploaded_files, 1):
+                file_size_mb = file.size / (1024 * 1024)
+                st.write(f"{i}. **{file.name}** ({file_size_mb:.1f} MB)")
+        
+        # Controlli
+        col1, col2, col3 = st.columns([1, 1, 1])
+        
+        with col1:
+            if st.button("🚀 Avvia Caricamento", type="primary"):
+                if uploader.start_upload_sequence(uploaded_files):
+                    st.success("✅ Caricamento sequenziale avviato!")
+                    st.rerun()
+                else:
+                    st.error("❌ Errore nell'avvio del caricamento")
+        
+        with col2:
+            st.info("⏱️ Ritardo: 30s")
+        
+        with col3:
+            estimated_time = len(uploaded_files) * 30
+            st.info(f"⏰ Tempo stimato: {estimated_time//60}m {estimated_time%60}s")
 
-        # We only perform indexing IF we haven't already processed this file
-        if upload_key not in st.session_state:
-            with st.spinner(f"Indexing '{uploaded_file.name}'..."):
-                success, message = process_uploaded_file(uploaded_file, indexer)
+    # Interfaccia durante il processing
+    elif status['in_progress']:
+        # Header con informazioni generali
+        st.markdown(f"### 📤 Caricamento in corso...")
+        
+        # Progress bar principale
+        progress = uploader.get_progress_percentage()
+        st.progress(progress, text=f"File {status['current_index']}/{status['total_files']} completati")
+        
+        # Informazioni sul file corrente
+        if not status['is_finished'] and status['current_file']:
+            current_file = status['current_file']
             
-            if success:
-                st.success(message)
-                st.session_state[upload_key] = True
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                st.write(f"📄 **File corrente:** {current_file.name}")
+                
+                # Verifica se può processare
+                if uploader.should_process_next_file():
+                    # Processo il file corrente
+                    upload_key = f"seq_processed_{current_file.name}_{current_file.size}_{status['current_index']}"
+                    
+                    if upload_key not in st.session_state:
+                        with st.spinner(f"Indicizzando '{current_file.name}'..."):
+                            success, message = process_uploaded_file(current_file, indexer)
+                        
+                        # Marca come processato
+                        uploader.mark_file_processed(current_file.name, success, message)
+                        st.session_state[upload_key] = True
+                        
+                        # Mostra risultato
+                        if success:
+                            st.success(f"✅ {message}")
+                        else:
+                            st.error(f"❌ {message}")
+                        
+                        st.rerun()
+                else:
+                    # Mostra countdown
+                    time_remaining = status.get('time_until_next', 0)
+                    if time_remaining > 0:
+                        st.info(f"⏳ Prossimo file tra: {uploader.format_time_remaining(time_remaining)}")
+                        time.sleep(1)
+                        st.rerun()
+            
+            with col2:
+                if st.button("⏹️ Ferma", type="secondary"):
+                    uploader.stop_upload_sequence()
+                    st.warning("⚠️ Caricamento interrotto")
+                    st.rerun()
+        
+        # Risultati dei file già processati
+        if status['results']:
+            with st.expander(f"📊 Risultati ({len(status['results'])} file processati)", expanded=False):
+                for result in status['results']:
+                    status_icon = "✅" if result["success"] else "❌"
+                    st.write(f"{status_icon} **{result['file_name']}** - {result['timestamp']}")
+                    if not result["success"]:
+                        st.caption(f"⚠️ {result['message']}")
+        
+        # Auto-refresh durante il processing
+        if not status['is_finished']:
+            # Usa un container per il refresh automatico
+            time.sleep(0.5)
+            st.rerun()
+
+    # Interfaccia finale quando tutto è completato
+    elif status['results'] and not status['in_progress']:
+        st.success("🎉 Caricamento sequenziale completato!")
+        
+        # Statistiche finali
+        stats = uploader.get_statistics()
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("📁 File Totali", stats['total'])
+        with col2:
+            st.metric("✅ Successi", stats['successful'])
+        with col3:
+            st.metric("❌ Fallimenti", stats['failed'])
+        
+        # Dettagli risultati
+        if stats['total'] > 0:
+            with st.expander("📋 Dettagli Risultati", expanded=False):
+                for result in status['results']:
+                    status_icon = "✅" if result["success"] else "❌"
+                    st.write(f"{status_icon} **{result['file_name']}** - {result['timestamp']}")
+                    if not result["success"]:
+                        st.caption(f"⚠️ {result['message']}")
+        
+        # Controlli finali
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔄 Nuovo Caricamento", type="primary"):
+                uploader.reset_upload_sequence()
                 st.rerun()
-            else:
-                st.error(message)
-                st.session_state[upload_key] = True
+        
+        with col2:
+            if stats['failed'] > 0:
+                if st.button("🔄 Riprova Fallimenti", type="secondary"):
+                    # Logica per riprovare solo i file falliti
+                    failed_files = [r for r in status['results'] if not r['success']]
+                    if failed_files:
+                        st.info(f"🔄 Riprovando {len(failed_files)} file falliti...")
+                        # Qui potresti implementare la logica per riprovare solo i fallimenti
 
 
 def source_selector_widget():

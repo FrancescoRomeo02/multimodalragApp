@@ -1,0 +1,21 @@
+
+REPORT VALUTAZIONE AUTOMATICA PAPER
+==================================================
+
+Statistiche Generali:
+- File processati: 10
+- Successo: 10
+- Falliti: 0
+- Tasso di successo: 100.0%
+
+Dettagli per File:
+ok rag_bench_pd6.json - success
+ok rag_bench_pd7.json - success
+ok rag_bench_pd1.json - success
+ok rag_bench_pd2.json - success
+ok rag_bench_pd3.json - success
+ok rag_bench_pd8.json - success
+ok rag_bench_pd10.json - success
+ok rag_bench_pd4.json - success
+ok rag_bench_pd5.json - success
+ok rag_bench_pd9.json - success
