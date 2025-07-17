@@ -1,0 +1,125 @@
+{
+  "file": "nome_paper_08",
+  "questions": [
+    {
+      "question_id": "q1",
+      "question": "Qual è il ruolo principale della copertura nevosa sul ghiaccio marino antartico e quale problema cruciale del suo comportamento termodinamico questo studio mira a risolvere?",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q2",
+      "question": "Perché il ghiaccio marino antartico differisce significativamente dalla sua controparte artica in termini di copertura nevosa, e come agisce lo strato di neve nel modulare il bilancio energetico della superficie del ghiaccio marino?",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q3",
+      "question": "Quali tipi di dati sono stati raccolti durante le cinque spedizioni oceanografiche antartiche (menzionando le principali categorie di sensori) e in quali periodi stagionali si sono svolte queste campagne?",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q4",
+      "question": "Descrivi il processo di stima della frazione di copertura nevosa dalle immagini visibili dopo la loro ortorettifica. Quale modello basato sul deep learning è stato utilizzato per la segmentazione e come è stata classificata la neve?",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q5",
+      "question": "In che modo le osservazioni dello studio contraddicono le convenzionali classificazioni stagionali della copertura nevosa sul ghiaccio marino antartico, e quali processi contribuiscono a questa eterogeneità spaziale e temporale?",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q6",
+      "question": "Spiega come le assunzioni binarie semplificate (ad es. neve secca in inverno e ghiaccio nudo in estate) nei modelli attuali travisano sistematicamente le condizioni superficiali del ghiaccio marino e quali tipi di pregiudizi introducono nei flussi radiativi e turbolenti modellati.",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q7",
+      "question": "Descrivi il duplice ruolo (isolante e riflettente) dello strato di neve nell'influenzare il flusso di calore conduttivo (Fc) attraverso il ghiaccio marino. Come la sua bassa conducibilità termica (fornire il valore adottato) modula il trasferimento di calore in inverno e in estate, e quali bias si osservano assumendo ghiaccio nudo in estate?",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q8",
+      "question": "Quantifica i bias medi (MBE) specifici per il flusso di radiazione a onde corte assorbita (Fsw) e il bilancio energetico totale superficiale (FT) quando i modelli assumono una superficie di ghiaccio nudo in primavera/estate e una superficie completamente coperta di neve in inverno, rispetto alle condizioni realistiche osservate.",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q9",
+      "question": "Dettaglia il metodo utilizzato per calcolare l'albedo superficiale integrata (ω) basandosi sulla parametrizzazione di Ebert e Curry . Includi la formula principale e spiega come vengono ponderate le componenti di neve secca e ghiaccio nudo, e come questa ponderazione tiene conto dell'eterogeneità spaziale.",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q10",
+      "question": "Sulla base dei risultati presentati, qual è la raccomandazione principale degli autori per la revisione delle attuali parametrizzazioni dei modelli climatici? Quali implicazioni ha questa raccomandazione per la simulazione della crescita e dello scioglimento del ghiaccio marino, e quali sono i suggerimenti per i futuri sforzi di ricerca?",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    }
+  ]
+}

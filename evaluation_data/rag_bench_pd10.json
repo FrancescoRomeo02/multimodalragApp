@@ -1,0 +1,125 @@
+{
+  "file": "nome_paper_10",
+  "questions": [
+    {
+      "question_id": "q1",
+      "question": "Qual è l'obiettivo principale del framework scSGC per l'analisi dei dati di sequenziamento RNA a singola cellula (scRNA-seq)?",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q2",
+      "question": "Quali sono le due principali sfide che i metodi tradizionali basati su reti neurali grafiche (GNN) affrontano nell'analisi dei dati scRNA-seq, in particolare per quanto riguarda la costruzione del grafo?",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q3",
+      "question": "Descrivi lo scopo e la funzione del componente di autoencoder di funzionalità basato su ZINB (Zero-Inflated Negative Binomial) all'interno del framework scSGC.",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q4",
+      "question": "Come vengono costruiti i due grafi soft a doppio canale (grafo di somiglianza delle feature G1 e grafo di somiglianza del coseno G2) nel modulo di modellazione del grafo soft informato dal taglio di scSGC, e quali tipi di somiglianza cellulare catturano?",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q5",
+      "question": "Spiega il ruolo della strategia di 'Minimum Jointly Normalized Cut (Joint NCut)' nel framework scSGC e come contribuisce all'ottimizzazione della rappresentazione delle relazioni cellula-cellula.",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q6",
+      "question": "Qual è la funzione del modulo di ottimizzazione del clustering basato sul trasporto ottimale e come contribuisce a garantire risultati di clustering stabili e precisi nei dati scRNA-seq complessi?",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q7",
+      "question": "Sulla base dell'analisi quantitativa, quali sono i miglioramenti percentuali medi in Accuracy (ACC), Normalized Mutual Information (NMI) e Adjusted Rand Index (ARI) che scSGC ha dimostrato rispetto al secondo miglior approccio sui dataset di benchmark?",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q8",
+      "question": "Come si differenziano i risultati di visualizzazione qualitativa di scSGC (es. t-SNE e mappe di calore di somiglianza) da quelli di altri metodi nel dataset delle cellule del pancreas umano Mauro, in termini di differenziazione dei tipi cellulari e organizzazione dei cluster?",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q9",
+      "question": "Dallo studio di ablazione, quali sono le principali scoperte riguardo all'efficacia di ciascun componente principale (NCut loss, ZINB loss, clustering loss) e dei componenti del grafo (G1, G2) sul rendimento complessivo di scSGC? Quale dei due grafi di somiglianza ha avuto un impatto più sostanziale?",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q10",
+      "question": "Quali sono le implicazioni future della ricerca su scSGC, in particolare riguardo all'adattamento del framework a dati omici ad alta dimensionalità e all'ulteriore miglioramento della sua scalabilità per dataset sempre più grandi e complessi?",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,126 @@
+
+{
+  "file": "nome_paper_09",
+  "questions": [
+    {
+      "question_id": "q1",
+      "question": "Qual è l'obiettivo principale del lavoro presentato in questo paper, come evidenziato nell'abstract, riguardo alla complementazione degli automi a stati finiti non deterministici a due vie (2nfa)?",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q2",
+      "question": "Nel contesto della teoria degli automi, qual è la distinzione fondamentale tra dispositivi deterministici e non deterministici per quanto riguarda il costo dell'operazione di complementazione (tipicamente in termini di aumento di dimensione)?",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q3",
+      "question": "Descrivi cos'è un automa 1-limitato (1-la) e in che modo estende le capacità dei 2nfa, pur riconoscendo solo linguaggi regolari.",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q4",
+      "question": "Cosa significa che una macchina a stati non deterministica è 'auto-verificante' (self-verifying)?",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q5",
+      "question": "Spiega il funzionamento del concetto di 'common guess' (ipotesi comune) in un 2nfa con common guess (2nfa+cg), delineando le sue due fasi computazionali.",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q6",
+      "question": "Qual è il 'problema di Sakoda e Sipser' e in che modo è correlato al costo della complementazione dei 2nfa?",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q7",
+      "question": "Descrivi il ruolo delle 'L-table' nella costruzione di Shepherdson e come vengono utilizzate per simulare il comportamento di una macchina a due vie.",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q8",
+      "question": "Nell'implementazione dell'automa B per la complementazione dei 2nfa, quale funzione svolge la variabile 'rpos' mantenuta nel controllo finito, e come viene utilizzata per la navigazione all'interno della 'current window'?",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q9",
+      "question": "Spiega in dettaglio la strategia di 'inductive counting' utilizzata dall'automa B per calcolare induttivamente la cardinalità delle L-table (#tA_vω) per ciascun prefisso dell'input, facendo riferimento alle tre fasi principali (passi 1, 2, 3) e ai relativi sub-procedimenti (get_S1_from_t, get_S*_from_S1, get_t_from_S*).",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    },
+    {
+      "question_id": "q10",
+      "question": "Qual è il risultato principale (Teorema 4.13) presentato nel paper per la complementazione dei 2nfa, e quali sono le implicazioni future di questa ricerca, in particolare per lo studio di modelli più ristretti come i 2dfa+cgs e per la necessità di affinare le analisi sui costi polinomiali?",
+      "Morphik": {
+        "response": "...",
+        "chunks": []
+      },
+      "local": {
+        "response": "...",
+        "chunks": []
+      }
+    }
+  ]
+}
