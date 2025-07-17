@@ -117,6 +117,12 @@ def enhanced_rag_query(query: str,
         # Sort documents by score in descending order
         documents.sort(key=lambda x: x.get("score", 0), reverse=True)
         
+        # Apply global limit to prevent too many results
+        MAX_GLOBAL_DOCUMENTS = 10  # Limit total documents for LLM and UI
+        if len(documents) > MAX_GLOBAL_DOCUMENTS:
+            logger.info(f"Limiting documents from {len(documents)} to {MAX_GLOBAL_DOCUMENTS}")
+            documents = documents[:MAX_GLOBAL_DOCUMENTS]
+        
         # Log the content types and detected intent  
         content_types = {}
         for doc in documents:

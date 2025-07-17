@@ -220,12 +220,17 @@ def enhanced_chat_interface_widget(selected_sources: list[str]):
                 if show_sources and source_docs:
                     st.markdown("---")
                     
+                    # Limit source documents display to top 10 by score
+                    display_docs = source_docs[:10] if len(source_docs) > 10 else source_docs
+                    if len(source_docs) > 10:
+                        st.info(f"Showing top 10 sources out of {len(source_docs)} total results")
+                    
                     if compact_sources:
                         # Compact and precise references
                         st.markdown("**Origin sources:**")
 
                         sources_summary = {}
-                        for doc in source_docs:
+                        for doc in display_docs:  # Use limited documents
                             source = doc.get("source", "Unknown")
                             page = doc.get("page", "N/A")
                             doc_type = doc.get("type", "text")
@@ -263,7 +268,7 @@ def enhanced_chat_interface_widget(selected_sources: list[str]):
                     else:
                         # Detailed references
                         st.markdown("**Detailed origin sources:**")
-                        for doc in source_docs:
+                        for doc in display_docs:  # Use limited documents
                             display_source_document(doc)
                 
                 st.rerun()

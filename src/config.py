@@ -43,23 +43,23 @@ ADAPTIVE_K_MAX = 15              # Massimo risultati da considerare
 # Strategies for different query types
 RAG_PARAMS: Dict[str, Dict[str, Any]] = {
     "factual": {
-        "k": 8,
-        "score_threshold": 0.70,
+        "k": 5,
+        "score_threshold": 0.50,
         "description": "For precise factual questions"
     },
     "exploratory": {
-        "k": 12,
-        "score_threshold": 0.60,
+        "k": 6,
+        "score_threshold": 0.45,
         "description": "For broad exploratory searches"
     },
     "technical": {
-        "k": 6,
-        "score_threshold": 0.75,
+        "k": 4,
+        "score_threshold": 0.55,
         "description": "For specific technical queries"
     },
     "multimodal": {
-        "k": 10,
-        "score_threshold": 0.65,
+        "k": 5,
+        "score_threshold": 0.40,
         "description": "For searches including text, images and tables"
     }
 }
