@@ -409,7 +409,7 @@ class CorrectnessAnalyzer:
         }
     
     def create_essential_visualizations(self, df: pd.DataFrame, output_dir: str = "./evaluation_data/plots") -> None:
-        """Crea grafici individuali separati per ogni analisi."""
+        """Crea grafici individuali separati per ogni analisi e salva i dati CSV corrispondenti."""
         
         import os
         os.makedirs(output_dir, exist_ok=True)
@@ -421,6 +421,10 @@ class CorrectnessAnalyzer:
         # GRAFICO 1: Performance per livello di difficoltà
         plt.figure(figsize=(10, 6))
         difficulty_perf = df.groupby('difficulty')['semantic_similarity'].agg(['mean', 'std', 'count'])
+        
+        # Salva dati CSV per Grafico 1
+        difficulty_perf.to_csv(os.path.join(output_dir, '01_performance_per_difficolta_data.csv'))
+        
         x_pos = difficulty_perf.index
         means = difficulty_perf['mean']
         stds = difficulty_perf['std']
@@ -444,6 +448,10 @@ class CorrectnessAnalyzer:
         # GRAFICO 2: Performance per Macro-Argomento
         plt.figure(figsize=(10, 8))
         topic_perf = df.groupby('macro_topic')['semantic_similarity'].agg(['mean', 'count']).sort_values('mean', ascending=True)
+        
+        # Salva dati CSV per Grafico 2
+        topic_perf.to_csv(os.path.join(output_dir, '02_performance_per_argomento_data.csv'))
+        
         y_pos = range(len(topic_perf))
         
         bars = plt.barh(y_pos, topic_perf['mean'], alpha=0.7, color='lightgreen', edgecolor='darkgreen')
@@ -467,6 +475,10 @@ class CorrectnessAnalyzer:
         heatmap_data = df.pivot_table(values='semantic_similarity', 
                                      index='macro_topic', columns='difficulty_category', 
                                      aggfunc='mean')
+        
+        # Salva dati CSV per Grafico 3
+        heatmap_data.to_csv(os.path.join(output_dir, '03_heatmap_argomento_difficolta_data.csv'))
+        
         sns.heatmap(heatmap_data, annot=True, cmap='RdYlGn', fmt='.2f', 
                    cbar_kws={'label': 'Similarità Media'})
         plt.title('Heatmap: Argomento vs Difficoltà', fontsize=16, fontweight='bold')
@@ -480,6 +492,13 @@ class CorrectnessAnalyzer:
         # GRAFICO 4: Distribuzione complessiva con soglie
         plt.figure(figsize=(10, 6))
         similarity_values = df['semantic_similarity']
+        
+        # Salva dati CSV per Grafico 4
+        similarity_stats = pd.DataFrame({
+            'similarity_values': similarity_values,
+            'correctness_level': df['correctness_level']
+        })
+        similarity_stats.to_csv(os.path.join(output_dir, '04_distribuzione_performance_data.csv'), index=False)
         
         # Gestisce range di valori appropriato per l'istogramma
         min_sim = similarity_values.min()
@@ -525,6 +544,11 @@ class CorrectnessAnalyzer:
         
         # GRAFICO 5: Correlazione Chunk vs Performance
         plt.figure(figsize=(10, 6))
+        
+        # Salva dati CSV per Grafico 5
+        correlation_data = df[['chunk_f1', 'semantic_similarity', 'question_id', 'paper']].copy()
+        correlation_data.to_csv(os.path.join(output_dir, '05_correlazione_chunk_performance_data.csv'), index=False)
+        
         plt.scatter(df['chunk_f1'], df['semantic_similarity'], alpha=0.6, s=50)
         plt.xlabel('F1 Score Chunk Retrieval')
         plt.ylabel('Similarità Semantica')
@@ -551,6 +575,11 @@ class CorrectnessAnalyzer:
         quality_bins = pd.cut(df['semantic_similarity'], bins=[0, 0.3, 0.5, 0.7, 0.85, 1.0], 
                              labels=['Molto Scarso', 'Scarso', 'Accettabile', 'Buono', 'Eccellente'])
         
+        # Salva dati CSV per Grafico 6
+        length_analysis = df[['semantic_similarity', 'length_ratio', 'question_id', 'paper']].copy()
+        length_analysis['quality_category'] = quality_bins
+        length_analysis.to_csv(os.path.join(output_dir, '06_lunghezza_per_qualita_data.csv'), index=False)
+        
         box_data = [df[quality_bins == label]['length_ratio'].values for label in quality_bins.cat.categories if len(df[quality_bins == label]) > 0]
         valid_labels = [label for label in quality_bins.cat.categories if len(df[quality_bins == label]) > 0]
         
@@ -574,6 +603,9 @@ class CorrectnessAnalyzer:
         plt.figure(figsize=(12, 6))
         type_perf = df.groupby('question_type')['semantic_similarity'].agg(['mean', 'count']).sort_values('mean', ascending=False)
         
+        # Salva dati CSV per Grafico 7
+        type_perf.to_csv(os.path.join(output_dir, '07_performance_per_tipo_domanda_data.csv'))
+        
         bars = plt.bar(range(len(type_perf)), type_perf['mean'], 
                       alpha=0.7, color='mediumpurple', edgecolor='darkblue')
         plt.xticks(range(len(type_perf)), type_perf.index, rotation=45, ha='right')
@@ -594,6 +626,9 @@ class CorrectnessAnalyzer:
         # GRAFICO 8: Coverage Termini Tecnici per Argomento
         plt.figure(figsize=(12, 6))
         term_coverage_data = df.groupby('macro_topic')['term_coverage'].agg(['mean', 'std']).sort_values('mean', ascending=False)
+        
+        # Salva dati CSV per Grafico 8
+        term_coverage_data.to_csv(os.path.join(output_dir, '08_coverage_termini_tecnici_data.csv'))
         
         bars = plt.bar(range(len(term_coverage_data)), term_coverage_data['mean'], 
                       yerr=term_coverage_data['std'], capsize=3,
@@ -618,6 +653,11 @@ class CorrectnessAnalyzer:
         effective_responses = df[df['semantic_similarity'] != 0.0]
         if len(effective_responses) > 0:
             worst_effective = effective_responses.nsmallest(5, 'semantic_similarity')
+            
+            # Salva dati CSV per Grafico 10
+            worst_effective[['question_id', 'paper', 'macro_topic', 'difficulty', 'semantic_similarity', 'question']].to_csv(
+                os.path.join(output_dir, '10_peggiori_performance_data.csv'), index=False)
+            
             case_labels = [f"{row['macro_topic'][:8]}\nD{row['difficulty']}\n{row['question_id']}" 
                           for _, row in worst_effective.iterrows()]
             
@@ -661,6 +701,10 @@ class CorrectnessAnalyzer:
             else:
                 cat_data.append([])
         
+        # Salva dati CSV per Grafico 11
+        difficulty_boxplot_data = df[['difficulty_category', 'semantic_similarity', 'question_id', 'paper']].copy()
+        difficulty_boxplot_data.to_csv(os.path.join(output_dir, '11_distribuzione_per_difficolta_data.csv'), index=False)
+        
         # Rimuovi categorie vuote
         valid_cats = []
         valid_data = []
@@ -689,6 +733,9 @@ class CorrectnessAnalyzer:
             plt.figure(figsize=(12, 6))
             paper_perf = df.groupby('paper')['semantic_similarity'].agg(['mean', 'count']).sort_values('mean', ascending=False)
             
+            # Salva dati CSV per Grafico 12
+            paper_perf.to_csv(os.path.join(output_dir, '12_performance_per_paper_data.csv'))
+            
             bars = plt.bar(range(len(paper_perf)), paper_perf['mean'], 
                           alpha=0.7, color='teal', edgecolor='darkgreen')
             plt.xticks(range(len(paper_perf)), paper_perf.index, rotation=45, ha='right')
@@ -715,6 +762,11 @@ class CorrectnessAnalyzer:
                 if len(paper_df) > 1:  # Solo se ha più di una domanda
                     paper_data.append(paper_df['semantic_similarity'].values)
                     paper_labels.append(paper[:15])  # Abbrevia il nome
+            
+            # Salva dati CSV per Grafico 13
+            if paper_data:
+                variability_data = df[['paper', 'semantic_similarity', 'question_id']].copy()
+                variability_data.to_csv(os.path.join(output_dir, '13_variabilita_per_paper_data.csv'), index=False)
             
             if paper_data:
                 bp = plt.boxplot(paper_data, tick_labels=paper_labels, patch_artist=True)
@@ -746,6 +798,21 @@ class CorrectnessAnalyzer:
         if df['paper'].nunique() > 1:
             print(f"    {output_dir}/12_performance_per_paper.png")
             print(f"    {output_dir}/13_variabilita_per_paper.png")
+        
+        print("\n Dati CSV corrispondenti salvati:")
+        print(f"    {output_dir}/01_performance_per_difficolta_data.csv")
+        print(f"    {output_dir}/02_performance_per_argomento_data.csv")
+        print(f"    {output_dir}/03_heatmap_argomento_difficolta_data.csv")
+        print(f"    {output_dir}/04_distribuzione_performance_data.csv")
+        print(f"    {output_dir}/05_correlazione_chunk_performance_data.csv")
+        print(f"    {output_dir}/06_lunghezza_per_qualita_data.csv")
+        print(f"    {output_dir}/07_performance_per_tipo_domanda_data.csv")
+        print(f"    {output_dir}/08_coverage_termini_tecnici_data.csv")
+        print(f"    {output_dir}/10_peggiori_performance_data.csv")
+        print(f"    {output_dir}/11_distribuzione_per_difficolta_data.csv")
+        if df['paper'].nunique() > 1:
+            print(f"    {output_dir}/12_performance_per_paper_data.csv")
+            print(f"    {output_dir}/13_variabilita_per_paper_data.csv")
 
 def main():
     """Funzione principale per l'analisi di correttezza."""
@@ -782,19 +849,19 @@ def main():
     print(f"\nFile salvati:")
     print(f"   - correctness_analysis_detailed.csv")
     print(f"   - CORRECTNESS_REPORT.md")
-    print(f"   - plots/01_performance_per_difficolta.png")
-    print(f"   - plots/02_performance_per_argomento.png")
-    print(f"   - plots/03_heatmap_argomento_difficolta.png")
-    print(f"   - plots/04_distribuzione_performance.png")
-    print(f"   - plots/05_correlazione_chunk_performance.png")
-    print(f"   - plots/06_lunghezza_per_qualita.png")
-    print(f"   - plots/07_performance_per_tipo_domanda.png")
-    print(f"   - plots/08_coverage_termini_tecnici.png")
-    print(f"   - plots/10_peggiori_performance.png")
-    print(f"   - plots/11_distribuzione_per_difficolta.png")
+    print(f"   - plots/01_performance_per_difficolta.png + CSV")
+    print(f"   - plots/02_performance_per_argomento.png + CSV")
+    print(f"   - plots/03_heatmap_argomento_difficolta.png + CSV")
+    print(f"   - plots/04_distribuzione_performance.png + CSV")
+    print(f"   - plots/05_correlazione_chunk_performance.png + CSV")
+    print(f"   - plots/06_lunghezza_per_qualita.png + CSV")
+    print(f"   - plots/07_performance_per_tipo_domanda.png + CSV")
+    print(f"   - plots/08_coverage_termini_tecnici.png + CSV")
+    print(f"   - plots/10_peggiori_performance.png + CSV")
+    print(f"   - plots/11_distribuzione_per_difficolta.png + CSV")
     if df['paper'].nunique() > 1:
-        print(f"   - plots/12_performance_per_paper.png")
-        print(f"   - plots/13_variabilita_per_paper.png")
+        print(f"   - plots/12_performance_per_paper.png + CSV")
+        print(f"   - plots/13_variabilita_per_paper.png + CSV")
     
     print(f"\nAnalisi di correttezza completata!")
 
