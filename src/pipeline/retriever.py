@@ -7,6 +7,7 @@ from src.core.models import RetrievalResult
 from src.core.prompts import create_prompt_template
 from src.utils.qdrant_utils import qdrant_manager
 from src.llm.groq_client import get_groq_llm
+from src.config import MAX_GLOBAL_DOCUMENTS
 
 logger = logging.getLogger(__name__)
 
@@ -44,11 +45,36 @@ def enhanced_rag_query(query: str,
         logger.info(f"Query completed: intent='{detected_intent}', "
                    f"risultati={total_results} per query: '{query}'")
 
-        # Combine results from different content types
+        # Combine results from different content types with intelligent balancing
         all_results = []
         
-        # Add results from text search
-        for text_result in search_results.get("text", []):
+        # Collect results from each content type
+        text_results = search_results.get("text", [])
+        image_results = search_results.get("images", [])
+        table_results = search_results.get("tables", [])
+        
+        # Calculate balanced limits based on available content types
+        total_types_with_content = sum([
+            1 if text_results else 0,
+            1 if image_results else 0, 
+            1 if table_results else 0
+        ])
+        
+        if total_types_with_content > 0:
+            # Distribute MAX_GLOBAL_DOCUMENTS among content types
+            base_limit_per_type = max(1, MAX_GLOBAL_DOCUMENTS // total_types_with_content)
+            remaining_slots = MAX_GLOBAL_DOCUMENTS - (base_limit_per_type * total_types_with_content)
+            
+            logger.info(f"Balancing results: {base_limit_per_type} per type, "
+                       f"{remaining_slots} extra slots, total types: {total_types_with_content}")
+        else:
+            base_limit_per_type = MAX_GLOBAL_DOCUMENTS
+            remaining_slots = 0
+        
+        
+        # Add results from text search (with limit)
+        text_limit = base_limit_per_type + (1 if remaining_slots > 0 and text_results else 0)
+        for text_result in text_results[:text_limit]:
             all_results.append({
                 "content": text_result["content"],
                 "metadata": text_result["metadata"],
@@ -56,9 +82,12 @@ def enhanced_rag_query(query: str,
                 "content_type": "text",
                 "relevance_tier": text_result.get("relevance_tier", "medium")
             })
+        if remaining_slots > 0 and text_results:
+            remaining_slots -= 1
         
-        # Add results from image search 
-        for img_result in search_results.get("images", []):
+        # Add results from image search (with limit)
+        image_limit = base_limit_per_type + (1 if remaining_slots > 0 and image_results else 0)
+        for img_result in image_results[:image_limit]:
             all_results.append({
                 "content": img_result.page_content,
                 "metadata": img_result.metadata,
@@ -67,9 +96,12 @@ def enhanced_rag_query(query: str,
                 "relevance_tier": "medium",  # Default value since ImageResult doesn't have this field
                 "image_base64": img_result.image_base64  # Add the base64 data
             })
+        if remaining_slots > 0 and image_results:
+            remaining_slots -= 1
         
-        # Add results from table search
-        for table_result in search_results.get("tables", []):
+        # Add results from table search (with limit)
+        table_limit = base_limit_per_type + (1 if remaining_slots > 0 and table_results else 0)
+        for table_result in table_results[:table_limit]:
             all_results.append({
                 "content": table_result["page_content"],
                 "metadata": table_result["metadata"], 
@@ -78,7 +110,11 @@ def enhanced_rag_query(query: str,
                 "relevance_tier": table_result.get("relevance_tier", "medium")
             })
         
-        logger.info(f"Combinati {len(all_results)} risultati totali per generazione risposta")
+        
+        logger.info(f"Results after balancing: {len(all_results)} total chunks "
+                   f"(text: {len([r for r in all_results if r['content_type'] == 'text'])}, "
+                   f"images: {len([r for r in all_results if r['content_type'] == 'image'])}, "
+                   f"tables: {len([r for r in all_results if r['content_type'] == 'table'])})")
 
         # Build the final documents list with metadata and content
         documents = []
@@ -117,10 +153,9 @@ def enhanced_rag_query(query: str,
         # Sort documents by score in descending order
         documents.sort(key=lambda x: x.get("score", 0), reverse=True)
         
-        # Apply global limit to prevent too many results
-        MAX_GLOBAL_DOCUMENTS = 10  # Limit total documents for LLM and UI
+        # Final safety check - should not be needed but just in case
         if len(documents) > MAX_GLOBAL_DOCUMENTS:
-            logger.info(f"Limiting documents from {len(documents)} to {MAX_GLOBAL_DOCUMENTS}")
+            logger.warning(f"Safety limit triggered: reducing documents from {len(documents)} to {MAX_GLOBAL_DOCUMENTS}")
             documents = documents[:MAX_GLOBAL_DOCUMENTS]
         
         # Log the content types and detected intent  
@@ -131,6 +166,7 @@ def enhanced_rag_query(query: str,
         
         logger.info(f"Content retrieved by type: {content_types}")
         logger.info(f"Intent: '{detected_intent}' - Strategy: {query_metadata.get('search_strategy', 'N/A')}")
+        logger.info(f"FINAL: Using {len(documents)} documents out of max {MAX_GLOBAL_DOCUMENTS} allowed")
         
         # Documents to LLM to generate response
         # Unified context for LLM

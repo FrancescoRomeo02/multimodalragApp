@@ -34,40 +34,42 @@ DEFAULT_EMBEDDING_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
 DEFAULT_BATCH_SIZE = 32
 FALLBACK_TEXT_FOR_EMPTY_DOC = " "
 
-# Score thresholds ottimizzati per tipo di contenuto
-SCORE_THRESHOLD_TEXT = 0.65      # Testo ha semantica più flessibile
-SCORE_THRESHOLD_IMAGES = 0.70    # Immagini richiedono match più precisi  
-SCORE_THRESHOLD_TABLES = 0.60    # Tabelle spesso hanno match più difficili
-SCORE_THRESHOLD_MIXED = 0.65     # Per ricerche miste
+# Score thresholds più alti per essere più selettivi
+SCORE_THRESHOLD_TEXT = 0.70      # Aumentato da 0.65 a 0.70
+SCORE_THRESHOLD_IMAGES = 0.75    # Aumentato da 0.70 a 0.75  
+SCORE_THRESHOLD_TABLES = 0.65    # Aumentato da 0.60 a 0.65
+SCORE_THRESHOLD_MIXED = 0.70     # Aumentato da 0.65 a 0.70
 
-# Parametri adattivi
-ADAPTIVE_K_MIN = 3               # Minimo risultati da restituire
-ADAPTIVE_K_MAX = 15              # Massimo risultati da considerare
+# Parametri adattivi - OTTIMIZZATI per massimo 7 risultati totali
+ADAPTIVE_K_MIN = 2               # Minimo risultati da restituire
+ADAPTIVE_K_MAX = 4               # Massimo risultati per tipo (4*3 = 12, ma con balancing = max 7)
 
-# Strategies for different query types
+# Strategies for different query types - K OTTIMIZZATI PER 7 RISULTATI TOTALI
 RAG_PARAMS: Dict[str, Dict[str, Any]] = {
     "factual": {
-        "k": 7,
-        "score_threshold": 0.50,
+        "k": 3,                  # Ridotto per essere precisi
+        "score_threshold": 0.60, 
         "description": "For precise factual questions"
     },
     "exploratory": {
-        "k": 7,
-        "score_threshold": 0.45,
+        "k": 4,                  # Leggermente più alto per esplorazione
+        "score_threshold": 0.55, 
         "description": "For broad exploratory searches"
     },
     "technical": {
-        "k": 7,
-        "score_threshold": 0.55,
+        "k": 3,                  # Preciso per domande tecniche
+        "score_threshold": 0.65, 
         "description": "For specific technical queries"
     },
     "multimodal": {
-        "k": 7,
-        "score_threshold": 0.40,
+        "k": 3,                  # Bilanciato per multimodal
+        "score_threshold": 0.50, 
         "description": "For searches including text, images and tables"
     }
 }
 
+# global limit to prevent too many results
+MAX_GLOBAL_DOCUMENTS = 7
 
 # Logging Configuration
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")

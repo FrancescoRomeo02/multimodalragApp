@@ -113,7 +113,7 @@ class PaperEvaluator:
                 selected_files=file_filter
             )
             
-            # Estrai i chunk (pagine) utilizzati
+            # Estrai i chunk (pagine) utilizzati - MANTIENI L'ORDINE DI SIMILARITÀ
             chunks_used = []
             if result.source_documents:
                 for doc in result.source_documents:
@@ -124,9 +124,6 @@ class PaperEvaluator:
                         except (ValueError, TypeError):
                             # Se la pagina non è un numero, ignora
                             pass
-                
-                # Ordina le pagine
-                chunks_used.sort()
             
             return {
                 "response": result.answer,
@@ -177,13 +174,8 @@ class PaperEvaluator:
             question = question_data.get('question', '')
             local_data = question_data.get('local', {})
             
-            # Controlla se deve processare questa domanda
-            existing_response = local_data.get('response', '')
-            existing_chunks = local_data.get('chunks', [])
-            
-            if not overwrite_existing and existing_response and existing_chunks:
-                logger.info(f"Saltando domanda {i+1} (già compilata)")
-                continue
+            # COMPORTAMENTO DESIDERATO: Processa sempre tutte le domande
+            # Rimuovo il controllo per saltare domande già compilate
             
             if not question:
                 logger.warning(f"Domanda vuota al index {i+1}")

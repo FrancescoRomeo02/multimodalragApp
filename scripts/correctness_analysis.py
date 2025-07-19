@@ -35,7 +35,7 @@ class CorrectnessAnalyzer:
             'poor': 0.30
         }
         
-    def load_benchmark_data(self, directory: str = "./bench_res") -> List[Dict]:
+    def load_benchmark_data(self, directory: str = "./evaluation_data") -> List[Dict]:
         """Carica tutti i file di benchmark."""
         import os
         benchmark_files = [f for f in os.listdir(directory) if f.endswith('.json')]
@@ -157,8 +157,33 @@ class CorrectnessAnalyzer:
         
         return features
     
-    def analyze_response_quality(self, morphik_response: str, local_response: str) -> Dict[str, Any]:
+    def analyze_response_quality(self, morphik_response: str, local_response: Any) -> Dict[str, Any]:
         """Analizza la qualità della risposta del modello locale."""
+        
+        # Gestisce il caso in cui local_response potrebbe essere un dizionario (formato anomalo)
+        if isinstance(local_response, dict):
+            # Estrae il testo dalla struttura JSON anomala
+            if 'response' in local_response:
+                actual_response = str(local_response['response'])
+            elif 'punti_principali' in local_response or 'conclusioni' in local_response:
+                # Combina le sezioni strutturate in un testo unico
+                parts = []
+                if 'punti_principali' in local_response:
+                    punti = local_response['punti_principali']
+                    if isinstance(punti, dict):
+                        parts.extend([str(v) for v in punti.values()])
+                    else:
+                        parts.append(str(punti))
+                if 'conclusioni' in local_response:
+                    parts.append(str(local_response['conclusioni']))
+                if 'contenuto_multimodale' in local_response:
+                    parts.append(str(local_response['contenuto_multimodale']))
+                actual_response = ' '.join(parts)
+            else:
+                actual_response = str(local_response)
+            local_response = actual_response
+        else:
+            local_response = str(local_response)
         
         # Gestisce risposte vuote o casi di non risposta
         if not local_response or local_response.strip() == "" or "non è stato in grado di rispondere" in local_response.lower():
@@ -276,7 +301,13 @@ class CorrectnessAnalyzer:
                     question_text = question_data.get('question', '')
                     
                     morphik_response = question_data['Morphik']['response']
-                    local_response = question_data['local']['response']
+                    local_response_raw = question_data['local']['response']
+                    
+                    # Gestisce il caso anomalo dove local response è un oggetto strutturato
+                    if isinstance(local_response_raw, dict):
+                        print(f"  - ATTENZIONE: Rilevato formato strutturato anomalo per {question_id}")
+                        print(f"    Sezioni trovate: {list(local_response_raw.keys())}")
+                    
                     morphik_chunks = question_data['Morphik']['chunks']
                     local_chunks = question_data['local']['chunks']
                     
@@ -284,7 +315,7 @@ class CorrectnessAnalyzer:
                     question_features = self.extract_question_features(question_text, question_id)
                     
                     # Analisi della qualità della risposta
-                    response_analysis = self.analyze_response_quality(morphik_response, local_response)
+                    response_analysis = self.analyze_response_quality(morphik_response, local_response_raw)
                     
                     # Analisi del retrieval dei chunk
                     chunk_analysis = self.analyze_chunk_retrieval(morphik_chunks, local_chunks)
@@ -377,7 +408,7 @@ class CorrectnessAnalyzer:
             'success_count': len(successes)
         }
     
-    def create_essential_visualizations(self, df: pd.DataFrame, output_dir: str = "./plots") -> None:
+    def create_essential_visualizations(self, df: pd.DataFrame, output_dir: str = "./evaluation_data/plots") -> None:
         """Crea grafici individuali separati per ogni analisi."""
         
         import os
