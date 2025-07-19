@@ -85,8 +85,8 @@ def main():
     
     args = parser.parse_args()
     
-    print(f"🚀 Starting MultimodalRAG in mode: {args.mode}")
-    print(f"📁 Working directory: {ROOT_DIR}")
+    print(f"Starting MultimodalRAG in mode: {args.mode}")
+    print(f"Working directory: {ROOT_DIR}")
     
     try:
         if args.mode == "local":
@@ -100,9 +100,9 @@ def main():
         elif args.mode == "build":
             run_docker_build()
     except KeyboardInterrupt:
-        print("\n⏹️  Application stopped...")
+        print("\nApplication stopped...")
     except subprocess.CalledProcessError as e:
-        print(f"❌ Error during execution: {e}")
+        print(f"Error during execution: {e}")
         sys.exit(1)
 
 

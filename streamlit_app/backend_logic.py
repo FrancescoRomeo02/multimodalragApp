@@ -40,12 +40,12 @@ def delete_source(filename: str) -> tuple[bool, str]:
     Returns (success, message).
     """
     try:
-        # 1. Delete from Qdrant
+        # Delete from Qdrant
         success_qdrant, msg_qdrant = qdrant_manager.delete_by_source(filename)
         if not success_qdrant:
             raise Exception(f"Qdrant error: {msg_qdrant}")
 
-        # 2. Delete from disk
+        # Delete from disk
         file_path = os.path.join(RAW_DATA_PATH, filename)
         if os.path.exists(file_path):
             os.remove(file_path)

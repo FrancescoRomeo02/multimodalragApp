@@ -61,11 +61,11 @@ python correctness_analysis.py
 ```
 
 **Il script esegue automaticamente:**
-- ✅ Analisi della qualità delle risposte tramite SBERT
-- ✅ Classificazione in livelli di correttezza
-- ✅ Identificazione di pattern di fallimento e successo  
-- ✅ Generazione di 13 grafici individuali
-- ✅ Report dettagliato in markdown
+-  Analisi della qualità delle risposte tramite SBERT
+-  Classificazione in livelli di correttezza
+-  Identificazione di pattern di fallimento e successo
+-  Generazione di 13 grafici individuali
+-  Report dettagliato in markdown
 
 **Output generati:**
 - `correctness_analysis_detailed.csv` - Dati dettagliati per ogni domanda
@@ -109,11 +109,11 @@ python correctness_analysis.py
 ## 📊 Metriche e Soglie
 
 ### Classificazione della Correttezza:
-- **🏆 Eccellente**: ≥ 0.85 (Qualità molto alta)
-- **✅ Buono**: ≥ 0.70 (Qualità accettabile) 
-- **⚠️ Accettabile**: ≥ 0.50 (Necessita miglioramenti)
-- **❌ Scarso**: ≥ 0.30 (Problematico)
-- **🚫 Molto Scarso**: < 0.30 (Critico)
+- **Eccellente**: ≥ 0.85 (Qualità molto alta)
+- **Buono**: ≥ 0.70 (Qualità accettabile)
+- **Accettabile**: ≥ 0.50 (Necessita miglioramenti)
+- **Scarso**: ≥ 0.30 (Problematico)
+- **Molto Scarso**: < 0.30 (Critico)
 
 ### KPI di Sistema:
 - **Tasso Buono+**: Target ≥ 50%
@@ -127,46 +127,20 @@ python correctness_analysis.py
 - **Analisi Linguistica**: Lunghezza, terminologia tecnica
 - **Pattern Analysis**: Tipo domanda, difficoltà, argomento
 
-## 🎯 Checklist di Controllo Qualità
+## Checklist di Controllo Qualità
 
-**✅ Sistema Sano:**
+**Sistema Sano:**
 - [ ] Similarità media > 0.60
 - [ ] Tasso Buono+ > 50%
 - [ ] Correlazione retrieval-performance > 0.4
 - [ ] Pochi casi di non-risposta (< 5%)
 
-**⚠️ Richiede Attenzione:**
+**Richiede Attenzione:**
 - [ ] Similarità media 0.40-0.60
 - [ ] Alcuni argomenti problematici
 - [ ] Alta variabilità tra documenti
 
-**🚨 Critico:**
+**Critico:**
 - [ ] Similarità media < 0.40
 - [ ] Molti casi di non-risposta
 - [ ] Nessuna correlazione retrieval-performance
-
-## 🔧 Troubleshooting
-
-### Problemi Comuni:
-1. **Dipendenze mancanti**: Installare tutte le librerie richieste
-2. **File benchmark non trovati**: Verificare la struttura della cartella `bench_res/`
-3. **Grafici non generati**: Controllare i permessi della cartella `plots/`
-
-### Debug:
-```python
-# Per debug dettagliato, modificare nel codice:
-import logging
-logging.basicConfig(level=logging.DEBUG)
-```
-
----
-
-## 📚 Documentazione Aggiuntiva
-
-- **`GUIDA_GRAFICI_COMPLETA.md`** - Guida dettagliata per interpretare tutti i grafici
-- **`CORRECTNESS_REPORT.md`** - Report automaticamente generato con risultati e raccomandazioni
-- **`correctness_analysis_detailed.csv`** - Dati grezzi per analisi personalizzate
-
----
-
-*Sistema di analisi RAG sviluppato per valutazione comparativa delle performance di modelli locali vs benchmark*

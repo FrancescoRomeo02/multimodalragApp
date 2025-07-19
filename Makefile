@@ -1,10 +1,9 @@
 # Makefile to automate common tasks
-.PHONY: help install test lint format clean setup-dev run docker-build docker-run test-structure
+.PHONY: help install lint format clean setup-dev run docker-build docker-run
 
 # Variables
 PYTHON := python3
 PIP := pip
-PYTEST := pytest
 BLACK := black
 FLAKE8 := flake8
 ISORT := isort
@@ -20,7 +19,7 @@ install: ## Install all dependencies
 
 install-dev: ## Install development dependencies
 	$(PIP) install -r requirements.txt
-	$(PIP) install pre-commit black flake8 isort bandit safety pytest pytest-cov mypy
+	$(PIP) install pre-commit black flake8 isort bandit safety mypy
 	pre-commit install
 
 setup-dev: install-dev ## Complete development environment setup
@@ -40,8 +39,22 @@ format-check: ## Check formatting without making changes
 	$(BLACK) --check src/ streamlit_app/ tests/ scripts/ --line-length=88
 	$(ISORT) --check-only src/ streamlit_app/ tests/ scripts/ --profile black
 
-quality-check: ## Run full quality checks
-	$(PYTHON) scripts/quality_check.py
+check-all: lint format-check security-check ## Run all quality checks
+	@echo "All quality checks passed!"
+
+quality-check: check-all ## Run full quality checks
+	@echo "Quality check completed!"
+
+# === INDEXING COMMANDS ===
+reindex: ## Reindex all documents in data/raw/
+	$(PYTHON) -c "from src.pipeline.indexer_service import DocumentIndexer; from src.utils.embedder import AdvancedEmbedder; import glob; indexer = DocumentIndexer(AdvancedEmbedder()); pdf_files = glob.glob('data/raw/*.pdf'); indexer.index_files(pdf_files, force_recreate=True); print(f'Reindexed {len(pdf_files)} files')"
+
+# === EVALUATION COMMANDS ===
+evaluate: ## Run automatic evaluation on benchmark files
+	$(PYTHON) scripts/auto_evaluate_papers.py
+
+benchmark: ## Run benchmark analysis and generate plots
+	$(PYTHON) scripts/correctness_analysis.py
 
 # === RUN COMMANDS (integrated with scripts/run.py) ===
 run: ## Start the application in local mode
@@ -76,7 +89,6 @@ clean: ## Clean temporary files and cache
 	find . -type d -name "__pycache__" -delete
 	find . -type d -name "*.egg-info" -exec rm -rf {} +
 	find . -name ".DS_Store" -delete
-	rm -rf .pytest_cache/
 	rm -rf htmlcov/
 	rm -rf .coverage
 	rm -rf temp/

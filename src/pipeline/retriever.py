@@ -268,4 +268,3 @@ def enhanced_rag_query(query: str,
             retrieved_count=0,
             filters_applied={"error": str(e)}
         )
-

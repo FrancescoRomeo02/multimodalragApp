@@ -41,24 +41,24 @@ def upload_widget(indexer):
         col1, col2, col3 = st.columns([1, 1, 1])
         
         with col1:
-            if st.button("🚀 Avvia Caricamento", type="primary"):
+            if st.button("Avvia Caricamento", type="primary"):
                 if uploader.start_upload_sequence(uploaded_files):
-                    st.success("✅ Caricamento sequenziale avviato!")
+                    st.success("Caricamento sequenziale avviato!")
                     st.rerun()
                 else:
-                    st.error("❌ Errore nell'avvio del caricamento")
+                    st.error("Errore nell'avvio del caricamento")
         
         with col2:
-            st.info("⏱️ Ritardo: 30s")
+            st.info("Ritardo: 30s")
         
         with col3:
             estimated_time = len(uploaded_files) * 30
-            st.info(f"⏰ Tempo stimato: {estimated_time//60}m {estimated_time%60}s")
+            st.info(f"Tempo stimato: {estimated_time//60}m {estimated_time%60}s")
 
     # Interfaccia durante il processing
     elif status['in_progress']:
         # Header con informazioni generali
-        st.markdown(f"### 📤 Caricamento in corso...")
+        st.markdown(f"### Caricamento in corso...")
         
         # Progress bar principale
         progress = uploader.get_progress_percentage()
@@ -88,34 +88,34 @@ def upload_widget(indexer):
                         
                         # Mostra risultato
                         if success:
-                            st.success(f"✅ {message}")
+                            st.success(f"Ok: {message}")
                         else:
-                            st.error(f"❌ {message}")
-                        
+                            st.error(f"Error: {message}")
+
                         st.rerun()
                 else:
                     # Mostra countdown
                     time_remaining = status.get('time_until_next', 0)
                     if time_remaining > 0:
-                        st.info(f"⏳ Prossimo file tra: {uploader.format_time_remaining(time_remaining)}")
+                        st.info(f"Prossimo file tra: {uploader.format_time_remaining(time_remaining)}")
                         time.sleep(1)
                         st.rerun()
             
             with col2:
-                if st.button("⏹️ Ferma", type="secondary"):
+                if st.button("Stop  ", type="secondary"):
                     uploader.stop_upload_sequence()
-                    st.warning("⚠️ Caricamento interrotto")
+                    st.warning("Upload interrotto")
                     st.rerun()
         
         # Risultati dei file già processati
         if status['results']:
-            with st.expander(f"📊 Risultati ({len(status['results'])} file processati)", expanded=False):
+            with st.expander(f"Results ({len(status['results'])} processed files)", expanded=False):
                 for result in status['results']:
-                    status_icon = "✅" if result["success"] else "❌"
+                    status_icon = "Ok" if result["success"] else "Error"
                     st.write(f"{status_icon} **{result['file_name']}** - {result['timestamp']}")
                     if not result["success"]:
-                        st.caption(f"⚠️ {result['message']}")
-        
+                        st.caption(f"Alert: {result['message']}")
+
         # Auto-refresh durante il processing
         if not status['is_finished']:
             # Usa un container per il refresh automatico
@@ -124,42 +124,42 @@ def upload_widget(indexer):
 
     # Interfaccia finale quando tutto è completato
     elif status['results'] and not status['in_progress']:
-        st.success("🎉 Caricamento sequenziale completato!")
-        
+        st.success("Sequential upload completed!")
+
         # Statistiche finali
         stats = uploader.get_statistics()
         
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("📁 File Totali", stats['total'])
+            st.metric("Total Files", stats['total'])
         with col2:
-            st.metric("✅ Successi", stats['successful'])
+            st.metric("Successes", stats['successful'])
         with col3:
-            st.metric("❌ Fallimenti", stats['failed'])
-        
+            st.metric("Failures", stats['failed'])
+
         # Dettagli risultati
         if stats['total'] > 0:
-            with st.expander("📋 Dettagli Risultati", expanded=False):
+            with st.expander("Details", expanded=False):
                 for result in status['results']:
-                    status_icon = "✅" if result["success"] else "❌"
+                    status_icon = "Ok" if result["success"] else "Error"
                     st.write(f"{status_icon} **{result['file_name']}** - {result['timestamp']}")
                     if not result["success"]:
-                        st.caption(f"⚠️ {result['message']}")
-        
+                        st.caption(f"Alert: {result['message']}")
+
         # Controlli finali
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("🔄 Nuovo Caricamento", type="primary"):
+            if st.button("New Upload", type="primary"):
                 uploader.reset_upload_sequence()
                 st.rerun()
         
         with col2:
             if stats['failed'] > 0:
-                if st.button("🔄 Riprova Fallimenti", type="secondary"):
+                if st.button("Retry Failures", type="secondary"):
                     # Logica per riprovare solo i file falliti
                     failed_files = [r for r in status['results'] if not r['success']]
                     if failed_files:
-                        st.info(f"🔄 Riprovando {len(failed_files)} file falliti...")
+                        st.info(f"Retrying {len(failed_files)} failed files...")
                         # Qui potresti implementare la logica per riprovare solo i fallimenti
 
 

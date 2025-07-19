@@ -4,8 +4,8 @@ Utilità per il caricamento sequenziale con timer e stato persistente.
 
 import time
 import streamlit as st
-from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
+from datetime import datetime
+from typing import List, Dict, Any
 
 class SequentialUploader:
     """Gestisce il caricamento sequenziale di file con ritardi configurabili."""

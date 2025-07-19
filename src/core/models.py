@@ -65,16 +65,3 @@ class RetrievalResult(BaseModel):
     query_time_ms: Optional[int] = Field(None, description="Query execution time in milliseconds")
     retrieved_count: Optional[int] = Field(None, description="Number of retrieved documents")
     filters_applied: Optional[Dict] = Field(None, description="Filters applied to search")
-
-class ColorSpace(Enum):
-    GRAY = 1
-    RGB = 2
-    CMYK = 3
-    UNKNOWN = 4
-
-    @classmethod
-    def from_fitz(cls, cs_num: int):
-        try:
-            return cls(cs_num).name.lower()
-        except ValueError:
-            return cls.UNKNOWN.name.lower()

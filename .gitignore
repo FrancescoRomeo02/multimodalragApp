@@ -23,7 +23,6 @@ htmlcov/
 coverage.xml
 *.cover
 .hypothesis/
-.pytest_cache/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

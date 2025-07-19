@@ -22,7 +22,6 @@
 * **OCR and Image Analysis** with automatic captioning
 * **Integrated Monitoring & Performance Metrics**
 * **Containerized Deployment** with Docker & Docker Compose
-* **Comprehensive Test Suite** with coverage support
 
 ---
 
@@ -154,11 +153,14 @@ make run             # Launch Streamlit App
 make help             # List all commands
 make setup-dev        # Full local dev setup
 make run              # Launch the app
-make run-indexer      # Re-index all documents
+make reindex          # Re-index all documents
+make evaluate         # Run automatic evaluation
+make benchmark        # Run benchmark analysis
 make clean            # Clean temporary files
 make docker-build     # Build the Docker image
 make ci               # Run CI pipeline
 ```
+Other commands include `lint`, `format`, `check-all`, `bandit`, and more for code quality checks can be found in the Makefile or by running `make help`.
 
 ---
 
@@ -195,7 +197,7 @@ multimodalrag/
 ## Running Indexer Manually
 
 ```bash
-python scripts/reindex_with_context.py
+make reindex
 ```
 
 ---

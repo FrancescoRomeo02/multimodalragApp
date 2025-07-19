@@ -4,9 +4,9 @@ Questa guida spiega tutti i grafici generati dal sistema di analisi delle perfor
 
 ---
 
-## 📈 GRAFICI DI PERFORMANCE GENERALE
+## GRAFICI DI PERFORMANCE GENERALE
 
-### 📊 `01_performance_per_difficolta.png` - Performance per Livello di Difficoltà
+### `01_performance_per_difficolta.png` - Performance per Livello di Difficoltà
 - **Scopo**: Mostra come la performance del modello varia con la difficoltà delle domande (1=facile → 10=difficile)
 - **Cosa osservare**: 
   - Trend generale: il modello dovrebbe performance meglio su domande facili
@@ -14,7 +14,7 @@ Questa guida spiega tutti i grafici generati dal sistema di analisi delle perfor
   - Deviazione standard: indica la consistenza del modello per ogni livello
 - **Interpretazione**: Barre più alte = migliore performance. Errori più piccoli = maggiore consistenza.
 
-### 📊 `02_performance_per_argomento.png` - Performance per Macro-Argomento  
+### `02_performance_per_argomento.png` - Performance per Macro-Argomento  
 - **Scopo**: Identifica gli argomenti su cui il modello eccelle o fallisce
 - **Categorie**: Energia, Tecnologia, Geografia, Matematica, Ambiente, Ingegneria, Economia, Fisica, Generale
 - **Cosa osservare**:
@@ -23,7 +23,7 @@ Questa guida spiega tutti i grafici generati dal sistema di analisi delle perfor
   - Numero di domande per argomento (n=X)
 - **Interpretazione**: Aiuta a identificare domini di conoscenza da potenziare.
 
-### 📊 `03_heatmap_argomento_difficolta.png` - Heatmap Difficoltà vs Macro-Argomento
+### `03_heatmap_argomento_difficolta.png` - Heatmap Difficoltà vs Macro-Argomento
 - **Scopo**: Visualizza l'interazione tra difficoltà e argomento
 - **Colori**: Verde = buona performance, Rosso = performance scarsa
 - **Cosa osservare**:
@@ -32,7 +32,7 @@ Questa guida spiega tutti i grafici generati dal sistema di analisi delle perfor
   - Pattern diagonali o specifici
 - **Interpretazione**: Identifica se certi argomenti sono difficili solo ad alti livelli di difficoltà.
 
-### 📊 `04_distribuzione_performance.png` - Distribuzione Performance Globale
+### `04_distribuzione_performance.png` - Distribuzione Performance Globale
 - **Scopo**: Mostra la distribuzione complessiva delle performance con soglie di qualità
 - **Linee di riferimento**:
   - Verde: Soglia eccellente (≥0.85)
@@ -43,9 +43,9 @@ Questa guida spiega tutti i grafici generati dal sistema di analisi delle perfor
 
 ---
 
-## 🔬 GRAFICI DI ANALISI DETTAGLIATA
+## GRAFICI DI ANALISI DETTAGLIATA
 
-### 📊 `05_correlazione_chunk_performance.png` - Correlazione Qualità Retrieval vs Performance
+### `05_correlazione_chunk_performance.png` - Correlazione Qualità Retrieval vs Performance
 - **Scopo**: Valuta se un migliore retrieval dei chunk porta a migliori risposte
 - **Assi**: X = F1 Score del retrieval, Y = Similarità semantica della risposta
 - **Linea rossa**: Tendenza di correlazione
@@ -55,7 +55,7 @@ Questa guida spiega tutti i grafici generati dal sistema di analisi delle perfor
   - Valore di correlazione mostrato
 - **Interpretazione**: Alta correlazione indica che il problema è nel retrieval, bassa correlazione indica problemi nella generazione.
 
-### 📊 `06_lunghezza_per_qualita.png` - Rapporto Lunghezza per Qualità Risposta
+### `06_lunghezza_per_qualita.png` - Rapporto Lunghezza per Qualità Risposta
 - **Scopo**: Analizza se risposte più lunghe/corte sono associate a migliore/peggiore qualità
 - **Categorie**: Molto Scarso, Scarso, Accettabile, Buono, Eccellente
 - **Boxplot**: Mostra distribuzione dei rapporti di lunghezza per ogni categoria
@@ -65,7 +65,7 @@ Questa guida spiega tutti i grafici generati dal sistema di analisi delle perfor
   - Valori < 0.5 = risposte troppo brevi
 - **Interpretazione**: Aiuta a calibrare la lunghezza ideale delle risposte.
 
-### 📊 `07_performance_per_tipo_domanda.png` - Performance per Tipo di Domanda
+### `07_performance_per_tipo_domanda.png` - Performance per Tipo di Domanda
 - **Scopo**: Identifica tipologie di domande problematiche
 - **Tipi**: Definitoria, Comparativa, Procedurale, Analitica, Enumerativa, Altra
 - **Cosa osservare**:
@@ -74,8 +74,7 @@ Questa guida spiega tutti i grafici generati dal sistema di analisi delle perfor
   - Variabilità all'interno del tipo
 - **Interpretazione**: Suggerisce strategie di prompting specifiche per tipo.
 
-### 📊 `08_coverage_termini_tecnici.png` - Coverage Termini Tecnici per Argomento
-### 📊 `08_coverage_termini_tecnici.png` - Coverage Termini Tecnici per Argomento
+### `08_coverage_termini_tecnici.png` - Coverage Termini Tecnici per Argomento
 - **Scopo**: Valuta se il modello usa la terminologia tecnica appropriata
 - **Metrica**: Rapporto tra termini tecnici nella risposta locale vs Morphik
 - **Cosa osservare**:
@@ -86,9 +85,9 @@ Questa guida spiega tutti i grafici generati dal sistema di analisi delle perfor
 
 ---
 
-## 🚨 GRAFICI DI ANALISI CASI CRITICI
+## GRAFICI DI ANALISI CASI CRITICI
 
-### 📊 `09_casi_non_risposta.png` - Casi di Non-Risposta  
+### `09_casi_non_risposta.png` - Casi di Non-Risposta
 - **Scopo**: Identifica quando il modello non riesce a fornire alcuna risposta (similarità = 0)
 - **Visualizzazione**: Conteggio per macro-argomento dei casi di fallimento totale
 - **Cosa osservare**:
@@ -97,7 +96,7 @@ Questa guida spiega tutti i grafici generati dal sistema di analisi delle perfor
   - Volume totale di fallimenti
 - **Interpretazione**: Indica problemi critici nel retrieval o nella generazione che impediscono qualsiasi output.
 
-### 📊 `10_peggiori_performance.png` - Peggiori Performance Effettive
+### `10_peggiori_performance.png` - Peggiori Performance Effettive
 - **Scopo**: Identifica i casi con le performance più basse tra quelli che hanno effettivamente risposto
 - **Esclusioni**: Non include i casi di non-risposta (similarità = 0)
 - **Cosa osservare**:
@@ -106,7 +105,7 @@ Questa guida spiega tutti i grafici generati dal sistema di analisi delle perfor
   - Confronto con soglie di accettabilità
 - **Interpretazione**: Mostra dove il modello risponde ma con qualità molto scarsa, suggerendo problemi di generazione piuttosto che retrieval.
 
-### 📊 `11_distribuzione_per_difficolta.png` - Distribuzione per Difficoltà
+### `11_distribuzione_per_difficolta.png` - Distribuzione per Difficoltà
 - **Scopo**: Boxplot che mostra la variabilità per categoria di difficoltà
 - **Categorie**: Facile (1-3), Media (4-7), Difficile (8-10)
 - **Cosa osservare**:
