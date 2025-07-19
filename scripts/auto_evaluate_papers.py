@@ -118,12 +118,18 @@ class PaperEvaluator:
             if result.source_documents:
                 for doc in result.source_documents:
                     page = doc.get('page', 'N/A')
-                    if page != 'N/A' and page not in chunks_used:
+                    if page != 'N/A':
                         try:
-                            chunks_used.append(int(page))
+                            page_int = int(page)
+                            # Mantieni tutti i chunk, anche duplicati (poi rimuoveremo duplicati preservando ordine)
+                            if page_int not in chunks_used:
+                                chunks_used.append(page_int)
                         except (ValueError, TypeError):
                             # Se la pagina non è un numero, ignora
+                            logger.warning(f"Pagina non numerica ignorata: {page}")
                             pass
+            
+            logger.info(f"Chunks estratti: {chunks_used} (da {len(result.source_documents)} documenti)")
             
             return {
                 "response": result.answer,

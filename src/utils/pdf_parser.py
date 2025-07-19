@@ -93,11 +93,11 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     # Create more specific element_id to avoid collisions
                     if "Table" in element_type:
                         # For tables, use content hash + page number
-                        page_num = getattr(el.metadata, 'page_number', 0) if hasattr(el, 'metadata') else 0
+                        page_num = getattr(el.metadata, 'page_number', 1) if hasattr(el, 'metadata') else 1
                         element_id = hash(f"table_{element_content}_{page_num}")
                     elif "Image" in element_type:
                         # For images, use more specific identifiers
-                        page_num = getattr(el.metadata, 'page_number', 0) if hasattr(el, 'metadata') else 0
+                        page_num = getattr(el.metadata, 'page_number', 1) if hasattr(el, 'metadata') else 1
                         image_base64 = getattr(el.metadata, 'image_base64', '') if hasattr(el, 'metadata') else ''
                         coordinates = getattr(el.metadata, 'coordinates', '') if hasattr(el, 'metadata') else ''
                         
@@ -120,7 +120,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                             
                     elif "Image" in element_type:
                         has_special_elements = True
-                        page_num = getattr(el.metadata, 'page_number', 0) if hasattr(el, 'metadata') else 0
+                        page_num = getattr(el.metadata, 'page_number', 1) if hasattr(el, 'metadata') else 1
                         
                         if element_id not in unique_images:
                             metadata = _extract_metadata_safely(el, 'page_number', 'image_base64', 'coordinates')
@@ -148,7 +148,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     "text": text,
                     "metadata": {
                         "source": os.path.basename(pdf_path),
-                        "page": text.metadata.page_number if text.metadata.page_number is not None else 0,
+                        "page": text.metadata.page_number if text.metadata.page_number is not None else 1,
                         "content_type": "text"
                     }
                 })
@@ -157,7 +157,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
             try:
                 table_counter += 1
                 table_id = f"table_{table_counter}"
-                page_num = table.metadata.page_number if table.metadata.page_number is not None else 0
+                page_num = table.metadata.page_number if table.metadata.page_number is not None else 1
                     
                 table_element = {
                     "table_html": table.metadata.text_as_html,
@@ -178,7 +178,7 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
 
         for img_index, img_info in enumerate(images):
                 try:
-                    page_num = img_info.metadata.page_number if img_info.metadata.page_number is not None else 0
+                    page_num = img_info.metadata.page_number if img_info.metadata.page_number is not None else 1
                     width = int(img_info.metadata.coordinates.system.width) if img_info.metadata.coordinates.system.width else 0
                     height = int(img_info.metadata.coordinates.system.height) if img_info.metadata.coordinates.system.height else 0
                     if not is_valid_image(width, height):
@@ -200,11 +200,11 @@ def parse_pdf_elements(pdf_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[s
                     ]
                     comprehensive_caption = " | ".join([p for p in caption_parts if p])
                     
-                    logger.debug(f"Image {img_index+1} page {page_num+1} ({image_id}) - Caption: {comprehensive_caption}")
+                    logger.debug(f"Image {img_index+1} page {page_num} ({image_id}) - Caption: {comprehensive_caption}")
                     
                     image_metadata = {
                         "source": filename,
-                        "page": page_num + 1,
+                        "page": page_num,
                         "content_type": "image",
                         "image_id": image_id,
                         "image_caption": comprehensive_caption

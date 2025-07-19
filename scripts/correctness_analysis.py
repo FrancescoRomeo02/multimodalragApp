@@ -261,11 +261,27 @@ class CorrectnessAnalyzer:
                 'chunk_difference': -len(morphik_chunks) if morphik_chunks else 0
             }
         
-        # Normalizza i chunk locali (da 1-based a 0-based)
-        local_chunks_normalized = [c - 1 for c in local_chunks if isinstance(c, int) and c > 0]
+        # Normalizza i chunk per il confronto - assumendo che entrambi siano 0-based
+        # Morphik usa 0-based e local usa 1-based, normalizziamo local
+        local_chunks_for_comparison = []
+        morphik_chunks_for_comparison = morphik_chunks if morphik_chunks else []
         
-        morphik_set = set(morphik_chunks) if morphik_chunks else set()
-        local_set = set(local_chunks_normalized)
+        # Verifica se i chunk locali sono 1-based (contengono valori > max morphik chunks)
+        if local_chunks and morphik_chunks:
+            max_morphik = max(morphik_chunks)
+            min_local = min(local_chunks)
+            
+            # Se il minimo locale è > 0 e sembra essere 1-based, normalizza
+            if min_local > 0 and max(local_chunks) > max_morphik:
+                local_chunks_for_comparison = [c - 1 for c in local_chunks if isinstance(c, int) and c > 0]
+                print(f"  - NORMALIZZAZIONE: chunk locali da 1-based a 0-based")
+            else:
+                local_chunks_for_comparison = [c for c in local_chunks if isinstance(c, int) and c >= 0]
+        else:
+            local_chunks_for_comparison = [c for c in local_chunks if isinstance(c, int) and c >= 0]
+        
+        morphik_set = set(morphik_chunks_for_comparison)
+        local_set = set(local_chunks_for_comparison)
         
         intersection = len(morphik_set.intersection(local_set))
         union = len(morphik_set.union(local_set))
@@ -280,9 +296,9 @@ class CorrectnessAnalyzer:
             'chunk_recall': max(0.0, recall),
             'chunk_f1': max(0.0, f1),
             'chunk_jaccard': max(0.0, jaccard),
-            'morphik_chunk_count': len(morphik_chunks) if morphik_chunks else 0,
-            'local_chunk_count': len(local_chunks),
-            'chunk_difference': len(local_chunks) - (len(morphik_chunks) if morphik_chunks else 0)
+            'morphik_chunk_count': len(morphik_chunks_for_comparison),
+            'local_chunk_count': len(local_chunks_for_comparison),
+            'chunk_difference': len(local_chunks_for_comparison) - len(morphik_chunks_for_comparison)
         }
     
     def perform_correctness_analysis(self) -> pd.DataFrame:
@@ -542,32 +558,89 @@ class CorrectnessAnalyzer:
         plt.savefig(os.path.join(output_dir, '04_distribuzione_performance.png'), dpi=300, bbox_inches='tight')
         plt.close()
         
-        # GRAFICO 5: Correlazione Chunk vs Performance
-        plt.figure(figsize=(10, 6))
+        # GRAFICO 5: Qualità del Retriever
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
         
-        # Salva dati CSV per Grafico 5
-        correlation_data = df[['chunk_f1', 'semantic_similarity', 'question_id', 'paper']].copy()
-        correlation_data.to_csv(os.path.join(output_dir, '05_correlazione_chunk_performance_data.csv'), index=False)
-        
-        plt.scatter(df['chunk_f1'], df['semantic_similarity'], alpha=0.6, s=50)
-        plt.xlabel('F1 Score Chunk Retrieval')
-        plt.ylabel('Similarità Semantica')
-        plt.title('Correlazione: Qualità Retrieval vs Performance', fontsize=16, fontweight='bold')
-        plt.grid(True, alpha=0.3)
+        # Subplot 1: Chunk Similarity vs Semantic Similarity (principale)
+        scatter = ax1.scatter(df['chunk_jaccard'], df['semantic_similarity'], 
+                             alpha=0.7, s=80, c=df['chunk_f1'], cmap='RdYlGn', 
+                             edgecolors='black', linewidth=0.5)
         
         # Aggiungi linea di tendenza
-        z = np.polyfit(df['chunk_f1'], df['semantic_similarity'], 1)
+        z = np.polyfit(df['chunk_jaccard'], df['semantic_similarity'], 1)
         p = np.poly1d(z)
-        plt.plot(df['chunk_f1'], p(df['chunk_f1']), "r--", alpha=0.8)
+        ax1.plot(df['chunk_jaccard'], p(df['chunk_jaccard']), "r--", alpha=0.8, linewidth=2)
         
         # Calcola correlazione
-        correlation = df['chunk_f1'].corr(df['semantic_similarity'])
-        plt.text(0.05, 0.95, f'Correlazione: {correlation:.3f}', 
-                transform=plt.gca().transAxes, fontsize=12, 
-                bbox=dict(boxstyle="round", facecolor='wheat', alpha=0.5))
+        correlation = df['chunk_jaccard'].corr(df['semantic_similarity'])
+        ax1.text(0.05, 0.95, f'Correlazione: {correlation:.3f}', 
+                transform=ax1.transAxes, fontsize=12, fontweight='bold',
+                bbox=dict(boxstyle="round", facecolor='lightblue', alpha=0.8))
+        
+        ax1.set_xlabel('Similarità Chunk (Jaccard)', fontsize=12)
+        ax1.set_ylabel('Similarità Semantica Risposte', fontsize=12)
+        ax1.set_title('Chunk Similarity vs Qualità Risposte', fontsize=14, fontweight='bold')
+        ax1.grid(True, alpha=0.3)
+        ax1.set_xlim(0, 1)
+        ax1.set_ylim(0, 1)
+        
+        # Colorbar per F1 score
+        cbar1 = plt.colorbar(scatter, ax=ax1)
+        cbar1.set_label('F1 Score Chunk', fontsize=10)
+        
+        # Subplot 2: Distribuzione qualità retriever
+        # Crea categorie di qualità retriever
+        df['retriever_quality'] = pd.cut(df['chunk_jaccard'], 
+                                       bins=[0, 0.1, 0.3, 0.5, 1.0],
+                                       labels=['Bassa (0-10%)', 'Media (10-30%)', 
+                                              'Buona (30-50%)', 'Ottima (50%+)'])
+        
+        quality_counts = df['retriever_quality'].value_counts()
+        colors = ['#ff4444', '#ffaa44', '#44aa44', '#44ff44']
+        
+        wedges, texts, autotexts = ax2.pie(quality_counts.values, 
+                                          labels=quality_counts.index,
+                                          colors=colors, autopct='%1.1f%%',
+                                          startangle=90)
+        
+        ax2.set_title('Distribuzione Qualità Retriever\n(Similarità Chunk)', 
+                     fontsize=14, fontweight='bold')
+        
+        # Aggiungi statistiche nel pie chart
+        stats_text = f"""
+        Media Jaccard: {df['chunk_jaccard'].mean():.3f}
+        Media F1: {df['chunk_f1'].mean():.3f}
+        Match perfetti: {len(df[df['chunk_jaccard'] == 1.0])}
+        Nessuna overlap: {len(df[df['chunk_jaccard'] == 0.0])}
+        """
+        ax2.text(1.3, 0.5, stats_text, transform=ax2.transAxes, fontsize=10,
+                bbox=dict(boxstyle="round", facecolor='lightyellow', alpha=0.8),
+                verticalalignment='center')
         
         plt.tight_layout()
-        plt.savefig(os.path.join(output_dir, '05_correlazione_chunk_performance.png'), dpi=300, bbox_inches='tight')
+        plt.savefig(os.path.join(output_dir, '05_qualita_retriever.png'), dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        # Salva dati CSV per Grafico 5 (semplificato)
+        retriever_quality_data = df[['paper', 'question_id', 'chunk_jaccard', 'chunk_f1', 
+                                   'chunk_precision', 'chunk_recall', 'semantic_similarity',
+                                   'retriever_quality']].copy()
+        
+        # Statistiche aggregate
+        retriever_stats = pd.DataFrame({
+            'metric': ['jaccard_mean', 'jaccard_std', 'f1_mean', 'f1_std', 
+                      'correlation_chunk_semantic', 'perfect_matches', 'no_overlap'],
+            'value': [
+                df['chunk_jaccard'].mean(), df['chunk_jaccard'].std(),
+                df['chunk_f1'].mean(), df['chunk_f1'].std(),
+                correlation,
+                len(df[df['chunk_jaccard'] == 1.0]),
+                len(df[df['chunk_jaccard'] == 0.0])
+            ]
+        })
+        
+        retriever_quality_data.to_csv(os.path.join(output_dir, '05_qualita_retriever_data.csv'), index=False)
+        retriever_stats.to_csv(os.path.join(output_dir, '05_qualita_retriever_stats.csv'), index=False)
         plt.close()
         
         # GRAFICO 6: Analisi Lunghezza Risposte
@@ -789,7 +862,7 @@ class CorrectnessAnalyzer:
         print(f"    {output_dir}/02_performance_per_argomento.png")
         print(f"    {output_dir}/03_heatmap_argomento_difficolta.png")
         print(f"    {output_dir}/04_distribuzione_performance.png")
-        print(f"    {output_dir}/05_correlazione_chunk_performance.png")
+        print(f"    {output_dir}/05_qualita_retriever.png")
         print(f"    {output_dir}/06_lunghezza_per_qualita.png")
         print(f"    {output_dir}/07_performance_per_tipo_domanda.png")
         print(f"    {output_dir}/08_coverage_termini_tecnici.png")
@@ -853,7 +926,7 @@ def main():
     print(f"   - plots/02_performance_per_argomento.png + CSV")
     print(f"   - plots/03_heatmap_argomento_difficolta.png + CSV")
     print(f"   - plots/04_distribuzione_performance.png + CSV")
-    print(f"   - plots/05_correlazione_chunk_performance.png + CSV")
+    print(f"   - plots/05_qualita_retriever.png + CSV")
     print(f"   - plots/06_lunghezza_per_qualita.png + CSV")
     print(f"   - plots/07_performance_per_tipo_domanda.png + CSV")
     print(f"   - plots/08_coverage_termini_tecnici.png + CSV")
