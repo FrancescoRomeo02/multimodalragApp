@@ -40,6 +40,9 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 WORKDIR /app
 RUN chown -R app:app /app
 
+# Set environment variables
+ENV TOKENIZERS_PARALLELISM=false
+
 # Switch to non-root user
 USER app
 

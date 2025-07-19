@@ -5,6 +5,10 @@ from typing import Optional, Dict, Any
 
 load_dotenv()
 
+# ===== TOKENIZERS CONFIGURATION =====
+# Disable HuggingFace tokenizers parallelism to avoid fork warnings
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 # ===== DIRECTORY CONFIGURATION =====
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW_DATA_PATH = os.path.join(PROJECT_ROOT, "data", "raw")
@@ -43,22 +47,22 @@ ADAPTIVE_K_MAX = 15              # Massimo risultati da considerare
 # Strategies for different query types
 RAG_PARAMS: Dict[str, Dict[str, Any]] = {
     "factual": {
-        "k": 5,
+        "k": 7,
         "score_threshold": 0.50,
         "description": "For precise factual questions"
     },
     "exploratory": {
-        "k": 6,
+        "k": 7,
         "score_threshold": 0.45,
         "description": "For broad exploratory searches"
     },
     "technical": {
-        "k": 4,
+        "k": 7,
         "score_threshold": 0.55,
         "description": "For specific technical queries"
     },
     "multimodal": {
-        "k": 5,
+        "k": 7,
         "score_threshold": 0.40,
         "description": "For searches including text, images and tables"
     }
