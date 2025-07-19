@@ -2,7 +2,7 @@
 
 Questo progetto implementa un sistema completo per l'analisi dei risultati di benchmark RAG, incluso il calcolo del tasso di correttezza del modello locale rispetto a un modello di riferimento (Morphik), utilizzando SBERT per confronti semantici e identificazione di aree di fallimento e successo.
 
-## 📁 Struttura del Progetto
+## Struttura del Progetto
 
 ```
 bench_script/
@@ -38,7 +38,7 @@ bench_script/
 * = Generati solo con più documenti
 ```
 
-## 🚀 Installazione e Setup
+## Installazione e Setup
 
 1. **Preparazione ambiente:**
    ```bash
@@ -53,7 +53,7 @@ bench_script/
    pip install sentence-transformers numpy pandas matplotlib seaborn scikit-learn
    ```
 
-## 📊 Utilizzo
+## Utilizzo
 
 ### Analisi Completa (Raccomandato)
 ```bash
@@ -83,7 +83,7 @@ python correctness_analysis.py
 
 **Per guida dettagliata:** Consultare `GUIDA_GRAFICI_COMPLETA.md`
 
-## 📊 Formato Dati di Input
+## Formato Dati di Input
 
 ### Struttura JSON Richiesta:
 ```json
@@ -106,7 +106,7 @@ python correctness_analysis.py
 }
 ```
 
-## 📊 Metriche e Soglie
+## Metriche e Soglie
 
 ### Classificazione della Correttezza:
 - **Eccellente**: ≥ 0.85 (Qualità molto alta)
