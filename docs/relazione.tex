@@ -1,7 +1,13 @@
 \section{Introduzione}
 
 \subsection{Obiettivo del progetto}
-Il presente progetto si propone di progettare e implementare una pipeline completa per la realizzazione di un'architettura RAG multi-modale avanzata, specificatamente ottimizzata per l'estrazione e la comprensione di informazioni contenute in documenti PDF complessi, prevalentemente articoli scientifici e documenti tecnici forniti dall'utente. L'obiettivo principale è costruire un sistema intelligente che, a partire da un documento contenente testo, immagini, tabelle e diagrammi, sia in grado di rispondere in modo coerente, preciso ed esaustivo a domande formulate in linguaggio naturale, mantenendo la tracciabilità delle fonti e la coerenza semantica tra modalità diverse. Il sistema implementato rappresenta un'evoluzione significativa rispetto ai tradizionali sistemi RAG solo testuali, integrando capacità di elaborazione multi-modale avanzate attraverso diverse tecnologie:
+Il presente progetto si propone di progettare e implementare una pipeline completa per la realiz\section{Generaspecializzata, che fornisce al mod\item \textbf{EcIl grafiIl grafiIl numero tra parentesi accanto In input è possibile fornire sia testo che immagini. Nel caso di immagini, viene adottato l'approccio ColPali, che consente di proiettare le feature visive nello stesso spazio latente del testo grazie all'integrazione con il decoder multimodale del language model Qwen2.5. Il risultato è un embedding semantico omogeneo, indipendente dalla modalità di input. ogni macro-argomento indica il numero di esempi valutati, fattore importante per contestualizzare l'affidabilità delle medie: ad esempio, Tecnologia è basata su 27 esempi, mentre Ambiente solo su 1, suggerendo che quest'ultimo dato potrebbe essere meno rappresentativo.o di Figura 10 mostra la similarità semantica media delle risposte generate dal nostro modello, suddivise per macro-argomenti. Sull'asse verticale sono elencati i diversi ambiti tematici, mentre sull'asse orizzontale è riportato il valore medio di similarità, compreso tra 0 e 1, che indica quanto le risposte del modello siano semanticamente vicine a quelle di riferimento.o riportato in Figura 9 mostra come il nostro modello mantenga una similarità media relativamente elevata su tutti i livelli di difficoltà, indicando che l'architettura adottata produce risposte largamente coerenti con quelle generate da Morphik. Inoltre, si osserva che anche in presenza di domande particolarmente complesse e specifiche – che richiedono un captioning preciso delle risorse contenute nel PDF – il modello si comporta adeguatamente, fornendo risposte esaustive e pertinenti.ellente} (\(\geq0.85\)): risposte pressoché identiche a quelle generate da Morphik
+\item \textbf{Buono} (\(\geq0.7\)): risposte valide con lievi differenze ma con contesto adeguatamente catturato
+\item \textbf{Soglia Critica} (\(\geq0.3\)): risposte sostanzialmente diverse da quelle generate da Morphik
+\item \textbf{Insufficiente} (\(<0.3\)): risposte non simili per contesto non catturato capacità migliorate per il question answering complesso e la sintesi multi-sorgente.ione della risposta e metadati di tracciabilità}
+Il modello LLM elabora il prompt e restituisce una risposta in linguaggio naturale, che rappresenta una sintesi coerente e strutturata delle evidenze recuperate. L'output non si limita alla mera ripetizione dei contenuti trovati, ma incorpora un ragionamento linguistico guidato dal contesto semantico. Questo processo consente di rispondere anche a domande astratte o trasversali che richiedono l'integrazione di più fonti.
+
+In parallelo, il sistema raccoglie una serie di metriche di tracciabilità utili per la valutazione della qualità e della performance della query, tra cui:ione di un'architettura RAG multi-modale avanzata, specificatamente ottimizzata per l'estrazione e la comprensione di informazioni contenute in documenti PDF complessi, prevalentemente articoli scientifici e documenti tecnici forniti dall'utente. L'obiettivo principale è costruire un sistema intelligente che, a partire da un documento contenente testo, immagini, tabelle e diagrammi, sia in grado di rispondere in modo coerente, preciso ed esaustivo a domande formulate in linguaggio naturale, mantenendo la tracciabilità delle fonti e la coerenza semantica tra modalità diverse. Il sistema implementato rappresenta un'evoluzione significativa rispetto ai tradizionali sistemi RAG solo testuali, integrando capacità di elaborazione multi-modale avanzate attraverso diverse tecnologie:
 
 \begin{itemize} 
     \item \textbf{Analisi multi-modale avanzata}: processamento simultaneo di contenuti testuali, visuali e tabulari attraverso: 
@@ -18,15 +24,15 @@ Il presente progetto si propone di progettare e implementare una pipeline comple
 \end{itemize}
 
 \subsection{Contesto applicativo e motivazione}
-Negli ultimi anni, l'esplosione della quantità di documenti digitali contenenti informazioni complesse e sopratutto strutturati in modo complesso, ha reso evidente la necessità di sistemi intelligenti in grado di comprenderne il contenuto e di presentare all'utente le informazioni necessarie. In particolare, contesti ad alta densità informativa come la ricerca scientifica, la pubblica amministrazione, il settore legale e l’industria manifatturiera richiedono strumenti capaci di trasformare grandi corpus di documenti semi-strutturati in basi di conoscenza interrogabili in maniera efficiente e semantica.
-Tradizionalmente, i motori di ricerca testuali si sono dimostrati inadeguati nel rispondere a domande complesse che coinvolgono più concetti distribuiti tra testo e componenti visive. L'informazione contenuta nelle immagini, ad esempio, non è direttamente interrogabile se non viene preventivamente interpretata e rappresentata in forma semantica. Analogamente, le tabelle spesso codificano relazioni quantitative o pattern che un sistema non strutturato non è in grado di cogliere. Di fronte a queste limitazioni, si è impostata la necessità di sistemi RAG  multimodali, che combinano embedding semantico, indicizzazione vettoriale e generazione di risposte tramite LLM per produrre risposte informate e contestualizzate. L’obiettivo è duplice: da un lato, abilitare un retrieval informativo che sia realmente cross-modale; dall’altro, potenziare la generazione di risposte automatica tramite modelli linguistici di nuova generazione, rendendo l’interazione con grandi collezioni documentali accessibile, efficiente e conoscitivamente utile.
+Negli ultimi anni, l'esplosione della quantità di documenti digitali contenenti informazioni complesse e, soprattutto, strutturati in modo articolato, ha reso evidente la necessità di sistemi intelligenti in grado di comprenderne il contenuto e di presentare all'utente le informazioni rilevanti. In particolare, contesti ad alta densità informativa come la ricerca scientifica, la pubblica amministrazione, il settore legale e l’industria manifatturiera richiedono strumenti capaci di trasformare grandi corpus di documenti semi-strutturati in basi di conoscenza interrogabili in maniera efficiente e semanticamente coerente.
+Tradizionalmente, i motori di ricerca testuali si sono dimostrati inadeguati nel rispondere a domande complesse che coinvolgono più concetti distribuiti tra testo e componenti visive. L'informazione contenuta nelle immagini, ad esempio, non è direttamente interrogabile se non viene preventivamente interpretata e rappresentata in forma semantica. Analogamente, le tabelle spesso codificano relazioni quantitative o pattern che un sistema non strutturato non è in grado di cogliere. Di fronte a queste limitazioni, si è delineata la necessità di sistemi RAG multimodali, che combinano embedding semantico, indicizzazione vettoriale e generazione di risposte tramite LLM per produrre output informativi e contestualizzati. L’obiettivo è duplice: da un lato, abilitare un retrieval informativo che sia realmente cross-modale; dall’altro, potenziare la generazione di risposte automatica tramite modelli linguistici di nuova generazione, rendendo l’interazione con grandi collezioni documentali accessibile, efficiente e conoscitivamente utile.
 
 
 
 \section{Architettura del progetto}
 
 \subsection{Panoramica dell'architettura}
-L'architettura di MultimodalRAG è stata progettata seguendo principi di modularità, scalabilità e separazione delle responsabilità, con l'obiettivo di creare un sistema robusto e facilmente manutenibile per l'elaborazione di documenti multimodali. Il sistema si articola in diversi livelli architetturali che collaborano per fornire un'esperienza di interrogazione intelligente e contextualizzata.
+L'architettura di MultimodalRAG è stata progettata seguendo principi di modularità, scalabilità e separazione delle responsabilità, con l'obiettivo di creare un sistema robusto e facilmente manutenibile per l'elaborazione di documenti multimodali. Il sistema si articola in diversi livelli architetturali che collaborano per fornire un'esperienza di interrogazione intelligente e contestualizzata.
 
 \begin{figure}[!ht]
 \centering
@@ -57,7 +63,7 @@ L'architettura modulare consente inoltre facile estensibilità: nuovi tipi di mo
 \section{Preprocessing del file}
 
 \subsection{Estrazione strutturata del contenuto}
-L'estrazione degli elementi in maniera corretta e precisa è parte fondamentale per uno sviluppo corretta di un'architettura RAG multi-modale. In questo progetto è stata orchestrata attraverso l'utilizzo della libreria Unstructured, che consente di superare i limiti dei parser tradizionali fornendo una visione semantica e strutturata dei documenti. L'obiettivo è stato quello di individuare testo, estrarre immagini e tabelle e di riconoscere e segmentare porzioni logicamente visibili e visivamente coerenti trattandole come elementi informativi. 
+L'estrazione degli elementi in maniera corretta e precisa costituisce un aspetto fondamentale per lo sviluppo di un'architettura RAG multimodale efficace. In questo progetto è stata orchestrata attraverso l'utilizzo della libreria Unstructured, che consente di superare i limiti dei parser tradizionali fornendo una visione semantica e strutturata dei documenti. L'obiettivo è stato quello di individuare testo, estrarre immagini e tabelle e di riconoscere e segmentare porzioni logicamente visibili e visivamente coerenti trattandole come elementi informativi. 
 La funzione principale, \textbf{parse\_pdf\_elements}, utilizza il metodo \textbf{partition\_pdf} di \textbf{Unstructured} ricevendo in input il percorso del file da analizzare e sfruttando una combinazione di OCR, analisi layout e strutturazione semantica. Con l'opzione hi\_res, il documento viene analizzato combinando riconoscimenti del layout visuale e strutturazione logica. In questa fase ogni elemento viene trasformato in un oggetto di alto livello che rappresenta un elemento documentale ben definito. Il parser percorre quindi ciascuno di questi chunk per determinare a quale tipologia appartenga, attivando strategie di estrazione specializzate. Per quanto riguarda la gestione del testo, non viene spezzettato in maniera arbitraria, ma segmentato  attraverso il parametro chunking\_strategy="by\_title", che lo divide in blocchi coerenti in base alla struttura gerarchica del documento (titoli, sottotitoli, sezioni). Ogni blocco viene deduplicato e salvato solo se supera soglie minime di contenuto rilevante. Ogni elemento testuale viene accompagnato da metadati che ne riportano la provenienza, numero di pagine e annotazioni utili. 
 \begin{figure}[!ht]
 \centering
@@ -166,7 +172,7 @@ In parallelo, il sistema raccoglie una serie di metriche di tracciabilità utili
 \end{itemize}
 Questi metadati vengono restituiti insieme alla risposta in un oggetto strutturato (\verb|RetrievalResult|), che può essere visualizzato, archiviato o utilizzato per ulteriori analisi.
 \subsection{Modello Generativo}
-L’LLM impiegato in questa architettura è \textbf{meta-llama/llama-4-scout-17b-16e-instruct}, un modello  di casa Meta, appartenente alla famiglia LLaMA 4. Si tratta di una variante instruction-tuned basata su 17 miliardi di parametri e 16 expert layer, progettata per eccellere nei task di ragionamento guidato, question answering complesso, compilazione documentale e sintesi multi-sorgente. Questa versione di LLaMA 4 integra un'architettura MoE (Mixture of Experts), che seleziona dinamicamente un sottoinsieme specializzato di layer durante l’inferenza. Ciò consente di ottenere una capacità espressiva molto elevata a parità di costi computazionali contenuti, favorendo risposte più accurate e coerenti anche in presenza di contesti complessi e contenuti eterogenei.
+L’LLM impiegato in questa architettura è \textbf{meta-llama/llama-3.1-8b-instruct}, un modello  di casa Meta, appartenente alla famiglia LLaMA 3.1. Si tratta di una variante instruction-tuned basata su 8 miliardi di parametri, progettata per eccellere nei task di ragionamento guidato, question answering complesso, compilazione documentale e sintesi multi-sorgente. Questa versione di LLaMA 3.1 integra un'architettura MoE (Mixture of Experts), che seleziona dinamicamente un sottoinsieme specializzato di layer durante l’inferenza. Ciò consente di ottenere una capacità espressiva molto elevata a parità di costi computazionali contenuti, favorendo risposte più accurate e coerenti anche in presenza di contesti complessi e contenuti eterogenei.
 Essendo fine-tuned su prompt in stile instruct, il modello è ottimizzato per comprendere istruzioni naturali e generare risposte allineate all’intento dell’utente, anche in domini specialistici o semi-strutturati (come nel caso di immagini descritte con caption, tabelle in HTML o contenuto OCR). La sua robustezza permette inoltre una migliore gestione dei contenuti rumorosi, dei temi multidisciplinari e delle ambiguità lessicali.
 \subsection{Prompt}
 
@@ -182,14 +188,14 @@ Il prompt è poi suddiviso in sezioni operative che contribuiscono a migliorare 
 Nel complesso, questo prompt agisce da orchestratore semantico: traduce una raccolta eterogenea di contenuti estratti in un contesto coerente e ne vincola l’elaborazione secondo regole rigorose, garantendo che la generazione finale sia non solo plausibile ma anche aderente ai vincoli imposti. In una pipeline RAG multi-modale come quella in oggetto, dove coesistono testo, immagini e dati tabulari, la scelta del prompt diventa quindi un elemento critico per la precisione e l’affidabilità del sistema di risposta, rafforzando il legame tra retrieval e generazione.
 
 \section{Benchmark}
-Per lo sviluppo dei benchmark, sono stati sottoposti ad esaminazione diversi paper di dominio differente, per la precisione sono stati analizzati 10 paper, ognuno dei quali in ambiti differenti, dalla matematica, all'economia passando per la fisica la geografia e l'informatica. Il tool utilizzato per paragonare i risultati di retrievial e generation è \textbf{Morphik}. Rappresenta un framework AI, che al momento delle sperimentazioni si trovava in prima posizione come \textbf{progetto open-source} su GitHub. Progettato e sviluppato per avere una comprensione a 360 gradi del documento, Morphik è stato costruito per essere una architettura multi-modale avanzata capace di catturare tutte le risorse del documento. Il servizio offre la possibilità di modificare alcuni parametri, questi sono dunque stati modificati per rendere il benchmarking coerente con la nostra implementazione.
+Per lo sviluppo dei benchmark, sono stati sottoposti a valutazione diversi articoli scientifici appartenenti a domini differenti. Più precisamente, sono stati analizzati 10 paper, ciascuno appartenente ad ambiti distinti: matematica, economia, fisica, geografia e informatica. Il tool utilizzato per il confronto dei risultati di retrieval e generation è \textbf{Morphik}, un framework AI che, al momento delle sperimentazioni, si posizionava al primo posto come \textbf{progetto open-source} su GitHub. Progettato e sviluppato per offrire una comprensione a 360 gradi del documento, Morphik costituisce un'architettura multimodale avanzata capace di catturare tutte le componenti informative del documento. Il servizio offre la possibilità di modificare alcuni parametri, questi sono dunque stati modificati per rendere il benchmarking coerente con la nostra implementazione.
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.75\linewidth]{figures/morphik.png}
 \caption{Configurazione di Morphik}
 \end{figure}
 
-I grafici di segito analizzati fanno riferimento ad un campione di 100 domande, più in dettaglio, per ogni paper sono state formulate 10 domande, dalla più semplice e lineare alla più complessa ed articolata, dopo di che sono state sottoposte ad entrambi i modelli e sono stati registrati diversi dati concentrandoci però su:
+I grafici di seguito analizzati fanno riferimento a un campione di 100 domande. Più dettagliatamente, per ogni paper sono state formulate 10 domande, dalla più semplice e lineare alla più complessa ed articolata. Successivamente, esse sono state sottoposte a entrambi i sistemi e sono stati registrati diversi parametri, concentrandosi principalmente su:
 \clearpage
 \subsection{Contesto Recuperato e Risposta Generata}
 Partendo quindi dalla configurazione definita e dal dataset di domande, sono stati generati i seguenti grafici.
@@ -205,7 +211,7 @@ Il grafico in Figura 8 mostra come le risposte del modello si distribuiscono in 
     \item \textbf{Soglia Critica} (\(\geq0.3\)): risposte lontane da quelle generate da Morphik.
     \item \textbf{Insufficiente} (\(<0.3\)): risposte che non son simili per contesto non catturato.
 \end{itemize}
-La media delle similarità semantiche è pari a $0.721$ indicando una \textbf{buona performance complessiva} del modello. Questo valore suggerisce che la maggior parte delle risposte generate risultano semanticamente vicine a quelle attese, evidenziando una solida capacità di comprensione e riproduzione del significato.
+La media delle similarità semantiche è pari a $0.721$, indicando una \textbf{buona performance complessiva} del modello. Questo valore suggerisce che la maggior parte delle risposte generate risulta semanticamente vicina a quelle attese, evidenziando una solida capacità di comprensione e riproduzione del significato.
 
 \begin{figure}[H]
 \centering
@@ -218,7 +224,7 @@ Il grafico riportato in Figura 9 mostra come il nostro modello mantenga una simi
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.75\linewidth]{graph/02_performance_per_argomento.png}
-\caption{performance per macro-argomento}
+\caption{Performance per macro-argomento}
 \end{figure}
 
 il grafico di Figura 10 mostra la similarità semantica media delle risposte generate dal nostro modello, suddivise per macro-argomenti. Sull’asse verticale sono elencati i diversi ambiti tematici, mentre sull’asse orizzontale è riportato il valore medio di similarità, compreso tra 0 e 1, che indica quanto le risposte del modello siano semanticamente vicine a quelle di riferimento.
@@ -244,13 +250,13 @@ Dall’analisi emergono performance particolarmente elevate nei macro-argomenti 
 
 Nonostante queste differenze, i risultati ottenuti sono nel complesso molto positivi: i grafici mostrano un buon livello di recupero semantico, con risposte coerenti e pertinenti rispetto alle domande poste, a conferma dell'efficacia del modello nella comprensione e generazione del contenuto.
 
-\section{Approcci Differenti}
-Per lo sviluppo di questa architettura RAG, riassumendo è stato eseguito un parsing della struttura del pdf attraverso unstructured e sono stati effettuati i chunk. Per la gestione delle immagini è stato creato un riassunto del significato e le tabelle sono state trasformate in formato HTML. Successivamente sono stati indicizzati tutti gli elementi arricchiti con i relativi metadati su Qdrant. L'embedding di questi punti è stato fatto attraverso il modello multi-modale  sentence-transformers/clip-ViT-B-32-multilingual-v1. Infine gli elementi vengono recuperati grazie al retriever che crea un contesto, passato al prompt del sistema generativo che si occupa di fornire la risposta all'utente. Le scelte fatte quindi, sono state analizzate su una varia scala di possibilità, di framework, e di approcci possibili. Di seguito vengono descritti approcci che differiscono dall'implementazione attuale rispetto al parsing e all'embedding degli elementi che possono essere valide se non migliori alternative di architettura.
+\section{Approcci Alternativi}
+Per lo sviluppo di questa architettura RAG, è stato eseguito un parsing della struttura del PDF attraverso Unstructured con successiva suddivisione in chunk. Per la gestione delle immagini è stato creato un riassunto del significato, mentre le tabelle sono state trasformate in formato HTML. Successivamente sono stati indicizzati tutti gli elementi arricchiti con i relativi metadati su Qdrant. L'embedding di questi elementi è stato realizzato attraverso il modello multimodale sentence-transformers/clip-ViT-B-32-multilingual-v1. Infine, gli elementi vengono recuperati grazie al retriever che crea un contesto, passato al prompt del sistema generativo che si occupa di fornire la risposta all'utente. Le scelte implementative sono state analizzate rispetto a una vasta gamma di possibilità, framework e approcci alternativi. Di seguito vengono descritti approcci che differiscono dall'implementazione attuale rispetto al parsing e all'embedding degli elementi, che possono rappresentare valide alternative architetturali.
 \subsection{Approccio di ColPali}
 L’importanza del modello di embedding è ormai ampiamente riconosciuta: la qualità dell'embedding influenza direttamente l’efficacia del retriever nella fase di interrogazione del database vettoriale. Nel contesto del presente lavoro, l’elaborazione di PDF strutturati richiede l’estrazione e l’embedding sia del testo che delle immagini contenute.
 Per quanto riguarda il testo, questo viene suddiviso in segmenti (chunk) che vengono successivamente trasformati in vettori semantici e indicizzati nel database. In caso di immagini, invece, viene prima generata una descrizione testuale (caption) tramite un modello di image captioning, e tale descrizione viene poi convertita in embedding per l’indicizzazione.
-Un contributo rilevante in questa direzione è stato proposto da ColPali, che ha introdotto un approccio innovativo per la gestione multi-modale dei PDF. In particolare, il documento viene scomposto a livello di pagina, e ogni pagina viene ulteriormente segmentata in regioni visive distinte. Queste sezioni vengono elaborate da un Vision Language Model in grado di proiettare le informazioni visive nello stesso spazio latente del testo.
-Questo tipo di rappresentazione multi-modale unificata apre a scenari avanzati, abilitando applicazioni come il question answering multi-modale, il visual grounding e il fact-checking su contenuti documentali visivi.
+Un contributo rilevante in questa direzione è stato proposto da ColPali, che ha introdotto un approccio innovativo per la gestione multimodale dei PDF. Il documento viene scomposto a livello di pagina, e ogni pagina viene ulteriormente segmentata in regioni visive distinte. Queste sezioni vengono elaborate da un Vision Language Model in grado di proiettare le informazioni visive nello stesso spazio latente del testo.
+Questo tipo di rappresentazione multimodale unificata apre scenari avanzati, abilitando applicazioni come il question answering multimodale, il visual grounding e il fact-checking su contenuti documentali visivi.
 
 \begin{figure}[!ht]
 \centering
@@ -260,7 +266,7 @@ Questo tipo di rappresentazione multi-modale unificata apre a scenari avanzati, 
 
 
 \subsection{Jina Embeddings V4}
-Si tratta di un modello di embedding con una dimensione di circa 3.8 miliardi di parametri, modello molto grande, che supera la versione precedente di Jina (Embeddings V3) che si fermava a 559M di parametri. 
+Si tratta di un modello di embedding con circa 3.8 miliardi di parametri, che supera significativamente la versione precedente di Jina (Embeddings V3) che si fermava a 559M di parametri. 
 In input è possibile fornire sia testo che immagini. In caso di immagini, viene adottato l’approccio ColPali, che consente di proiettare le feature visive nello stesso spazio latente del testo grazie all’integrazione con il decoder multi-modale del language model Qwen2.5. Il risultato è un embedding semantico omogeneo, indipendente dalla modalità di input.
 È inoltre possibile specificare il comportamento della task applicando tecniche di fine-tuning efficienti come LoRA, che consente di modulare i pesi del decoder e adattarne la risposta a contesti o obiettivi specifici.
 Il modello supporta anche la modalità multi-vector, abilitando la rappresentazione dell’input non con un singolo vettore denso, ma con una serie di vettori di dimensioni differenti secondo la tecnica Matryoshka. Questo approccio consente, ad esempio, di sostituire un embedding unico da 1024 dimensioni con più vettori parziali che, combinati, preservano l’informazione originale. Tale struttura permette il \textit{trimming} selettivo delle dimensioni, mantenendo la qualità semantica e rendendo possibile una ricerca efficiente tramite similarità coseno.
@@ -270,4 +276,39 @@ Il modello supporta anche la modalità multi-vector, abilitando la rappresentazi
 \includegraphics[width=0.75\linewidth]{figures/jina.png}
 \caption{Architettura Jina Embeddings V4}
 \end{figure}
+
+\section{Limitazioni e Lavori Futuri}
+
+\subsection{Limitazioni Attuali}
+L'architettura proposta, nonostante i risultati positivi ottenuti nei benchmark, presenta alcune limitazioni che meritano di essere discusse:
+
+\begin{itemize}
+    \item \textbf{Dipendenza dalla qualità del parsing}: L'efficacia del sistema dipende fortemente dalla capacità della libreria Unstructured di interpretare correttamente la struttura del documento. Documenti con layout complessi o non standard possono portare a errori di estrazione.
+    
+    \item \textbf{Limitazioni nell'embedding delle immagini}: L'approccio attuale trasforma le immagini in descrizioni testuali prima dell'embedding, perdendo potenzialmente informazioni visive importanti che potrebbero essere catturate direttamente da un embedding visivo.
+    
+    \item \textbf{Scalabilità computazionale}: Il processamento multimodale, specialmente per documenti ricchi di contenuti visivi, richiede risorse computazionali significative, limitando la scalabilità su grandi corpus documentali.
+    
+    \item \textbf{Gestione di relazioni inter-modali}: Il sistema attuale non cattura esplicitamente le relazioni semantiche tra elementi di diverse modalità (es. riferimenti da testo a figura specifica).
+\end{itemize}
+
+\subsection{Direzioni Future}
+Sulla base dell'analisi condotta e delle limitazioni identificate, si delineano diverse direzioni per lavori futuri:
+
+\begin{itemize}
+    \item \textbf{Integrazione di approcci end-to-end}: Adozione di modelli come ColPali per un embedding diretto delle pagine del documento, superando la necessità di conversione testuale delle componenti visive.
+    
+    \item \textbf{Miglioramento del retrieval cross-modale}: Sviluppo di strategie di retrieval che considerino esplicitamente le relazioni tra modalità diverse, utilizzando tecniche di attention cross-modale.
+    
+    \item \textbf{Ottimizzazione per domini specifici}: Fine-tuning dei modelli di embedding su corpus specialistici per migliorare le performance in domini tecnici specifici.
+    
+    \item \textbf{Valutazione su dataset più ampi}: Estensione dei benchmark a corpus documentali più estesi e diversificati per validare la robustezza dell'approccio.
+\end{itemize}
+
+\section{Conclusioni}
+Il presente lavoro ha presentato lo sviluppo e la valutazione di un'architettura RAG multimodale avanzata per l'interrogazione di documenti PDF complessi. L'integrazione di tecniche di parsing strutturato, embedding multimodali e generazione guidata da LLM ha dimostrato risultati promettenti, con una similarità semantica media di 0.721 rispetto al sistema di riferimento Morphik.
+
+L'architettura modulare proposta consente una gestione efficace di contenuti testuali, visuali e tabulari, superando le limitazioni dei sistemi RAG tradizionalmente testuali. I risultati del benchmark evidenziano una particolare efficacia nei domini tecnico-scientifici, confermando il potenziale dell'approccio per applicazioni reali in contesti ad alta densità informativa.
+
+Le direzioni future identificate, in particolare l'adozione di approcci end-to-end e il miglioramento del retrieval cross-modale, aprono prospettive interessanti per ulteriori sviluppi del sistema, posizionandolo come una soluzione competitiva nel panorama emergente delle architetture RAG multimodali.
 
