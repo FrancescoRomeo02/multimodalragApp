@@ -1,0 +1,273 @@
+\section{Introduzione}
+
+\subsection{Obiettivo del progetto}
+Il presente progetto si propone di progettare e implementare una pipeline completa per la realizzazione di un'architettura RAG multi-modale avanzata, specificatamente ottimizzata per l'estrazione e la comprensione di informazioni contenute in documenti PDF complessi, prevalentemente articoli scientifici e documenti tecnici forniti dall'utente. L'obiettivo principale è costruire un sistema intelligente che, a partire da un documento contenente testo, immagini, tabelle e diagrammi, sia in grado di rispondere in modo coerente, preciso ed esaustivo a domande formulate in linguaggio naturale, mantenendo la tracciabilità delle fonti e la coerenza semantica tra modalità diverse. Il sistema implementato rappresenta un'evoluzione significativa rispetto ai tradizionali sistemi RAG solo testuali, integrando capacità di elaborazione multi-modale avanzate attraverso diverse tecnologie:
+
+\begin{itemize} 
+    \item \textbf{Analisi multi-modale avanzata}: processamento simultaneo di contenuti testuali, visuali e tabulari attraverso: 
+    \begin{itemize}
+        \item Unstructured per layout detection;
+    \end{itemize}
+    \begin{itemize} 
+        \item OCR (Tesseract) per l'estrazione del testo dalle immagini;
+        \item Computer vision (YOLO) per il riconoscimento di oggetti; 
+        \item Generazione automatica di caption descrittive tramite LLM; 
+        \item Estrazione e interpretazione intelligente delle strutture tabulari; 
+    \end{itemize} 
+    \item \textbf{Ricerca vettoriale semantica}: utilizzo di Qdrant come database vettoriale ad alte prestazioni per la similarità semantica attraverso la distanza del coseno, con soglie di confidenza ottimizzate per tipo di contenuto \item \textbf{Integrazione LLM multi-modale}: accesso a modelli linguistici  (GPT-4o, Claude, LLaMA) tramite API Groq per la generazione di risposte contestualizzate; 
+\end{itemize}
+
+\subsection{Contesto applicativo e motivazione}
+Negli ultimi anni, l'esplosione della quantità di documenti digitali contenenti informazioni complesse e sopratutto strutturati in modo complesso, ha reso evidente la necessità di sistemi intelligenti in grado di comprenderne il contenuto e di presentare all'utente le informazioni necessarie. In particolare, contesti ad alta densità informativa come la ricerca scientifica, la pubblica amministrazione, il settore legale e l’industria manifatturiera richiedono strumenti capaci di trasformare grandi corpus di documenti semi-strutturati in basi di conoscenza interrogabili in maniera efficiente e semantica.
+Tradizionalmente, i motori di ricerca testuali si sono dimostrati inadeguati nel rispondere a domande complesse che coinvolgono più concetti distribuiti tra testo e componenti visive. L'informazione contenuta nelle immagini, ad esempio, non è direttamente interrogabile se non viene preventivamente interpretata e rappresentata in forma semantica. Analogamente, le tabelle spesso codificano relazioni quantitative o pattern che un sistema non strutturato non è in grado di cogliere. Di fronte a queste limitazioni, si è impostata la necessità di sistemi RAG  multimodali, che combinano embedding semantico, indicizzazione vettoriale e generazione di risposte tramite LLM per produrre risposte informate e contestualizzate. L’obiettivo è duplice: da un lato, abilitare un retrieval informativo che sia realmente cross-modale; dall’altro, potenziare la generazione di risposte automatica tramite modelli linguistici di nuova generazione, rendendo l’interazione con grandi collezioni documentali accessibile, efficiente e conoscitivamente utile.
+
+
+
+\section{Architettura del progetto}
+
+\subsection{Panoramica dell'architettura}
+L'architettura di MultimodalRAG è stata progettata seguendo principi di modularità, scalabilità e separazione delle responsabilità, con l'obiettivo di creare un sistema robusto e facilmente manutenibile per l'elaborazione di documenti multimodali. Il sistema si articola in diversi livelli architetturali che collaborano per fornire un'esperienza di interrogazione intelligente e contextualizzata.
+
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=1\textwidth]{figures/diagram.png}
+\caption{Architettura RAG}
+\end{figure}
+
+\subsection{Pipeline di elaborazione}
+L'architettura implementa una pipeline di elaborazione end-to-end che esegue:
+\begin{enumerate}
+    \item \textbf{Parsing approfondito del documento}: viene effettuata un'analisi strutturale ad alta risoluzione del PDF tramite la libreria \verb|unstructured|, con l'ausilio della strategia \verb|hi_res| per preservare l'integrità semantica e gerarchica del documento. I blocchi testuali vengono segmentati secondo una logica orientata al contenuto (e.g., titoli, paragrafi, sezioni), mentre elementi tabellari e grafici vengono identificati separatamente e gestiti come entità autonome.
+    \item \textbf{Analisi visiva delle componenti multimodali}: le immagini vengono arricchite semanticamente tramite una pipeline multi-modale che include la generazione di caption con modelli VLMs, OCR avanzato tramite Tesseract, e rilevamento oggetti con YOLOv8. Analogamente, le tabelle sono sintetizzate mediante modelli LLM (Groq) in grado di generare un riassunto informativo a partire dalla loro rappresentazione HTML.
+    \item \textbf{Chunking adattivo}:il testo viene segmentato in unità semantiche coerenti tramite una strategia di chunking dinamica basata sui titoli (\verb|by_title|), che consente di mantenere l’integrità tematica dei contenuti ed evitare spezzature arbitrarie. La strategia adottata prevede la combinazione di blocchi testuali troppo brevi  e la creazione di nuovi chunk dopo un certo numero di caratteri, garantendo così un bilanciamento tra granularità e contesto.
+    \item \textbf{Embedding}: ogni blocco testuale, immagine o tabella viene convertito in un embedding vettoriale tramite un modello multi-modale clip: "sentence-transformers/clip-ViT-B-32-multilingual-v1" 
+    \item \textbf{Indicizzazione semantica}: i vettori così ottenuti vengono indicizzati in un database vettoriale (Qdrant) insieme ai metadati strutturati e contestualizzati.
+    \item \textbf{Retrieval }: il recupero dei contenuti avviene tramite una ricerca per similarità vettoriale con soglie dinamiche adattate al tipo di contenuto (testo, immagine, tabella) e all’intento dell’utente (esplorativo, tecnico, fattuale, multi-modale). Viene applicato un filtro intelligente basato su metadati come il file di origine o il tipo semantico del contenuto.
+    \item \textbf{Generazione}:  i risultati recuperati vengono integrati e sintetizzati in risposte informative e strutturate tramite LLMs.
+\end{enumerate}
+L'integrazione di queste tecnologie consente al sistema di superare le limitazioni dei tradizionali approcci RAG testuali, offrendo un'esperienza di interrogazione più ricca e semanticamente coerente per documenti complessi come paper scientifici. 
+
+\subsection{Stack tecnologico}
+L'architettura è supportata da uno stack tecnologico robusto. \textbf{Qdrant} fornisce il database vettoriale ad alte prestazioni, ottimizzato per ricerche di similarità su larga scala con supporto per filtri complessi. \textbf{LangChain} orchestra l'intera pipeline RAG, offrendo un framework consolidato per l'integrazione di componenti di elaborazione del linguaggio naturale.
+Per l'elaborazione multi-modale, il sistema integra \textbf{Unstructured} per il parsing avanzato dei PDF, \textbf{Tesseract} per l'OCR, \textbf{YOLOv8} per l'object detection e un modello CLIP per l'embedding dei chunk creati. L'interfaccia utente sfrutta \textbf{Streamlit} per fornire un'esperienza web moderna e responsive.
+Il deployment è completamente containerizzato attraverso \textbf{Docker} e Docker Compose. Il Dockerfile implementa una build multi-stage che ottimizza le dimensioni dell'immagine finale, mentre include tutte le dipendenze di sistema necessarie (Tesseract, Poppler, librerie di computer vision). Il sistema può essere lanciato con un singolo comando docker-compose up -d, che orchestra automaticamente l'avvio di tutti i servizi necessari.
+La configurazione è centralizzata in \texttt{config.py}, che definisce parametri ottimizzati per diversi scenari d'uso e consente facile tuning delle performance. Il sistema include inoltre robusti meccanismi di logging e monitoraggio delle performance.
+L'architettura modulare consente inoltre facile estensibilità: nuovi tipi di modelli di embedding possono essere integrati modificando solo l'AdvancedEmbedder, nuove strategie di chunking possono essere aggiunte senza impattare gli altri componenti, e nuovi fornitori di LLM possono essere supportati estendendo il modulo di integrazione in llm.
+
+\section{Preprocessing del file}
+
+\subsection{Estrazione strutturata del contenuto}
+L'estrazione degli elementi in maniera corretta e precisa è parte fondamentale per uno sviluppo corretta di un'architettura RAG multi-modale. In questo progetto è stata orchestrata attraverso l'utilizzo della libreria Unstructured, che consente di superare i limiti dei parser tradizionali fornendo una visione semantica e strutturata dei documenti. L'obiettivo è stato quello di individuare testo, estrarre immagini e tabelle e di riconoscere e segmentare porzioni logicamente visibili e visivamente coerenti trattandole come elementi informativi. 
+La funzione principale, \textbf{parse\_pdf\_elements}, utilizza il metodo \textbf{partition\_pdf} di \textbf{Unstructured} ricevendo in input il percorso del file da analizzare e sfruttando una combinazione di OCR, analisi layout e strutturazione semantica. Con l'opzione hi\_res, il documento viene analizzato combinando riconoscimenti del layout visuale e strutturazione logica. In questa fase ogni elemento viene trasformato in un oggetto di alto livello che rappresenta un elemento documentale ben definito. Il parser percorre quindi ciascuno di questi chunk per determinare a quale tipologia appartenga, attivando strategie di estrazione specializzate. Per quanto riguarda la gestione del testo, non viene spezzettato in maniera arbitraria, ma segmentato  attraverso il parametro chunking\_strategy="by\_title", che lo divide in blocchi coerenti in base alla struttura gerarchica del documento (titoli, sottotitoli, sezioni). Ogni blocco viene deduplicato e salvato solo se supera soglie minime di contenuto rilevante. Ogni elemento testuale viene accompagnato da metadati che ne riportano la provenienza, numero di pagine e annotazioni utili. 
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=1\textwidth]{figures/metadata text.png}
+\caption{Metadati del Testo}
+\end{figure}
+
+\subsection{Gestione immagini}
+
+Per le immagini, oltre alla semplice estrazione base64, viene attivata una pipeline di arricchimento semantico: un modello visivo genera una descrizione automatica del contenuto, mentre altri moduli identificano oggetti visivi e testo presente nell'immagine. Tutte queste informazioni vengono poi fuse in un'unica stringa descrittiva, che diventa a tutti gli effetti il contenuto semantico su cui il sistema potrà eseguire ricerca e retrieval. Vengono inoltre salvati metadati cruciali come il numero di pagina e un identificatore univoco. Qui sotto, viene riportato come le immagini vengono presentate sotto forma di punti in qdrant. 
+
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=0.75\linewidth]{figures/metadata.png}
+\caption{Metadati delle Immagini}
+\end{figure}
+
+\subsection{Gestione tabelle}
+Per quanto riguarda le tabelle, viene attivato il supporto alla ricostruzione HTML e, se configurato, un ulteriore modello LLM che genera un riassunto interpretativo del contenuto tabellare, descrivendone tipologia, trend principali e valori salienti. Anche in questo caso, la tabella non viene trattata solo come codice HTML, ma come elemento informativo arricchito e indicizzabile, con metadati come pagina, caption e ID. 
+
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=0.75\linewidth]{figures/metadata table.png}
+\caption{Metadati delle Tabelle}
+\end{figure}
+
+
+
+\section{Generazione degli Embedding Multimodali}
+Dopo l’estrazione e la tipizzazione degli elementi dal documento PDF, ogni componente viene convertito in una rappresentazione densa (embedding vettoriale) che ne cattura il significato semantico, visivo o strutturale. Questo passaggio è fondamentale per permettere operazioni di ricerca basate su similarità semantica all’interno di uno spazio vettoriale condiviso. In questo sistema, la generazione degli embedding è affidata a un modello unico e multi-modale: \textbf{sentence-transformers/clip-ViT-B-32-multilingual-v1}.
+
+\subsection{Modello di Embedding}
+Questo modello rappresenta una fusione tra le architetture CLIP (Contrastive Language–Image Pretraining) di OpenAI e le Sentence Transformers, adattata per supportare più lingue e input multimodali. In particolare, si basa sul backbone visivo \textbf{ViT-B/32} (Vision Transformer), che suddivide l’immagine in patch e li processa in maniera simile a una sequenza di parole. La componente linguistica, invece, è in grado di gestire input testuali in oltre 50 lingue, rendendolo particolarmente adatto per contesti multilingue e documentazione tecnica eterogenea.
+La caratteristica distintiva del modello è la proiezione di testi e immagini in un unico spazio semantico, che permette di confrontare direttamente contenuti visivi e testuali, calcolandone la similarità con una metrica uniforme. Questa proprietà è particolarmente potente nei sistemi RAG multimodali, poiché consente, ad esempio, di recuperare una tabella o un’immagine come risposta a una query testuale (e viceversa). Inoltre, l’ottimizzazione del modello tramite addestramento contrastivo garantisce una forte coerenza semantica anche in presenza di contenuti rumorosi o compressi.
+\subsection{Applicazione dell'Embedding}
+L’uso di questo modello consente quindi una gestione unificata e robusta dei tre principali tipi di contenuto:
+\begin{itemize}
+    \item \textbf{Testo}: le frasi vengono trasformate in embedding linguistici che catturano concetti, intenzioni e contesto semantico.
+    \item \textbf{Immagini}: l'embedding viene applicato alla generazione del riassunto del contenuto semantico di ogni immagine.
+    \item \textbf{Tabelle}: trattate come contenuto testuale HTML, vengono embeddizzate utilizzando lo stesso encoder testuale, preservando struttura e informazioni quantitative.
+\end{itemize}
+Nel codice, la classe \verb|AdvancedEmbedder| si occupa di gestire la logica di embedding. Per gli elementi testuali, viene invocato il metodo \verb|embed_documents|, che produce un embedding per ciascun chunk di testo. Per le immagini e le tabelle, viene invece utilizzato \verb|embed_query|, che consente di effettuare l'embedding di un singolo oggetto (immagine base64 o stringa HTML) in modo efficiente.
+La coerenza ottenuta grazie all’uso di un modello multi-modale unificato permette inoltre di utilizzare lo stesso spazio semantico vettoriale sia per l’indicizzazione che per il retrieval. Questo elimina la necessità di normalizzazione o mapping incrociati tra tipi di dato diversi, semplificando il design e potenziando le performance globali del sistema.
+
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=1\textwidth]{figures/embedding.png}
+\caption{Spazio di embedding}
+\end{figure}
+\section{Indicizzazione e storage}
+\subsection{Qdrant DB}
+Qdrant è un motore di ricerca vettoriale ottimizzato per applicazioni di information retrieval basate su rappresentazioni dense e distribuzionali dei dati. Progettato per scenari reali ad alta scala, Qdrant consente di eseguire query di similarità k-NN su insiemi di vettori multidimensionali, preservando metadati strutturati e supportando filtri booleani complessi. A differenza dei database tradizionali, che operano su chiavi esplicite e valori strutturati, un database vettoriale permette di interrogare contenuti non strutturati (testo, immagini, tabelle) in modo semantico, sfruttando la distanza tra embedding come proxy per la similarità semantica. In questo contesto, Qdrant implementa varie metriche di distanza, tra cui la cosine similarity, metrica utilizzata nella nostra implementazione. 
+\subsection{Creazione e Gestione delle Collezioni in Qdrant}
+Il modulo \verb|QdrantManager| gestisce la connessione e l'interazione con il database vettoriale Qdrant. Il metodo \verb|create_collection| permette di creare collezioni specificando la dimensione del vettore e il tipo di distanza (in questo caso \verb|COSINE|), ed è in grado di forzare la ricreazione completa della collezione con \verb|force_recreate=True|, utile per garantire un aggiornamento coerente dei dati.
+La collezione supporta configurazioni persistenti su disco (\verb|on_disk=True|), consentendo lo storage anche su grandi volumi di dati. Il metodo \verb|ensure_collection_exists| verifica l'esistenza della collezione o la crea automaticamente se assente.
+L’inserimento nel database avviene tramite il metodo \verb|upsert_points|, che divide i punti in batch (es. da 64 elementi) e li invia al server Qdrant. Questo approccio batch-oriented è essenziale per ridurre la latenza e ottimizzare l’utilizzo di risorse di rete e CPU. Inoltre, il sistema fornisce un feedback continuo sul numero di elementi effettivamente indicizzati per tipo (\verb|text|, \verb|image|, \verb|table|).
+L’indicizzazione è accompagnata da un arricchimento semantico dei metadati, che abilita in fase di retrieval l’uso di filtri complessi:
+\begin{itemize}
+    \item \textbf{Filtri per tipo di contenuto} (\verb|create_content_filter|)
+    \item \textbf{Filtri per file selezionati} (\verb|create_file_filter|)
+    \item \textbf{Filtri combinati} con condizioni multiple (\verb|build_combined_filter|)
+\end{itemize}
+Questa capacità di filtraggio è fondamentale per scenari reali in cui è necessario circoscrivere la ricerca a subset specifici del corpus, \textbf{migliorando precisione e tempo di risposta}.
+La struttura dati generata e archiviata in Qdrant rappresenta l’input fondamentale per il retriever della pipeline RAG. Ogni punto è progettato per essere recuperabile tramite similarità vettoriale (k-NN) ed è dotato di metadati sufficienti per la generazione di risposte contestuali e coerenti. Il sistema supporta inoltre operazioni di cancellazione selettiva (es. \verb|delete_by_source|) per aggiornare dinamicamente l’indice quando cambiano i file sorgente.
+
+\section{Retrieval}
+
+Il modulo di retrieval si occupa non solo di identificare i contenuti rilevanti all'interno del database vettoriale, ma anche di costruire un contesto coerente, strutturato e semanticamente ricco, che viene poi utilizzato per guidare la generazione della risposta da parte del modello linguistico. 
+
+\subsection{Analisi dell'intento e adattamento dei parametri di retrieval}
+
+Il processo di retrieval si attiva a partire dalla query dell’utente e comincia con una fase di \textit{intent detection}, che classifica automaticamente la natura semantica della domanda. Il classificatore utilizza euristiche lessicali per determinare se la richiesta è di tipo fattuale (es. domande dirette o definizioni), tecnico (contenuti con codice, API, configurazioni), esplorativo (richieste generiche o narrative) o multi-modale (quando sono presenti riferimenti a grafici, immagini, tabelle o visualizzazioni). Questa distinzione è fondamentale per la selezione di parametri di ricerca adattivi, quali:
+\begin{itemize}
+    \item numero massimo di risultati (\verb|k|)
+    \item soglia di similarità (\verb|score_threshold|)
+    \item strategie di filtraggio condizionato (per tipo di contenuto o file specifici)
+    \item policy di classificazione della rilevanza
+\end{itemize}
+L’adattamento dei parametri avviene dinamicamente grazie ad una funzione che fornisce una configurazione ottimizzata per ogni combinazione di intento e tipo di contenuto.
+
+\subsection{Retrieval vettoriale in Qdrant}
+
+Dopo la classificazione semantica dell’intento, il sistema avvia una ricerca vettoriale tramite il gestore \verb|qdrant_manager|, il quale interroga la collezione vettoriale costruita in fase di indicizzazione. Le query vengono eseguite sullo spazio latente degli embedding, utilizzando come chiave di ricerca il vettore generato dalla query stessa (grazie al modello di embedding). Il retriever è in grado di restituire contenuti testuali, immagini e tabelle ordinati per similarità semantica, filtrati in base a eventuali file selezionati dall’utente o al tipo di contenuto.
+Ogni contenuto recuperato viene accompagnato da un payload arricchito di metadati, tra cui:
+\begin{itemize}
+    \item \verb|source|: nome del file di origine
+    \item \verb|page|: numero della pagina da cui il contenuto proviene
+    \item \verb|content_type|: tipo del contenuto (testo, immagine, tabella)
+    \item \verb|score|: punteggio di similarità tra query e documento
+    \item \verb|relevance_tier|: livello qualitativo della rilevanza (high, medium, low)
+\end{itemize}
+Nel caso di contenuti visuali, come immagini e tabelle, vengono integrati anche caption semantiche, ottenute tramite modelli di analisi visiva (es. YOLO, BLIP, OCR), che sintetizzano ciò che l’immagine rappresenta o riassumono il significato della tabella. Questo consente una comprensione più approfondita anche dei contenuti non testuali.
+
+\subsection{Costruzione del contesto e orchestrazione LLM}
+I risultati ottenuti dalla ricerca vengono aggregati e trasformati in una struttura testuale unificata, che costituisce il contesto per il modello generativo. Ogni documento viene serializzato in un formato descrittivo e interpretabile, che include il tipo di contenuto, il file di origine, la pagina, il grado di rilevanza e una preview del contenuto (testuale, tabellare o visivo). Le tabelle vengono rappresentate in formato HTML, mentre le immagini vengono descritte attraverso caption composte da descrizioni, testo rilevato e oggetti individuati.
+Questo contesto viene poi passato a un modello LLM specializzato  sotto forma di prompt dinamicamente costruito. Il prompt contiene sia la query originaria sia il corpo contestuale, strutturato in modo da fornire al modello le informazioni più significative e rilevanti per generare una risposta accurata. Il contesto può essere esteso o limitato in base al numero di documenti recuperati, al grado di rilevanza e alla lunghezza complessiva del prompt.
+\section{Generazione della risposta e metadati di tracciabilità}
+Il modello LLM elabora il prompt e restituisce una risposta in linguaggio naturale, che rappresenta una sintesi coerente e strutturata delle evidenze recuperate. L’output non si limita alla mera ripetizione dei contenuti trovati, ma incorpora un ragionamento linguistico guidato dal contesto semantico. Questo processo consente di rispondere anche a domande astratte o trasversali che richiedono l’integrazione di più fonti.
+In parallelo, il sistema raccoglie una serie di metriche di tracciabilità utili per la valutazione della qualità e della performance della query, tra cui:
+\begin{itemize}
+    \item tempo di risposta (\verb|query_time_ms|)
+    \item confidenza della risposta (\verb|confidence_score|), proporzionale al numero di documenti rilevanti trovati
+    \item numero di contenuti aggregati
+    \item tipologie di contenuti effettivamente coinvolti nella risposta
+    \item strategia di retrieval utilizzata (derivata dall’intento)
+\end{itemize}
+Questi metadati vengono restituiti insieme alla risposta in un oggetto strutturato (\verb|RetrievalResult|), che può essere visualizzato, archiviato o utilizzato per ulteriori analisi.
+\subsection{Modello Generativo}
+L’LLM impiegato in questa architettura è \textbf{meta-llama/llama-4-scout-17b-16e-instruct}, un modello  di casa Meta, appartenente alla famiglia LLaMA 4. Si tratta di una variante instruction-tuned basata su 17 miliardi di parametri e 16 expert layer, progettata per eccellere nei task di ragionamento guidato, question answering complesso, compilazione documentale e sintesi multi-sorgente. Questa versione di LLaMA 4 integra un'architettura MoE (Mixture of Experts), che seleziona dinamicamente un sottoinsieme specializzato di layer durante l’inferenza. Ciò consente di ottenere una capacità espressiva molto elevata a parità di costi computazionali contenuti, favorendo risposte più accurate e coerenti anche in presenza di contesti complessi e contenuti eterogenei.
+Essendo fine-tuned su prompt in stile instruct, il modello è ottimizzato per comprendere istruzioni naturali e generare risposte allineate all’intento dell’utente, anche in domini specialistici o semi-strutturati (come nel caso di immagini descritte con caption, tabelle in HTML o contenuto OCR). La sua robustezza permette inoltre una migliore gestione dei contenuti rumorosi, dei temi multidisciplinari e delle ambiguità lessicali.
+\subsection{Prompt}
+
+Il prompt engineering è una componente fondamentale nelle architetture RAG, in quanto rappresenta il ponte tra il contenuto recuperato dal sistema di retrieval e la capacità del modello generativo di produrre una risposta coerente, pertinente e informativamente densa. In un’architettura RAG, l'LLM non opera in isolamento, ma si affida a una fase precedente di recupero semantico dei documenti per avere accesso a informazioni esterne, spesso contenute in database vettoriali indicizzati con contenuti testuali, immagini o tabelle. Tuttavia, il solo recupero di contenuti rilevanti non garantisce una risposta adeguata: è il prompt che, se ben progettato, guida il comportamento del modello nel trasformare quel contesto in un output linguistico di qualità.
+
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=1\textwidth]{figures/prompt.png}
+\caption{Prompt utilizzato}
+\end{figure}
+Il prompt riportato impone una struttura rigorosa che massimizza l’efficacia del modello generativo. In primo luogo, il blocco di contesto {context} viene valorizzato dinamicamente con contenuti testuali, descrizioni di immagini e tabelle pertinenti alla query. Questo blocco è preceduto da una dichiarazione di ruolo ("You are an expert analyst...") che imposta l’identità professionale del modello, limitandone il comportamento a uno stile analitico, autorevole e informato. Segue un'istruzione esplicita a non inventare contenuti, requisito essenziale in scenari in cui l'affidabilità delle risposte è prioritaria come nel corrente contesto.
+Il prompt è poi suddiviso in sezioni operative che contribuiscono a migliorare la robustezza e la trasparenza del sistema. La sezione "PRELIMINARY CHECK" istruisce il modello a gestire l’incertezza con risposte calibrate, evitando hallucination in assenza di contenuti rilevanti. La "RESPONSE STRUCTURE" impone una logica narrativa alla risposta, facilitando la leggibilità e la comprensione per l’utente finale. Particolarmente significativa è la sezione "MULTIMODAL CONTENT", che specifica come trattare testi, immagini e tabelle, distinguendo le modalità di interpretazione richieste per ciascun tipo di contenuto: per il testo si enfatizza la citazione puntuale, per le immagini la descrizione visuale e per le tabelle l'analisi dei pattern numerici. Infine, le "QUALITY STANDARDS" fissano criteri di qualità, veridicità e tono comunicativo, fungendo da linea guida implicita per mantenere l’output entro limiti accettabili di accuratezza.
+Nel complesso, questo prompt agisce da orchestratore semantico: traduce una raccolta eterogenea di contenuti estratti in un contesto coerente e ne vincola l’elaborazione secondo regole rigorose, garantendo che la generazione finale sia non solo plausibile ma anche aderente ai vincoli imposti. In una pipeline RAG multi-modale come quella in oggetto, dove coesistono testo, immagini e dati tabulari, la scelta del prompt diventa quindi un elemento critico per la precisione e l’affidabilità del sistema di risposta, rafforzando il legame tra retrieval e generazione.
+
+\section{Benchmark}
+Per lo sviluppo dei benchmark, sono stati sottoposti ad esaminazione diversi paper di dominio differente, per la precisione sono stati analizzati 10 paper, ognuno dei quali in ambiti differenti, dalla matematica, all'economia passando per la fisica la geografia e l'informatica. Il tool utilizzato per paragonare i risultati di retrievial e generation è \textbf{Morphik}. Rappresenta un framework AI, che al momento delle sperimentazioni si trovava in prima posizione come \textbf{progetto open-source} su GitHub. Progettato e sviluppato per avere una comprensione a 360 gradi del documento, Morphik è stato costruito per essere una architettura multi-modale avanzata capace di catturare tutte le risorse del documento. Il servizio offre la possibilità di modificare alcuni parametri, questi sono dunque stati modificati per rendere il benchmarking coerente con la nostra implementazione.
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{figures/morphik.png}
+\caption{Configurazione di Morphik}
+\end{figure}
+
+I grafici di segito analizzati fanno riferimento ad un campione di 100 domande, più in dettaglio, per ogni paper sono state formulate 10 domande, dalla più semplice e lineare alla più complessa ed articolata, dopo di che sono state sottoposte ad entrambi i modelli e sono stati registrati diversi dati concentrandoci però su:
+\clearpage
+\subsection{Contesto Recuperato e Risposta Generata}
+Partendo quindi dalla configurazione definita e dal dataset di domande, sono stati generati i seguenti grafici.
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{graph/04_distribuzione_performance.png}
+\caption{Distribuzione Performance Globale}
+\end{figure}
+Il grafico in Figura 8 mostra come le risposte del modello si distribuiscono in diverse fasce di performance classificate come:
+\begin{itemize}
+    \item \textbf{Eccellente} (\(\geq0.85\)): risposte quasi identiche a quelle generate da Morphik
+    \item \textbf{Buono} (\(\geq0.7\)): risposte valide, con qualche lieve differenza ma con contesto catturato.
+    \item \textbf{Soglia Critica} (\(\geq0.3\)): risposte lontane da quelle generate da Morphik.
+    \item \textbf{Insufficiente} (\(<0.3\)): risposte che non son simili per contesto non catturato.
+\end{itemize}
+La media delle similarità semantiche è pari a $0.721$ indicando una \textbf{buona performance complessiva} del modello. Questo valore suggerisce che la maggior parte delle risposte generate risultano semanticamente vicine a quelle attese, evidenziando una solida capacità di comprensione e riproduzione del significato.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{graph/01_performance_per_difficolta.png}
+\caption{Performance per Difficoltà}
+\end{figure}
+
+Il grafico riportato in Figura 9 mostra come il nostro modello mantenga una similarità media relativamente alta su tutti i livelli di difficoltà, indicando che l’architettura adottata produce risposte in larga parte coerenti con quelle generate da Morphik. Inoltre, si osserva che anche in presenza di domande particolarmente complesse e specifiche – che richiedono un captioning preciso delle risorse contenute nel PDF – il modello si comporta in modo adeguato, fornendo risposte esaustive e pertinenti.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{graph/02_performance_per_argomento.png}
+\caption{performance per macro-argomento}
+\end{figure}
+
+il grafico di Figura 10 mostra la similarità semantica media delle risposte generate dal nostro modello, suddivise per macro-argomenti. Sull’asse verticale sono elencati i diversi ambiti tematici, mentre sull’asse orizzontale è riportato il valore medio di similarità, compreso tra 0 e 1, che indica quanto le risposte del modello siano semanticamente vicine a quelle di riferimento.
+
+Dal grafico emerge che i risultati migliori sono ottenuti nei settori della Matematica ($0.76$), Ambiente ($0.75$), Ingegneria e Tecnologia (entrambi $0.74$). Questi valori indicano un’elevata coerenza semantica nelle risposte generate in questi ambiti, suggerendo che il modello è particolarmente efficace nel comprendere e rispondere a domande su tali argomenti.
+
+Al contrario, la performance più bassa si riscontra in Geografia, con una similarità media di $0.60$. Questo potrebbe essere dovuto alla complessità o alla natura specifica dei contenuti, come ad esempio l’interpretazione di elementi visivi o dati geografici, che il modello potrebbe non catturare completamente.
+
+Altri macro-argomenti come Energia ($0.67$) e Generale ($0.72$) mostrano valori intermedi, riflettendo una performance soddisfacente ma con margini di miglioramento.
+
+Il numero tra parentesi accanto ad ogni macro-argomento indica il numero di esempi valutati, il che è importante per contestualizzare l’affidabilità delle medie: ad esempio, Tecnologia è basata su 27 esempi, mentre Ambiente solo su 1, suggerendo che quest’ultimo dato potrebbe essere meno rappresentativo
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{graph/03_heatmap_argomento_difficolta.png}
+\caption{Heatmap}
+\end{figure}
+La heatmap riportata in Figura 11 visualizza la similarità semantica media tra le risposte prodotte dalla nostra architettura e quelle di Morphik, suddivisa per coppie (macro-argomento, categoria di difficoltà). Si tratta di un’analisi comparativa dettagliata, finalizzata a mettere in evidenza non solo le performance generali, ma anche la sensibilità del modello rispetto alla natura e alla complessità del contenuto trattato.
+
+Dall’analisi emergono performance particolarmente elevate nei macro-argomenti relativi a ingegneria e tecnologia, mentre la geografia si configura come il punto più debole. Questo può essere attribuito alla presenza di contenuti visivi complessi in tale ambito, che potrebbero non essere stati interpretati correttamente dal modello.
+
+È importante sottolineare che i grafici presentati non mirano a verificare l’identicità delle risposte tra le due architetture. Lo scopo del benchmark è invece quello di valutare la correttezza e la coerenza del contesto semantico recuperato. Pretendere risposte identiche sarebbe irragionevole, considerando che Morphik si basa su modelli di embedding e generazione differenti rispetto a quelli utilizzati nella nostra architettura.
+
+Nonostante queste differenze, i risultati ottenuti sono nel complesso molto positivi: i grafici mostrano un buon livello di recupero semantico, con risposte coerenti e pertinenti rispetto alle domande poste, a conferma dell'efficacia del modello nella comprensione e generazione del contenuto.
+
+\section{Approcci Differenti}
+Per lo sviluppo di questa architettura RAG, riassumendo è stato eseguito un parsing della struttura del pdf attraverso unstructured e sono stati effettuati i chunk. Per la gestione delle immagini è stato creato un riassunto del significato e le tabelle sono state trasformate in formato HTML. Successivamente sono stati indicizzati tutti gli elementi arricchiti con i relativi metadati su Qdrant. L'embedding di questi punti è stato fatto attraverso il modello multi-modale  sentence-transformers/clip-ViT-B-32-multilingual-v1. Infine gli elementi vengono recuperati grazie al retriever che crea un contesto, passato al prompt del sistema generativo che si occupa di fornire la risposta all'utente. Le scelte fatte quindi, sono state analizzate su una varia scala di possibilità, di framework, e di approcci possibili. Di seguito vengono descritti approcci che differiscono dall'implementazione attuale rispetto al parsing e all'embedding degli elementi che possono essere valide se non migliori alternative di architettura.
+\subsection{Approccio di ColPali}
+L’importanza del modello di embedding è ormai ampiamente riconosciuta: la qualità dell'embedding influenza direttamente l’efficacia del retriever nella fase di interrogazione del database vettoriale. Nel contesto del presente lavoro, l’elaborazione di PDF strutturati richiede l’estrazione e l’embedding sia del testo che delle immagini contenute.
+Per quanto riguarda il testo, questo viene suddiviso in segmenti (chunk) che vengono successivamente trasformati in vettori semantici e indicizzati nel database. In caso di immagini, invece, viene prima generata una descrizione testuale (caption) tramite un modello di image captioning, e tale descrizione viene poi convertita in embedding per l’indicizzazione.
+Un contributo rilevante in questa direzione è stato proposto da ColPali, che ha introdotto un approccio innovativo per la gestione multi-modale dei PDF. In particolare, il documento viene scomposto a livello di pagina, e ogni pagina viene ulteriormente segmentata in regioni visive distinte. Queste sezioni vengono elaborate da un Vision Language Model in grado di proiettare le informazioni visive nello stesso spazio latente del testo.
+Questo tipo di rappresentazione multi-modale unificata apre a scenari avanzati, abilitando applicazioni come il question answering multi-modale, il visual grounding e il fact-checking su contenuti documentali visivi.
+
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=0.75\linewidth]{figures/colpali.png}
+\caption{Approccio Standard (nostro) vs ColPali}
+\end{figure}
+
+
+\subsection{Jina Embeddings V4}
+Si tratta di un modello di embedding con una dimensione di circa 3.8 miliardi di parametri, modello molto grande, che supera la versione precedente di Jina (Embeddings V3) che si fermava a 559M di parametri. 
+In input è possibile fornire sia testo che immagini. In caso di immagini, viene adottato l’approccio ColPali, che consente di proiettare le feature visive nello stesso spazio latente del testo grazie all’integrazione con il decoder multi-modale del language model Qwen2.5. Il risultato è un embedding semantico omogeneo, indipendente dalla modalità di input.
+È inoltre possibile specificare il comportamento della task applicando tecniche di fine-tuning efficienti come LoRA, che consente di modulare i pesi del decoder e adattarne la risposta a contesti o obiettivi specifici.
+Il modello supporta anche la modalità multi-vector, abilitando la rappresentazione dell’input non con un singolo vettore denso, ma con una serie di vettori di dimensioni differenti secondo la tecnica Matryoshka. Questo approccio consente, ad esempio, di sostituire un embedding unico da 1024 dimensioni con più vettori parziali che, combinati, preservano l’informazione originale. Tale struttura permette il \textit{trimming} selettivo delle dimensioni, mantenendo la qualità semantica e rendendo possibile una ricerca efficiente tramite similarità coseno.
+
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=0.75\linewidth]{figures/jina.png}
+\caption{Architettura Jina Embeddings V4}
+\end{figure}
+
