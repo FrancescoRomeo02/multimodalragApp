@@ -41,7 +41,7 @@
 
 ## Data Flow
 
-<img width="958" height="587" alt="Image" src="https://github.com/user-attachments/assets/04d3bd1b-89e3-4803-aa9a-33b656179af4" />
+<img width="3684" height="1789" alt="diagram" src="https://github.com/user-attachments/assets/3efae443-9a70-4c81-af10-ee66da3eadab" />
 
 ---
 
